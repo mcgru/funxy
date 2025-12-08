@@ -1,0 +1,30 @@
+// Test: Constraint generics
+// fun display<T: Show>(x: T) -> String
+
+trait Show<T> {
+    fun show(val: T) -> String
+}
+
+instance Show Int {
+    fun show(val: Int) -> String {
+        "int"
+    }
+}
+
+instance Show Bool {
+    fun show(val: Bool) -> String {
+        if val { "true" } else { "false" }
+    }
+}
+
+// Constrained function - T must implement Show
+fun display<T: Show>(x: T) -> String {
+    show(x)
+}
+
+// Test with Int - works
+print(display(42))
+
+// Test with Bool - works  
+print(display(true))
+print(display(false))

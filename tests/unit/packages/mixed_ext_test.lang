@@ -1,0 +1,14 @@
+// Test that only files with main extension are loaded
+// mixedlib has mixedlib.lang (main) and ignored.funxy
+// Only .lang files should be loaded
+
+import "lib/test" (*)
+import "./mixedlib" (fromLang)
+
+testRun("Mixed extensions - only main extension loaded", fun() -> {
+    // fromLang should work (from mixedlib.lang)
+    assertEquals(fromLang(), "from lang")
+    
+    // Note: fromFunxy is NOT imported because ignored.funxy 
+    // has different extension than main file (mixedlib.lang)
+})

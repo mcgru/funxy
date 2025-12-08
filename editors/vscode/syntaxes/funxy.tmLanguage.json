@@ -1,0 +1,282 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Funxy",
+  "scopeName": "source.funxy",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#operators" },
+    { "include": "#functions" },
+    { "include": "#variables" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.funxy",
+          "match": "//.*$"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.other.bits.funxy",
+          "begin": "#b\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.funxy",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.other.bits.funxy",
+          "begin": "#x\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.funxy",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.other.bits.funxy",
+          "begin": "#o\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.funxy",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.other.bytes.funxy",
+          "begin": "@x\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.funxy",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.other.bytes.funxy",
+          "begin": "@b\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.funxy",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.other.bytes.funxy",
+          "begin": "@\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.funxy",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.double.funxy",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.funxy",
+              "match": "\\\\."
+            },
+            {
+              "name": "meta.embedded.line.funxy",
+              "begin": "\\$\\{",
+              "end": "\\}",
+              "patterns": [{ "include": "$self" }]
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.raw.funxy",
+          "begin": "`",
+          "end": "`"
+        },
+        {
+          "name": "string.quoted.single.funxy",
+          "match": "'[^'\\\\]'"
+        },
+        {
+          "name": "string.quoted.single.escape.funxy",
+          "match": "'\\\\[nrt\\\\'\"]'"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.bigint.funxy",
+          "match": "\\b[0-9]+n\\b"
+        },
+        {
+          "name": "constant.numeric.rational.funxy",
+          "match": "\\b[0-9]+\\.?[0-9]*r\\b"
+        },
+        {
+          "name": "constant.numeric.hex.funxy",
+          "match": "\\b0x[0-9a-fA-F]+\\b"
+        },
+        {
+          "name": "constant.numeric.octal.funxy",
+          "match": "\\b0o[0-7]+\\b"
+        },
+        {
+          "name": "constant.numeric.binary.funxy",
+          "match": "\\b0b[01]+\\b"
+        },
+        {
+          "name": "constant.numeric.float.funxy",
+          "match": "\\b[0-9]+\\.[0-9]+\\b"
+        },
+        {
+          "name": "constant.numeric.integer.funxy",
+          "match": "\\b[0-9]+\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.funxy",
+          "match": "\\b(if|else|match|for|in|break|continue)\\b"
+        },
+        {
+          "name": "keyword.declaration.funxy",
+          "match": "\\b(fun|type|alias|trait|instance|package|import|operator|where)\\b"
+        },
+        {
+          "name": "constant.language.funxy",
+          "match": "\\b(true|false|nil)\\b"
+        },
+        {
+          "name": "keyword.other.funxy",
+          "match": "\\b(as)\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "support.type.builtin.funxy",
+          "match": "\\b(Int|Float|Bool|String|Char|List|Map|Option|Result|BigInt|Rational|Nil)\\b"
+        },
+        {
+          "name": "entity.name.type.funxy",
+          "match": "\\b[A-Z][a-zA-Z0-9_]*\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.arrow.funxy",
+          "match": "->"
+        },
+        {
+          "name": "keyword.operator.fatarrow.funxy",
+          "match": "=>"
+        },
+        {
+          "name": "punctuation.definition.map.funxy",
+          "match": "%\\{"
+        },
+        {
+          "name": "keyword.operator.spread.funxy",
+          "match": "\\.\\.\\."
+        },
+        {
+          "name": "keyword.operator.pipe.funxy",
+          "match": "\\|>"
+        },
+        {
+          "name": "keyword.operator.compose.funxy",
+          "match": ",,"
+        },
+        {
+          "name": "keyword.operator.cons.funxy",
+          "match": "::"
+        },
+        {
+          "name": "keyword.operator.concat.funxy",
+          "match": "\\+\\+"
+        },
+        {
+          "name": "keyword.operator.nullcoalesce.funxy",
+          "match": "\\?\\?"
+        },
+        {
+          "name": "keyword.operator.optionalchain.funxy",
+          "match": "\\?\\."
+        },
+        {
+          "name": "keyword.operator.user.funxy",
+          "match": "<>|<\\|>|<\\*>|>>=|<\\$>|<:>|<~>|<\\||=>"
+        },
+        {
+          "name": "keyword.operator.comparison.funxy",
+          "match": "==|!=|<=|>=|<|>"
+        },
+        {
+          "name": "keyword.operator.logical.funxy",
+          "match": "&&|\\|\\|"
+        },
+        {
+          "name": "keyword.operator.arithmetic.funxy",
+          "match": "\\+|-|\\*\\*|\\*|/|%"
+        },
+        {
+          "name": "keyword.operator.bitwise.funxy",
+          "match": "&|\\||\\^|~|<<|>>"
+        },
+        {
+          "name": "keyword.operator.assignment.compound.funxy",
+          "match": "\\*\\*=|\\+=|-=|\\*=|/=|%="
+        },
+        {
+          "name": "keyword.operator.assignment.funxy",
+          "match": "=|:-"
+        }
+      ]
+    },
+    "functions": {
+      "patterns": [
+        {
+          "name": "entity.name.function.funxy",
+          "match": "\\b([a-z_][a-zA-Z0-9_]*)\\s*(?=\\()"
+        },
+        {
+          "name": "support.function.builtin.funxy",
+          "match": "\\b(print|panic|typeOf|getType|show|read|intToFloat|floatToInt)\\b"
+        }
+      ]
+    },
+    "variables": {
+      "patterns": [
+        {
+          "name": "variable.other.funxy",
+          "match": "\\b[a-z_][a-zA-Z0-9_]*\\b"
+        }
+      ]
+    }
+  }
+}
+

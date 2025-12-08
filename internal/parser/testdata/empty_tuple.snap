@@ -1,0 +1,10 @@
+--- AST Tree ---
+Program
+  Assign
+    Left: Identifier(x)
+    Value: Tuple
+
+
+
+--- Source Code ---
+x = ()

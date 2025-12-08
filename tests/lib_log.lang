@@ -1,0 +1,67 @@
+import "lib/log" (*)
+
+// Test basic logging (output goes to stderr)
+print("=== Basic logging ===")
+logLevel("debug")
+logDebug("Debug message")
+logInfo("Info message")
+logWarn("Warning message")
+logError("Error message")
+logFatal("Fatal message (no exit)")
+
+// Test level filtering
+print("=== Level filtering ===")
+logLevel("warn")
+logDebug("Should not appear")
+logInfo("Should not appear")
+logWarn("This should appear")
+logError("This should appear too")
+
+// Reset to info
+logLevel("info")
+
+// Test structured logging with string values
+print("=== Structured logging ===")
+logWithFields("info", "User action", %{
+    "user_id" => "123",
+    "action" => "login",
+    "duration_ms" => "45"
+})
+
+// Test JSON format
+print("=== JSON format ===")
+logFormat("json")
+logInfo("JSON log message")
+logWithFields("warn", "Request failed", %{
+    "status" => "500",
+    "path" => "/api/users"
+})
+
+// Back to text
+logFormat("text")
+
+// Test prefixed logger
+print("=== Prefixed logger ===")
+httpLog = logWithPrefix("http")
+dbLog = logWithPrefix("db")
+
+loggerInfo(httpLog, "Server started")
+loggerWarn(httpLog, "Slow request")
+loggerInfo(dbLog, "Connected to database")
+loggerError(dbLog, "Query failed")
+
+// Test prefixed logger with fields
+loggerWithFields(httpLog, "info", "Request completed", %{
+    "method" => "GET",
+    "path" => "/api/health",
+    "status" => "200"
+})
+
+// Test color toggle
+print("=== Colors disabled ===")
+logColor(false)
+logInfo("No colors here")
+logColor(true)
+logInfo("Colors back")
+
+print("=== lib/log tests passed! ===")

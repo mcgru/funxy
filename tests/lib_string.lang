@@ -1,0 +1,121 @@
+import "lib/string" (*)
+
+// =============================================================================
+// lib/string - String Functions Tests
+// =============================================================================
+
+print("=== Split/Join ===")
+
+// stringSplit: (String, String) -> List<String>
+print(stringSplit("a,b,c", ","))           // ["a", "b", "c"]
+print(stringSplit("hello", ""))            // ["h", "e", "l", "l", "o"]
+print(stringSplit("one::two::three", "::")) // ["one", "two", "three"]
+print(stringSplit("no-match", ","))        // ["no-match"]
+
+// stringJoin: (List<String>, String) -> String
+print(stringJoin(["a", "b", "c"], ","))    // "a,b,c"
+print(stringJoin(["a", "b", "c"], ""))     // "abc"
+print(stringJoin(["hello"], "-"))          // "hello"
+print(stringJoin([], ","))                 // ""
+
+// stringLines: (String) -> List<String>
+multiline = "line1
+line2
+line3"
+print(stringLines(multiline))              // ["line1", "line2", "line3"]
+
+// stringWords: (String) -> List<String>
+print(stringWords("hello   world  test"))  // ["hello", "world", "test"]
+print(stringWords("  spaces  "))           // ["spaces"]
+print(stringWords("single"))               // ["single"]
+
+print("=== Trimming ===")
+
+// stringTrim: (String) -> String
+print(stringTrim("  hello  "))             // "hello"
+print(stringTrim("hello"))                 // "hello"
+print(stringTrim("   "))                   // ""
+
+// stringTrimStart: (String) -> String
+print(stringTrimStart("  hello"))          // "hello"
+print(stringTrimStart("hello  "))          // "hello  "
+
+// stringTrimEnd: (String) -> String
+print(stringTrimEnd("hello  "))            // "hello"
+print(stringTrimEnd("  hello"))            // "  hello"
+
+print("=== Case Conversion ===")
+
+// stringToUpper: (String) -> String
+print(stringToUpper("hello"))              // "HELLO"
+print(stringToUpper("Hello World"))        // "HELLO WORLD"
+print(stringToUpper("123"))                // "123"
+
+// stringToLower: (String) -> String
+print(stringToLower("HELLO"))              // "hello"
+print(stringToLower("Hello World"))        // "hello world"
+
+// stringCapitalize: (String) -> String
+print(stringCapitalize("hello"))           // "Hello"
+print(stringCapitalize("HELLO"))           // "HELLO"
+print(stringCapitalize(""))                // ""
+
+print("=== Search/Replace ===")
+
+// stringReplace: (String, String, String) -> String (first occurrence)
+print(stringReplace("hello", "l", "L"))    // "heLlo"
+print(stringReplace("hello", "ll", "LL"))  // "heLLo"
+print(stringReplace("hello", "x", "X"))    // "hello" (no match)
+
+// stringReplaceAll: (String, String, String) -> String (all occurrences)
+print(stringReplaceAll("hello", "l", "L")) // "heLLo"
+print(stringReplaceAll("banana", "a", "o")) // "bonono"
+
+// stringStartsWith: (String, String) -> Bool
+print(stringStartsWith("hello", "hel"))    // true
+print(stringStartsWith("hello", "ell"))    // false
+print(stringStartsWith("hello", ""))       // true
+print(stringStartsWith("", "a"))           // false
+
+// stringEndsWith: (String, String) -> Bool
+print(stringEndsWith("hello", "lo"))       // true
+print(stringEndsWith("hello", "ll"))       // false
+print(stringEndsWith("hello", ""))         // true
+print(stringEndsWith("", "a"))             // false
+
+// stringIndexOf: (String, String) -> Option<Int>
+print(stringIndexOf("hello", "ll"))      // Some(2)
+print(stringIndexOf("hello", "o"))       // Some(4)
+print(stringIndexOf("hello", "x"))       // Zero
+print(stringIndexOf("hello", ""))        // Some(0)
+
+print("=== Other ===")
+
+// stringRepeat: (String, Int) -> String
+print(stringRepeat("ab", 3))               // "ababab"
+print(stringRepeat("x", 5))                // "xxxxx"
+print(stringRepeat("hi", 0))               // ""
+
+// stringPadLeft: (String, Int, Char) -> String
+print(stringPadLeft("42", 5, '0'))         // "00042"
+print(stringPadLeft("hello", 3, '-'))      // "hello" (already >= length)
+print(stringPadLeft("", 3, 'x'))           // "xxx"
+
+// stringPadRight: (String, Int, Char) -> String
+print(stringPadRight("42", 5, '-'))        // "42---"
+print(stringPadRight("hello", 3, '-'))     // "hello" (already >= length)
+print(stringPadRight("", 3, 'x'))          // "xxx"
+
+print("=== Composition ===")
+
+// Chain string operations with pipe
+result = "  HELLO WORLD  " |> stringTrim |> stringToLower |> stringCapitalize
+print(result)  // "Hello world"
+
+// Split and join
+csv = "a,b,c"
+parts = stringSplit(csv, ",")
+rejoined = stringJoin(parts, " | ")
+print(rejoined)  // "a | b | c"
+
+print("=== lib/string tests passed! ===")

@@ -1,0 +1,240 @@
+import "lib/io" (*)
+import "lib/test" (*)
+
+testDir :- "/tmp/test_unit_io"
+
+// Setup: create test directory
+match dirCreateAll(testDir) {
+    Ok(_) -> Nil
+    Fail(_) -> Nil
+}
+
+// ============================================================================
+// File Operations
+// ============================================================================
+
+testRun("fileWrite and fileRead", fun() -> {
+    path = testDir ++ "/test_rw.txt"
+    match fileWrite(path, "hello") {
+        Ok(n) -> assertEquals(n, 5)
+        Fail(_) -> assert(false)
+    }
+    match fileRead(path) {
+        Ok(content) -> assertEquals(content, "hello")
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("fileReadAt", fun() -> {
+    path = testDir ++ "/test_readat.txt"
+    match fileWrite(path, "0123456789") {
+        Ok(_) -> Nil
+        Fail(_) -> Nil
+    }
+    match fileReadAt(path, 3, 4) {
+        Ok(content) -> assertEquals(content, "3456")
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("fileAppend", fun() -> {
+    path = testDir ++ "/test_append.txt"
+    match fileWrite(path, "hello") {
+        Ok(_) -> Nil
+        Fail(_) -> Nil
+    }
+    match fileAppend(path, " world") {
+        Ok(_) -> Nil
+        Fail(_) -> Nil
+    }
+    match fileRead(path) {
+        Ok(content) -> assertEquals(content, "hello world")
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("fileExists true", fun() -> {
+    path = testDir ++ "/test_exists.txt"
+    match fileWrite(path, "x") {
+        Ok(_) -> Nil
+        Fail(_) -> Nil
+    }
+    assert(fileExists(path))
+})
+
+testRun("fileExists false", fun() -> {
+    assert(fileExists("/tmp/nonexistent_12345") == false)
+})
+
+testRun("fileSize", fun() -> {
+    path = testDir ++ "/test_size.txt"
+    match fileWrite(path, "12345") {
+        Ok(_) -> Nil
+        Fail(_) -> Nil
+    }
+    match fileSize(path) {
+        Ok(size) -> assertEquals(size, 5)
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("fileDelete", fun() -> {
+    path = testDir ++ "/test_delete.txt"
+    match fileWrite(path, "x") {
+        Ok(_) -> Nil
+        Fail(_) -> Nil
+    }
+    assertOk(fileDelete(path))
+    assert(fileExists(path) == false)
+})
+
+testRun("fileRead non-existent", fun() -> {
+    assertFail(fileRead("/tmp/nonexistent_12345"))
+})
+
+// ============================================================================
+// Directory Operations
+// ============================================================================
+
+testRun("dirCreate", fun() -> {
+    path = testDir ++ "/newdir"
+    match dirRemoveAll(path) {
+        Ok(_) -> Nil
+        Fail(_) -> Nil
+    }
+    assertOk(dirCreate(path))
+    assert(dirExists(path))
+})
+
+testRun("dirCreateAll nested", fun() -> {
+    path = testDir ++ "/nested/a/b/c"
+    match dirRemoveAll(testDir ++ "/nested") {
+        Ok(_) -> Nil
+        Fail(_) -> Nil
+    }
+    assertOk(dirCreateAll(path))
+    assert(dirExists(path))
+})
+
+testRun("dirRemove empty", fun() -> {
+    path = testDir ++ "/empty_to_remove"
+    match dirCreate(path) {
+        Ok(_) -> Nil
+        Fail(_) -> Nil
+    }
+    assertOk(dirRemove(path))
+    assert(dirExists(path) == false)
+})
+
+testRun("dirRemove non-empty fails", fun() -> {
+    path = testDir ++ "/nonempty"
+    match dirCreate(path) {
+        Ok(_) -> Nil
+        Fail(_) -> Nil
+    }
+    match fileWrite(path ++ "/file.txt", "x") {
+        Ok(_) -> Nil
+        Fail(_) -> Nil
+    }
+    assertFail(dirRemove(path))
+})
+
+testRun("dirRemoveAll", fun() -> {
+    path = testDir ++ "/removeall"
+    match dirCreateAll(path ++ "/sub1/sub2") {
+        Ok(_) -> Nil
+        Fail(_) -> Nil
+    }
+    match fileWrite(path ++ "/file.txt", "x") {
+        Ok(_) -> Nil
+        Fail(_) -> Nil
+    }
+    assertOk(dirRemoveAll(path))
+    assert(dirExists(path) == false)
+})
+
+testRun("dirList", fun() -> {
+    path = testDir ++ "/listdir"
+    match dirCreate(path) {
+        Ok(_) -> Nil
+        Fail(_) -> Nil
+    }
+    match fileWrite(path ++ "/a.txt", "a") {
+        Ok(_) -> Nil
+        Fail(_) -> Nil
+    }
+    match fileWrite(path ++ "/b.txt", "b") {
+        Ok(_) -> Nil
+        Fail(_) -> Nil
+    }
+    match dirCreate(path ++ "/subdir") {
+        Ok(_) -> Nil
+        Fail(_) -> Nil
+    }
+    match dirList(path) {
+        Ok(items) -> assertEquals(len(items), 3)
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("dirList non-existent", fun() -> {
+    assertFail(dirList("/tmp/nonexistent_dir_12345"))
+})
+
+testRun("dirExists true", fun() -> {
+    assert(dirExists(testDir))
+})
+
+testRun("dirExists false", fun() -> {
+    assert(dirExists("/tmp/nonexistent_dir_12345") == false)
+})
+
+// ============================================================================
+// Path Type Checks
+// ============================================================================
+
+testRun("isDir on directory", fun() -> {
+    assert(isDir(testDir))
+})
+
+testRun("isDir on file", fun() -> {
+    path = testDir ++ "/isdir_file.txt"
+    match fileWrite(path, "x") {
+        Ok(_) -> Nil
+        Fail(_) -> Nil
+    }
+    assert(isDir(path) == false)
+})
+
+testRun("isDir non-existent", fun() -> {
+    assert(isDir("/tmp/nonexistent_12345") == false)
+})
+
+testRun("isFile on file", fun() -> {
+    path = testDir ++ "/isfile_test.txt"
+    match fileWrite(path, "x") {
+        Ok(_) -> Nil
+        Fail(_) -> Nil
+    }
+    assert(isFile(path))
+})
+
+testRun("isFile on directory", fun() -> {
+    assert(isFile(testDir) == false)
+})
+
+testRun("isFile non-existent", fun() -> {
+    assert(isFile("/tmp/nonexistent_12345") == false)
+})
+
+// ============================================================================
+// Cleanup
+// ============================================================================
+
+testRun("cleanup test directory", fun() -> {
+    match dirRemoveAll(testDir) {
+        Ok(_) -> Nil
+        Fail(_) -> Nil
+    }
+    assert(true)
+})

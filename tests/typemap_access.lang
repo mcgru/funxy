@@ -1,0 +1,24 @@
+// Test that analyzer provides types to evaluator via TypeMap
+// This is infrastructure for pure/mempty dispatch
+
+// Simple expression with known type
+x = 42
+print(x)
+
+// Generic function - analyzer knows return type
+fun identity<T>(x: T) -> T { x }
+y = identity(100)
+print(y)
+
+// With explicit annotation
+z: Option<Int> = Some(50)
+print(z)
+
+// The TypeMap contains:
+// - x = 42 → Int
+// - identity(100) → Int  
+// - z → Option<Int>
+// - Some(50) → Option<Int>
+
+print("TypeMap infrastructure test passed!")
+

@@ -1,0 +1,4 @@
+import "utils"
+
+utils.visible_func()
+utils.another_func()

@@ -1,0 +1,133 @@
+import "lib/tuple" (*)
+
+// =============================================================================
+// lib/tuple - Tuple Functions Tests
+// =============================================================================
+
+print("=== Basic Access ===")
+
+// fst: (A, B) -> A
+pair = (1, "hello")
+print(fst(pair))   // 1
+print(fst((true, 42)))  // true
+
+// snd: (A, B) -> B
+print(snd(pair))   // "hello"
+print(snd((true, 42)))  // 42
+
+// Index syntax: tuple[i] — same as lists!
+print(pair[0])     // 1
+print(pair[1])     // "hello"
+print(pair[-1])    // "hello" (negative indexing)
+
+// tupleGet: (Tuple, Int) -> T — function form
+triple = (10, 20, 30)
+x: Int = tupleGet(triple, 0)
+y: Int = tupleGet(triple, 1)
+z: Int = tupleGet(triple, 2)
+print(x)  // 10
+print(y)  // 20
+print(z)  // 30
+
+// Index syntax with triples
+print(triple[0])  // 10
+print(triple[1])  // 20
+print(triple[2])  // 30
+
+// tupleGet with pair
+a: Int = tupleGet(pair, 0)
+b: String = tupleGet(pair, 1)
+print(a)  // 1
+print(b)  // "hello"
+
+print("=== Transformation ===")
+
+// tupleSwap: (A, B) -> (B, A)
+swapped = tupleSwap(pair)
+print(swapped)  // ("hello", 1)
+print(tupleSwap((1, 2)))  // (2, 1)
+
+// tupleDup: A -> (A, A)
+doubled = tupleDup(42)
+print(doubled)  // (42, 42)
+print(tupleDup("x"))  // ("x", "x")
+
+print("=== Mapping ===")
+
+// mapFst: ((A) -> C, (A, B)) -> (C, B)
+mapped1 = mapFst(fun(x) -> x * 2, (5, "test"))
+print(mapped1)  // (10, "test")
+
+// mapSnd: ((B) -> C, (A, B)) -> (A, C)
+mapped2 = mapSnd(fun(s) -> s ++ "!", (5, "test"))
+print(mapped2)  // (5, "test!")
+
+// mapPair: ((A) -> C, (B) -> D, (A, B)) -> (C, D)
+mapped3 = mapPair(fun(x) -> x * 2, fun(s) -> s ++ "!", (5, "test"))
+print(mapped3)  // (10, "test!")
+
+// mapPair with different types
+mapped4 = mapPair(fun(x) -> x > 0, fun(x) -> x * 2, (5, 10))
+print(mapped4)  // (true, 20)
+
+print("=== Currying ===")
+
+// curry: ((A, B) -> C) -> (A) -> (B) -> C
+fun addPair(p: (Int, Int)) -> Int { fst(p) + snd(p) }
+curriedAdd = curry(addPair)
+print(curriedAdd(3)(4))  // 7
+print(curriedAdd(10)(20))  // 30
+
+// Partial application with curry
+add3 = curriedAdd(3)
+print(add3(7))  // 10
+
+// uncurry: ((A) -> (B) -> C) -> (A, B) -> C
+fun addCurried(a: Int) -> (Int) -> Int { fun(b) -> a + b }
+uncurriedAdd = uncurry(addCurried)
+print(uncurriedAdd((10, 20)))  // 30
+print(uncurriedAdd((5, 5)))    // 10
+
+// curry and uncurry are inverses
+fun mulPair(p: (Int, Int)) -> Int { fst(p) * snd(p) }
+curriedMul = curry(mulPair)
+uncurriedMul = uncurry(curriedMul)
+print(mulPair((3, 4)))         // 12
+print(curriedMul(3)(4))        // 12
+print(uncurriedMul((3, 4)))    // 12
+
+print("=== Predicates ===")
+
+// tupleBoth: ((A) -> Bool, (A, A)) -> Bool
+isPositive = fun(x: Int) -> x > 0
+print(tupleBoth(isPositive, (5, 10)))   // true
+print(tupleBoth(isPositive, (5, -1)))   // false
+print(tupleBoth(isPositive, (-5, 10)))  // false
+print(tupleBoth(isPositive, (-5, -1)))  // false
+
+isEven = fun(x: Int) -> x % 2 == 0
+print(tupleBoth(isEven, (2, 4)))   // true
+print(tupleBoth(isEven, (2, 3)))   // false
+
+// tupleEither: ((A) -> Bool, (A, A)) -> Bool
+print(tupleEither(isPositive, (5, -1)))   // true
+print(tupleEither(isPositive, (-5, 10)))  // true
+print(tupleEither(isPositive, (-5, -1)))  // false
+print(tupleEither(isPositive, (5, 10)))   // true
+
+print(tupleEither(isEven, (1, 2)))   // true
+print(tupleEither(isEven, (1, 3)))   // false
+
+print("=== Composition ===")
+
+// Chaining tuple functions
+result = (1, 2) |> tupleSwap |> mapFst(fun(x) -> x * 10)
+print(result)  // (20, 1)
+
+// Using with fst/snd
+coords = (10, 20)
+xCoord = fst(coords)
+yCoord = snd(coords)
+print(xCoord + yCoord)  // 30
+
+print("=== lib/tuple tests passed! ===")

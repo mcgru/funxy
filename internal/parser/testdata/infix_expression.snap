@@ -1,0 +1,13 @@
+--- AST Tree ---
+Program
+  Assign
+    Left: Identifier(a)
+    Value: Infix(+)
+      Left: IntegerLiteral(5)
+      Right: Infix(*)
+        Left: IntegerLiteral(2)
+        Right: IntegerLiteral(10)
+
+
+--- Source Code ---
+a = 5 + 2 * 10

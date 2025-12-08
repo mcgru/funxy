@@ -1,0 +1,927 @@
+// Comprehensive SQL tests
+
+import "lib/sql" (*)
+import "lib/map" (mapGet)
+import "lib/test" (*)
+import "lib/list" (head)
+import "lib/date" (dateNew)
+import "lib/bignum" (bigIntNew)
+import "lib/io" (fileExists, fileDelete)
+
+// ============================================================================
+// Connection Tests
+// ============================================================================
+
+testRun("sqlOpen in-memory", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            assert(true)
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("sqlOpen invalid driver", fun() -> {
+    match sqlOpen("postgres", "localhost") {
+        Ok(_) -> assert(false)
+        Fail(_) -> assert(true)
+    }
+})
+
+testRun("sqlPing", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            match sqlPing(db) {
+                Ok(_) -> assert(true)
+                Fail(_) -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("sqlClose", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            match sqlClose(db) {
+                Ok(_) -> assert(true)
+                Fail(_) -> assert(false)
+            }
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+// ============================================================================
+// SqlValue Type Tests
+// ============================================================================
+
+testRun("SqlNull", fun() -> {
+    assert(sqlIsNull(SqlNull))
+    match sqlUnwrap(SqlNull) {
+        Some(_) -> assert(false)
+        Zero -> assert(true)
+    }
+})
+
+testRun("SqlInt", fun() -> {
+    v = SqlInt(42)
+    assert(sqlIsNull(v) == false)
+    match sqlUnwrap(v) {
+        Some(_) -> assert(true)
+        Zero -> assert(false)
+    }
+})
+
+testRun("SqlFloat", fun() -> {
+    v = SqlFloat(3.14)
+    assert(sqlIsNull(v) == false)
+    match sqlUnwrap(v) {
+        Some(_) -> assert(true)
+        Zero -> assert(false)
+    }
+})
+
+testRun("SqlString", fun() -> {
+    v = SqlString("hello")
+    assert(sqlIsNull(v) == false)
+    match sqlUnwrap(v) {
+        Some(_) -> assert(true)
+        Zero -> assert(false)
+    }
+})
+
+testRun("SqlBool true", fun() -> {
+    v = SqlBool(true)
+    assert(sqlIsNull(v) == false)
+    match sqlUnwrap(v) {
+        Some(_) -> assert(true)
+        Zero -> assert(false)
+    }
+})
+
+testRun("SqlBool false", fun() -> {
+    v = SqlBool(false)
+    match sqlUnwrap(v) {
+        Some(_) -> assert(true)
+        Zero -> assert(false)
+    }
+})
+
+testRun("SqlBytes", fun() -> {
+    v = SqlBytes(@"hello")
+    assert(sqlIsNull(v) == false)
+    match sqlUnwrap(v) {
+        Some(_) -> assert(true)
+        Zero -> assert(false)
+    }
+})
+
+testRun("SqlTime", fun() -> {
+    d = dateNew(2024, 6, 15, 0)
+    v = SqlTime(d)
+    assert(sqlIsNull(v) == false)
+    match sqlUnwrap(v) {
+        Some(_) -> assert(true)
+        Zero -> assert(false)
+    }
+})
+
+testRun("SqlBigInt", fun() -> {
+    bi = bigIntNew("12345678901234567890")
+    v = SqlBigInt(bi)
+    assert(sqlIsNull(v) == false)
+    match sqlUnwrap(v) {
+        Some(_) -> assert(true)
+        Zero -> assert(false)
+    }
+})
+
+// ============================================================================
+// DDL Tests
+// ============================================================================
+
+testRun("CREATE TABLE", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sql = "CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)"
+            match sqlExec(db, sql, []) {
+                Ok(_) -> assert(true)
+                Fail(_) -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("CREATE TABLE with all types", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sql = "CREATE TABLE alltypes (int_col INTEGER, real_col REAL, text_col TEXT, blob_col BLOB)"
+            match sqlExec(db, sql, []) {
+                Ok(_) -> assert(true)
+                Fail(_) -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+// ============================================================================
+// INSERT Tests
+// ============================================================================
+
+testRun("INSERT basic", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sqlExec(db, "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)", [])
+            match sqlExec(db, "INSERT INTO t (name) VALUES ($1)", [SqlString("Alice")]) {
+                Ok(n) -> assertEquals(n, 1)
+                Fail(_) -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("INSERT multiple", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sqlExec(db, "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)", [])
+            sqlExec(db, "INSERT INTO t (name) VALUES ($1)", [SqlString("A")])
+            sqlExec(db, "INSERT INTO t (name) VALUES ($1)", [SqlString("B")])
+            sqlExec(db, "INSERT INTO t (name) VALUES ($1)", [SqlString("C")])
+            
+            match sqlQuery(db, "SELECT COUNT(*) as cnt FROM t", []) {
+                Ok(rows) -> assertEquals(len(rows), 1)
+                Fail(_) -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("INSERT with NULL", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sqlExec(db, "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)", [])
+            match sqlExec(db, "INSERT INTO t (name) VALUES ($1)", [SqlNull]) {
+                Ok(n) -> assertEquals(n, 1)
+                Fail(_) -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("INSERT all types", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sqlExec(db, "CREATE TABLE t (i INTEGER, f REAL, s TEXT, b BLOB)", [])
+            match sqlExec(db, "INSERT INTO t VALUES ($1, $2, $3, $4)", [
+                SqlInt(42),
+                SqlFloat(3.14),
+                SqlString("hello"),
+                SqlBytes(@"data")
+            ]) {
+                Ok(n) -> assertEquals(n, 1)
+                Fail(_) -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("sqlLastInsertId", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sqlExec(db, "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)", [])
+            match sqlLastInsertId(db, "INSERT INTO t (name) VALUES ($1)", [SqlString("Test")]) {
+                Ok(id) -> assert(id > 0)
+                Fail(_) -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+// ============================================================================
+// SELECT Tests
+// ============================================================================
+
+testRun("SELECT empty", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sqlExec(db, "CREATE TABLE t (id INTEGER PRIMARY KEY)", [])
+            match sqlQuery(db, "SELECT * FROM t", []) {
+                Ok(rows) -> assertEquals(len(rows), 0)
+                Fail(_) -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("SELECT all", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sqlExec(db, "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)", [])
+            sqlExec(db, "INSERT INTO t (name) VALUES ('A'), ('B'), ('C')", [])
+            match sqlQuery(db, "SELECT * FROM t ORDER BY id", []) {
+                Ok(rows) -> assertEquals(len(rows), 3)
+                Fail(_) -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("SELECT with WHERE", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sqlExec(db, "CREATE TABLE t (id INTEGER PRIMARY KEY, age INTEGER)", [])
+            sqlExec(db, "INSERT INTO t (age) VALUES (20), (30), (40)", [])
+            match sqlQuery(db, "SELECT * FROM t WHERE age > $1", [SqlInt(25)]) {
+                Ok(rows) -> assertEquals(len(rows), 2)
+                Fail(_) -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("SELECT column access", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sqlExec(db, "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT, age INTEGER)", [])
+            sqlExec(db, "INSERT INTO t (name, age) VALUES ($1, $2)", [SqlString("Alice"), SqlInt(30)])
+            match sqlQuery(db, "SELECT * FROM t", []) {
+                Ok(rows) -> {
+                    assertEquals(len(rows), 1)
+                    row = head(rows)
+                    // Check name column exists
+                    match mapGet(row, "name") {
+                        Some(_) -> assert(true)
+                        Zero -> assert(false)
+                    }
+                    // Check age column exists  
+                    match mapGet(row, "age") {
+                        Some(_) -> assert(true)
+                        Zero -> assert(false)
+                    }
+                }
+                Fail(_) -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("sqlQueryRow found", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sqlExec(db, "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)", [])
+            sqlExec(db, "INSERT INTO t (name) VALUES ($1)", [SqlString("Alice")])
+            match sqlQueryRow(db, "SELECT * FROM t WHERE name = $1", [SqlString("Alice")]) {
+                Ok(Some(row)) -> {
+                    match mapGet(row, "name") {
+                        Some(_) -> assert(true)
+                        Zero -> assert(false)
+                    }
+                }
+                Ok(Zero) -> assert(false)
+                Fail(_) -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("sqlQueryRow not found", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sqlExec(db, "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)", [])
+            match sqlQueryRow(db, "SELECT * FROM t WHERE name = $1", [SqlString("Nobody")]) {
+                Ok(Some(_)) -> assert(false)
+                Ok(Zero) -> assert(true)
+                Fail(_) -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+// ============================================================================
+// UPDATE Tests
+// ============================================================================
+
+testRun("UPDATE basic", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sqlExec(db, "CREATE TABLE t (id INTEGER PRIMARY KEY, val INTEGER)", [])
+            sqlExec(db, "INSERT INTO t (val) VALUES (10)", [])
+            match sqlExec(db, "UPDATE t SET val = $1 WHERE val = $2", [SqlInt(20), SqlInt(10)]) {
+                Ok(n) -> assertEquals(n, 1)
+                Fail(_) -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("UPDATE no match", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sqlExec(db, "CREATE TABLE t (id INTEGER PRIMARY KEY, val INTEGER)", [])
+            sqlExec(db, "INSERT INTO t (val) VALUES (10)", [])
+            match sqlExec(db, "UPDATE t SET val = 20 WHERE val = 999", []) {
+                Ok(n) -> assertEquals(n, 0)
+                Fail(_) -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+// ============================================================================
+// DELETE Tests
+// ============================================================================
+
+testRun("DELETE basic", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sqlExec(db, "CREATE TABLE t (id INTEGER PRIMARY KEY, val INTEGER)", [])
+            sqlExec(db, "INSERT INTO t (val) VALUES (10), (20), (30)", [])
+            match sqlExec(db, "DELETE FROM t WHERE val > $1", [SqlInt(15)]) {
+                Ok(n) -> assertEquals(n, 2)
+                Fail(_) -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("DELETE all", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sqlExec(db, "CREATE TABLE t (id INTEGER PRIMARY KEY)", [])
+            sqlExec(db, "INSERT INTO t DEFAULT VALUES", [])
+            sqlExec(db, "INSERT INTO t DEFAULT VALUES", [])
+            match sqlExec(db, "DELETE FROM t", []) {
+                Ok(n) -> assertEquals(n, 2)
+                Fail(_) -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+// ============================================================================
+// Transaction Tests
+// ============================================================================
+
+testRun("Transaction commit", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sqlExec(db, "CREATE TABLE t (id INTEGER PRIMARY KEY, val INTEGER)", [])
+            
+            match sqlBegin(db) {
+                Ok(tx) -> {
+                    sqlTxExec(tx, "INSERT INTO t (val) VALUES ($1)", [SqlInt(1)])
+                    sqlTxExec(tx, "INSERT INTO t (val) VALUES ($1)", [SqlInt(2)])
+                    match sqlCommit(tx) {
+                        Ok(_) -> {
+                            match sqlQuery(db, "SELECT COUNT(*) as cnt FROM t", []) {
+                                Ok(rows) -> assertEquals(len(rows), 1)
+                                Fail(_) -> assert(false)
+                            }
+                        }
+                        Fail(_) -> assert(false)
+                    }
+                }
+                Fail(_) -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("Transaction rollback", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sqlExec(db, "CREATE TABLE t (id INTEGER PRIMARY KEY, val INTEGER)", [])
+            sqlExec(db, "INSERT INTO t (val) VALUES (100)", [])
+            
+            match sqlBegin(db) {
+                Ok(tx) -> {
+                    sqlTxExec(tx, "UPDATE t SET val = 200", [])
+                    match sqlRollback(tx) {
+                        Ok(_) -> {
+                            match sqlQueryRow(db, "SELECT val FROM t", []) {
+                                Ok(Some(row)) -> {
+                                    match mapGet(row, "val") {
+                                        Some(_) -> assert(true)
+                                        Zero -> assert(false)
+                                    }
+                                }
+                                _ -> assert(false)
+                            }
+                        }
+                        Fail(_) -> assert(false)
+                    }
+                }
+                Fail(_) -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("sqlTxQuery", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sqlExec(db, "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)", [])
+            sqlExec(db, "INSERT INTO t (name) VALUES ('A'), ('B')", [])
+            
+            match sqlBegin(db) {
+                Ok(tx) -> {
+                    match sqlTxQuery(tx, "SELECT * FROM t", []) {
+                        Ok(rows) -> assertEquals(len(rows), 2)
+                        Fail(_) -> assert(false)
+                    }
+                    sqlCommit(tx)
+                }
+                Fail(_) -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+// ============================================================================
+// Error Handling Tests
+// ============================================================================
+
+testRun("SQL syntax error", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            match sqlExec(db, "INVALID SQL", []) {
+                Ok(_) -> assert(false)
+                Fail(_) -> assert(true)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("Table not found", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            match sqlQuery(db, "SELECT * FROM nonexistent", []) {
+                Ok(_) -> assert(false)
+                Fail(_) -> assert(true)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+// ============================================================================
+// Value Verification Tests
+// ============================================================================
+
+testRun("SELECT verify Int value", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sqlExec(db, "CREATE TABLE t (val INTEGER)", [])
+            sqlExec(db, "INSERT INTO t VALUES ($1)", [SqlInt(42)])
+            match sqlQueryRow(db, "SELECT val FROM t", []) {
+                Ok(Some(row)) -> {
+                    match mapGet(row, "val") {
+                        Some(SqlInt(v)) -> assertEquals(v, 42)
+                        _ -> assert(false)
+                    }
+                }
+                _ -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("SELECT verify Float value", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sqlExec(db, "CREATE TABLE t (val REAL)", [])
+            sqlExec(db, "INSERT INTO t VALUES ($1)", [SqlFloat(3.14)])
+            match sqlQueryRow(db, "SELECT val FROM t", []) {
+                Ok(Some(row)) -> {
+                    match mapGet(row, "val") {
+                        Some(SqlFloat(v)) -> assert(v > 3.0)
+                        _ -> assert(false)
+                    }
+                }
+                _ -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("SELECT verify String value", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sqlExec(db, "CREATE TABLE t (val TEXT)", [])
+            sqlExec(db, "INSERT INTO t VALUES ($1)", [SqlString("hello")])
+            match sqlQueryRow(db, "SELECT val FROM t", []) {
+                Ok(Some(row)) -> {
+                    match mapGet(row, "val") {
+                        Some(SqlString(v)) -> assertEquals(v, "hello")
+                        _ -> assert(false)
+                    }
+                }
+                _ -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("SELECT verify NULL value", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sqlExec(db, "CREATE TABLE t (val TEXT)", [])
+            sqlExec(db, "INSERT INTO t VALUES ($1)", [SqlNull])
+            match sqlQueryRow(db, "SELECT val FROM t", []) {
+                Ok(Some(row)) -> {
+                    match mapGet(row, "val") {
+                        Some(v) -> assert(sqlIsNull(v))
+                        Zero -> assert(false)
+                    }
+                }
+                _ -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("SELECT verify Bytes value", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sqlExec(db, "CREATE TABLE t (val BLOB)", [])
+            sqlExec(db, "INSERT INTO t VALUES ($1)", [SqlBytes(@"test")])
+            match sqlQueryRow(db, "SELECT val FROM t", []) {
+                Ok(Some(row)) -> {
+                    match mapGet(row, "val") {
+                        Some(SqlBytes(b)) -> assertEquals(len(b), 4)
+                        _ -> assert(false)
+                    }
+                }
+                _ -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("INSERT and SELECT Date", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sqlExec(db, "CREATE TABLE t (created TEXT)", [])
+            d = dateNew(2024, 6, 15, 0)
+            sqlExec(db, "INSERT INTO t VALUES ($1)", [SqlTime(d)])
+            match sqlQueryRow(db, "SELECT created FROM t", []) {
+                Ok(Some(row)) -> {
+                    match mapGet(row, "created") {
+                        Some(_) -> assert(true)
+                        Zero -> assert(false)
+                    }
+                }
+                _ -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("INSERT and SELECT BigInt", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sqlExec(db, "CREATE TABLE t (big TEXT)", [])
+            bi = bigIntNew("99999999999999999999")
+            sqlExec(db, "INSERT INTO t VALUES ($1)", [SqlBigInt(bi)])
+            match sqlQueryRow(db, "SELECT big FROM t", []) {
+                Ok(Some(row)) -> {
+                    match mapGet(row, "big") {
+                        Some(SqlString(s)) -> assert(len(s) > 10)
+                        _ -> assert(false)
+                    }
+                }
+                _ -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("Multiple columns all types", fun() -> {
+    match sqlOpen("sqlite", ":memory:") {
+        Ok(db) -> {
+            sqlExec(db, "CREATE TABLE t (i INTEGER, f REAL, s TEXT, b BLOB, n TEXT)", [])
+            sqlExec(db, "INSERT INTO t VALUES ($1, $2, $3, $4, $5)", [
+                SqlInt(100),
+                SqlFloat(2.718),
+                SqlString("world"),
+                SqlBytes(@"bin"),
+                SqlNull
+            ])
+            match sqlQueryRow(db, "SELECT * FROM t", []) {
+                Ok(Some(row)) -> {
+                    match mapGet(row, "i") {
+                        Some(SqlInt(v)) -> assertEquals(v, 100)
+                        _ -> assert(false)
+                    }
+                    match mapGet(row, "s") {
+                        Some(SqlString(v)) -> assertEquals(v, "world")
+                        _ -> assert(false)
+                    }
+                    match mapGet(row, "n") {
+                        Some(v) -> assert(sqlIsNull(v))
+                        Zero -> assert(false)
+                    }
+                }
+                _ -> assert(false)
+            }
+            sqlClose(db)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+// ============================================================================
+// File-based SQLite Tests
+// ============================================================================
+
+dbFile :- "/tmp/test_funxy_sql.db"
+
+testRun("File DB: create and open", fun() -> {
+    // Cleanup if exists
+    if fileExists(dbFile) {
+        match fileDelete(dbFile) {
+            Ok(_) -> Nil
+            Fail(_) -> Nil
+        }
+    }
+    
+    match sqlOpen("sqlite", dbFile) {
+        Ok(db) -> {
+            assert(fileExists(dbFile))
+            match sqlClose(db) {
+                Ok(_) -> Nil
+                Fail(_) -> Nil
+            }
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("File DB: data persistence", fun() -> {
+    // First connection: create and insert
+    match sqlOpen("sqlite", dbFile) {
+        Ok(db) -> {
+            sqlExec(db, "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT)", [])
+            sqlExec(db, "DELETE FROM users", [])
+            sqlExec(db, "INSERT INTO users (name) VALUES ($1)", [SqlString("Alice")])
+            sqlExec(db, "INSERT INTO users (name) VALUES ($1)", [SqlString("Bob")])
+            match sqlClose(db) {
+                Ok(_) -> Nil
+                Fail(_) -> Nil
+            }
+        }
+        Fail(_) -> assert(false)
+    }
+    
+    // Second connection: verify data persisted
+    match sqlOpen("sqlite", dbFile) {
+        Ok(db) -> {
+            match sqlQuery(db, "SELECT * FROM users ORDER BY name", []) {
+                Ok(rows) -> assertEquals(len(rows), 2)
+                Fail(_) -> assert(false)
+            }
+            match sqlClose(db) {
+                Ok(_) -> Nil
+                Fail(_) -> Nil
+            }
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("File DB: verify specific values after reopen", fun() -> {
+    match sqlOpen("sqlite", dbFile) {
+        Ok(db) -> {
+            match sqlQueryRow(db, "SELECT name FROM users WHERE name = $1", [SqlString("Alice")]) {
+                Ok(Some(row)) -> {
+                    match mapGet(row, "name") {
+                        Some(SqlString(v)) -> assertEquals(v, "Alice")
+                        _ -> assert(false)
+                    }
+                }
+                _ -> assert(false)
+            }
+            match sqlClose(db) {
+                Ok(_) -> Nil
+                Fail(_) -> Nil
+            }
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("File DB: update persists", fun() -> {
+    match sqlOpen("sqlite", dbFile) {
+        Ok(db) -> {
+            sqlExec(db, "UPDATE users SET name = $1 WHERE name = $2", [SqlString("Charlie"), SqlString("Bob")])
+            match sqlClose(db) {
+                Ok(_) -> Nil
+                Fail(_) -> Nil
+            }
+        }
+        Fail(_) -> assert(false)
+    }
+    
+    // Reopen and verify
+    match sqlOpen("sqlite", dbFile) {
+        Ok(db) -> {
+            match sqlQueryRow(db, "SELECT name FROM users WHERE name = $1", [SqlString("Charlie")]) {
+                Ok(Some(_)) -> assert(true)
+                Ok(Zero) -> assert(false)
+                Fail(_) -> assert(false)
+            }
+            match sqlClose(db) {
+                Ok(_) -> Nil
+                Fail(_) -> Nil
+            }
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("File DB: transaction commit persists", fun() -> {
+    match sqlOpen("sqlite", dbFile) {
+        Ok(db) -> {
+            match sqlBegin(db) {
+                Ok(tx) -> {
+                    sqlTxExec(tx, "INSERT INTO users (name) VALUES ($1)", [SqlString("Dave")])
+                    match sqlCommit(tx) {
+                        Ok(_) -> Nil
+                        Fail(_) -> Nil
+                    }
+                }
+                Fail(_) -> assert(false)
+            }
+            match sqlClose(db) {
+                Ok(_) -> Nil
+                Fail(_) -> Nil
+            }
+        }
+        Fail(_) -> assert(false)
+    }
+    
+    // Reopen and verify
+    match sqlOpen("sqlite", dbFile) {
+        Ok(db) -> {
+            match sqlQueryRow(db, "SELECT name FROM users WHERE name = $1", [SqlString("Dave")]) {
+                Ok(Some(_)) -> assert(true)
+                Ok(Zero) -> assert(false)
+                Fail(_) -> assert(false)
+            }
+            match sqlClose(db) {
+                Ok(_) -> Nil
+                Fail(_) -> Nil
+            }
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("File DB: transaction rollback does not persist", fun() -> {
+    match sqlOpen("sqlite", dbFile) {
+        Ok(db) -> {
+            match sqlBegin(db) {
+                Ok(tx) -> {
+                    sqlTxExec(tx, "INSERT INTO users (name) VALUES ($1)", [SqlString("Eve")])
+                    match sqlRollback(tx) {
+                        Ok(_) -> Nil
+                        Fail(_) -> Nil
+                    }
+                }
+                Fail(_) -> assert(false)
+            }
+            match sqlClose(db) {
+                Ok(_) -> Nil
+                Fail(_) -> Nil
+            }
+        }
+        Fail(_) -> assert(false)
+    }
+    
+    // Reopen and verify Eve was NOT added
+    match sqlOpen("sqlite", dbFile) {
+        Ok(db) -> {
+            match sqlQueryRow(db, "SELECT name FROM users WHERE name = $1", [SqlString("Eve")]) {
+                Ok(Some(_)) -> assert(false)
+                Ok(Zero) -> assert(true)
+                Fail(_) -> assert(false)
+            }
+            match sqlClose(db) {
+                Ok(_) -> Nil
+                Fail(_) -> Nil
+            }
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("File DB: cleanup", fun() -> {
+    if fileExists(dbFile) {
+        match fileDelete(dbFile) {
+            Ok(_) -> assert(true)
+            Fail(_) -> assert(false)
+        }
+    } else {
+        assert(true)
+    }
+})

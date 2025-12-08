@@ -1,0 +1,9 @@
+package mixedlib (*)
+
+// This file should be IGNORED because main file is .lang
+// If this is loaded, the test will fail with "fromFunxy undefined"
+
+fun fromFunxy() -> String {
+    "from funxy"
+}
+

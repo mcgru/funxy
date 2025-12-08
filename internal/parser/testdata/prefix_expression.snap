@@ -1,0 +1,10 @@
+--- AST Tree ---
+Program
+  Assign
+    Left: Identifier(a)
+    Value: Prefix(-)
+      IntegerLiteral(5)
+
+
+--- Source Code ---
+a = -5

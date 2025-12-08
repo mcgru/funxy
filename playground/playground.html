@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Funxy Playground</title>
+    <style>
+        :root {
+            --bg: #1e1e2e;
+            --fg: #cdd6f4;
+            --accent: #f5c2e7;
+            --accent2: #a6e3a1;
+            --btn-bg: #89b4fa;
+            --btn-fg: #1e1e2e;
+            --btn-hover: #b4befe;
+            --btn-clear: #f38ba8;
+            --btn-clear-hover: #eba0ac;
+            --pre-bg: #313244;
+            --border: #45475a;
+            --muted: #a6adc8;
+            --keyword: #cba6f7;
+            --type: #f9e2af;
+            --string: #a6e3a1;
+            --number: #fab387;
+            --comment: #6c7086;
+            --operator: #89dceb;
+            --builtin: #f38ba8;
+        }
+        body.light {
+            --bg: #f5f5f5;
+            --fg: #333;
+            --accent: #7c3aed;
+            --accent2: #059669;
+            --btn-bg: #3b82f6;
+            --btn-fg: #fff;
+            --btn-hover: #2563eb;
+            --btn-clear: #ef4444;
+            --btn-clear-hover: #dc2626;
+            --pre-bg: #fff;
+            --border: #d1d5db;
+            --muted: #6b7280;
+            --keyword: #7c3aed;
+            --type: #d97706;
+            --string: #059669;
+            --number: #ea580c;
+            --comment: #9ca3af;
+            --operator: #0891b2;
+            --builtin: #dc2626;
+        }
+        body { 
+            font-family: 'JetBrains Mono', 'Fira Code', monospace; 
+            max-width: 900px; 
+            margin: 50px auto; 
+            background: var(--bg);
+            color: var(--fg);
+            padding: 20px;
+            transition: background 0.3s, color 0.3s;
+        }
+        h1 { color: var(--accent); }
+        h3 { color: var(--accent2); margin-top: 20px; }
+        .editor-wrap {
+            position: relative;
+            height: 350px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--pre-bg);
+            overflow: hidden;
+        }
+        #highlight, #code {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+            padding: 10px;
+            margin: 0;
+            border: none;
+            box-sizing: border-box;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow: auto;
+            tab-size: 4;
+        }
+        #highlight {
+            background: transparent;
+            pointer-events: none;
+            user-select: none;
+            -webkit-user-select: none;
+            color: var(--fg);
+        }
+        #code {
+            background: transparent;
+            color: transparent;
+            caret-color: var(--fg);
+            resize: none;
+            outline: none;
+        }
+        .kw { color: var(--keyword); }
+        .ty { color: var(--type); }
+        .str { color: var(--string); }
+        .num { color: var(--number); }
+        .cmt { color: var(--comment); font-style: italic; }
+        .op { color: var(--operator); }
+        .bi { color: var(--builtin); }
+        pre#output { 
+            background: var(--pre-bg); 
+            padding: 15px; 
+            border-radius: 8px;
+            color: var(--fg);
+            overflow-x: auto;
+            min-height: 50px;
+            border: 1px solid var(--border);
+        }
+        button { 
+            padding: 10px 20px; 
+            font-size: 14px; 
+            cursor: pointer;
+            background: var(--btn-bg);
+            color: var(--btn-fg);
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button:hover { background: var(--btn-hover); }
+        .controls { 
+            display: flex; 
+            gap: 10px; 
+            align-items: center; 
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+        .file-input { display: none; }
+        .file-label { 
+            padding: 10px 20px; 
+            font-size: 14px; 
+            background: var(--border); 
+            border: 1px solid var(--muted);
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--fg);
+        }
+        .file-label:hover { opacity: 0.8; }
+        .filename { color: var(--muted); font-size: 13px; }
+        .btn-clear { background: var(--btn-clear); }
+        .btn-clear:hover { background: var(--btn-clear-hover); }
+        .btn-theme { 
+            background: var(--border); 
+            color: var(--fg);
+            margin-left: auto;
+        }
+        .btn-theme:hover { opacity: 0.8; }
+        .btn-save { background: var(--accent2); color: #1e1e2e; }
+        .btn-save:hover { opacity: 0.85; }
+    </style>
+</head>
+<body>
+    <h1>fun x(y) -> Playground</h1>
+    <div class="editor-wrap">
+        <pre id="highlight"></pre>
+        <textarea id="code" spellcheck="false">fun(x, y) -> { print("${x}, ${y}") }("Hello", "Funxy!")</textarea>
+    </div>
+    <div class="controls">
+        <button onclick="run()">Run</button>
+        <button class="btn-save" onclick="saveCode()">Save</button>
+        <button class="btn-clear" onclick="clearCode()">Clear</button>
+        <label class="file-label">
+            Load
+            <input type="file" class="file-input" accept=".lang,.funxy,.fx,.txt" onchange="loadFile(this)">
+        </label>
+        <span class="filename" id="filename"></span>
+        <button class="btn-theme" onclick="toggleTheme()">Theme</button>
+    </div>
+    <h3>Output:</h3>
+    <pre id="output"></pre>
+
+    <script>
+        const codeEl = document.getElementById('code');
+        const highlightEl = document.getElementById('highlight');
+        const output = document.getElementById('output');
+        const filenameEl = document.getElementById('filename');
+
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        function highlightCode(text) {
+            // Tokenize first, then highlight
+            const tokens = [];
+            let i = 0;
+            
+            while (i < text.length) {
+                // Comments
+                if (text[i] === '/' && text[i+1] === '/') {
+                    let end = text.indexOf('\n', i);
+                    if (end === -1) end = text.length;
+                    tokens.push({type: 'cmt', text: text.slice(i, end)});
+                    i = end;
+                    continue;
+                }
+                // Strings
+                if (text[i] === '"') {
+                    let j = i + 1;
+                    while (j < text.length && text[j] !== '"') {
+                        if (text[j] === '\\') j++;
+                        j++;
+                    }
+                    tokens.push({type: 'str', text: text.slice(i, j + 1)});
+                    i = j + 1;
+                    continue;
+                }
+                // Char literals
+                if (text[i] === "'") {
+                    let j = i + 1;
+                    while (j < text.length && text[j] !== "'") j++;
+                    tokens.push({type: 'str', text: text.slice(i, j + 1)});
+                    i = j + 1;
+                    continue;
+                }
+                // Words (keywords, types, builtins, identifiers)
+                if (/[a-zA-Z_]/.test(text[i])) {
+                    let j = i;
+                    while (j < text.length && /[a-zA-Z0-9_]/.test(text[j])) j++;
+                    const word = text.slice(i, j);
+                    const keywords = ['fun','type','alias','match','if','else','for','in','import','trait','instance','operator','async','await','break','continue','package'];
+                    const types = ['Int','Float','String','Bool','Nil','List','Map','Option','Result','Some','Zero','Ok','Fail','Bytes','BigInt','Rational','Char','Unit'];
+                    const builtins = ['print','show','len','read','getType','default','panic','id','const','fst','snd','map','filter','foldl','head','tail','range','true','false'];
+                    
+                    if (keywords.includes(word)) tokens.push({type: 'kw', text: word});
+                    else if (types.includes(word)) tokens.push({type: 'ty', text: word});
+                    else if (builtins.includes(word)) tokens.push({type: 'bi', text: word});
+                    else tokens.push({type: null, text: word});
+                    i = j;
+                    continue;
+                }
+                // Numbers
+                if (/[0-9]/.test(text[i])) {
+                    let j = i;
+                    if (text[i] === '0' && text[i+1] === 'x') {
+                        j += 2;
+                        while (j < text.length && /[0-9a-fA-F]/.test(text[j])) j++;
+                    } else {
+                        while (j < text.length && /[0-9.]/.test(text[j])) j++;
+                    }
+                    tokens.push({type: 'num', text: text.slice(i, j)});
+                    i = j;
+                    continue;
+                }
+                // Operators
+                const ops = ['->','=>','|>','::','++','==','!=','<=','>=','&&','||'];
+                let matched = false;
+                for (const op of ops) {
+                    if (text.slice(i, i + op.length) === op) {
+                        tokens.push({type: 'op', text: op});
+                        i += op.length;
+                        matched = true;
+                        break;
+                    }
+                }
+                if (matched) continue;
+                
+                // Default: single char
+                tokens.push({type: null, text: text[i]});
+                i++;
+            }
+            
+            // Build highlighted HTML
+            let html = '';
+            for (const t of tokens) {
+                const escaped = t.text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                if (t.type) {
+                    html += '<span class="' + t.type + '">' + escaped + '</span>';
+                } else {
+                    html += escaped;
+                }
+            }
+            return html + '\n';
+        }
+
+        function updateHighlight() {
+            highlightEl.innerHTML = highlightCode(codeEl.value);
+            highlightEl.scrollTop = codeEl.scrollTop;
+            highlightEl.scrollLeft = codeEl.scrollLeft;
+        }
+
+        codeEl.addEventListener('input', updateHighlight);
+        codeEl.addEventListener('scroll', function() {
+            highlightEl.scrollTop = codeEl.scrollTop;
+            highlightEl.scrollLeft = codeEl.scrollLeft;
+        });
+
+        updateHighlight();
+
+        function toggleTheme() {
+            document.body.classList.toggle('light');
+        }
+
+        async function run() {
+            try {
+                const res = await fetch('/run', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({code: codeEl.value})
+                });
+                const data = await res.json();
+                output.textContent = (data.error && data.error.length > 0) 
+                    ? 'Error: ' + data.error 
+                    : (data.output || 'No output');
+            } catch (e) {
+                output.textContent = 'Error: ' + e.message;
+            }
+        }
+
+        function saveCode() {
+            const defaultName = filenameEl.textContent || 'code.lang';
+            const filename = prompt('Save as:', defaultName);
+            if (!filename) return;
+            
+            const text = codeEl.value;
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename.endsWith('.lang') || filename.endsWith('.funxy') || filename.endsWith('.fx') 
+                ? filename : filename + '.lang';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            filenameEl.textContent = filename;
+            output.textContent = 'Saved: ' + filename;
+        }
+
+        function clearCode() {
+            codeEl.value = '';
+            updateHighlight();
+            output.textContent = '';
+            filenameEl.textContent = '';
+        }
+
+        function loadFile(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                codeEl.value = e.target.result;
+                updateHighlight();
+                filenameEl.textContent = file.name;
+            };
+            reader.readAsText(file);
+            input.value = '';  // Reset input
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                run();
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                saveCode();
+            }
+        });
+
+        codeEl.addEventListener('keydown', function(e) {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const start = this.selectionStart;
+                const end = this.selectionEnd;
+                this.value = this.value.substring(0, start) + '    ' + this.value.substring(end);
+                this.selectionStart = this.selectionEnd = start + 4;
+                updateHighlight();
+            }
+        });
+    </script>
+</body>
+</html>

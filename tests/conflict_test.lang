@@ -1,0 +1,5 @@
+// This test expects a compile error - conflict between Circle from source and other
+import "./unit/reexport/source" (Circle)
+import "./unit/reexport/other" (Circle)
+
+x = Circle(1.0)

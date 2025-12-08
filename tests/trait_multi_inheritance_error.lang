@@ -1,0 +1,30 @@
+// Test: Error when one of multiple super traits is missing
+
+trait Show<T> {
+    fun show(val: T) -> String
+}
+
+trait Cmp<T> {
+    fun cmp(a: T, b: T) -> Bool
+}
+
+// Print requires both Show and Cmp
+trait Print<T> : Show<T>, Cmp<T> {
+    fun format(val: T) -> String
+}
+
+// Only implement Show, NOT Cmp
+instance Show Int {
+    fun show(val: Int) -> String {
+        "Int"
+    }
+}
+
+// ERROR: Cmp Int is not implemented
+instance Print Int {
+    fun format(val: Int) -> String {
+        "Formatted"
+    }
+}
+
+print("should not reach")

@@ -1,0 +1,30 @@
+// Test: Multiple constraints
+// fun process<T: Show, Cmp>(x: T, y: T) -> String
+
+trait Show<T> {
+    fun show(val: T) -> String
+}
+
+trait Cmp<T> {
+    fun cmp(a: T, b: T) -> Bool
+}
+
+instance Show Int {
+    fun show(val: Int) -> String { "int" }
+}
+
+instance Cmp Int {
+    fun cmp(a: Int, b: Int) -> Bool { a == b }
+}
+
+// Function with multiple constraints - T must implement BOTH Show AND Cmp
+fun process<T: Show, T: Cmp>(x: T, y: T) -> String {
+    if cmp(x, y) { 
+        show(x) 
+    } else { 
+        "different" 
+    }
+}
+
+print(process(5, 5))    // int (same)
+print(process(1, 2))    // different

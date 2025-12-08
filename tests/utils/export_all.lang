@@ -1,0 +1,9 @@
+package utils (*)
+
+fun visible_func() {
+  print("visible")
+}
+
+fun another_func() {
+  print("another")
+}

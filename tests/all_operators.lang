@@ -1,0 +1,150 @@
+// Test: Custom types implementing traits for ALL operators
+
+// ============================================
+// Equal trait: == !=
+// ============================================
+type Email = MkEmail String
+
+instance Equal Email {
+    operator (==)(a: Email, b: Email) -> Bool {
+        match (a, b) { (MkEmail x, MkEmail y) -> x == y }
+    }
+    operator (!=)(a: Email, b: Email) -> Bool {
+        match (a, b) { (MkEmail x, MkEmail y) -> x != y }
+    }
+}
+
+e1 = MkEmail("a@b.com")
+e2 = MkEmail("a@b.com")
+e3 = MkEmail("x@y.com")
+print(e1 == e2)  // true
+print(e1 != e3)  // true
+
+// ============================================
+// Order trait: < > <= >=
+// ============================================
+type Age = MkAge Int
+
+instance Equal Age {
+    operator (==)(a: Age, b: Age) -> Bool {
+        match (a, b) { (MkAge x, MkAge y) -> x == y }
+    }
+    operator (!=)(a: Age, b: Age) -> Bool {
+        match (a, b) { (MkAge x, MkAge y) -> x != y }
+    }
+}
+
+instance Order Age {
+    operator (<)(a: Age, b: Age) -> Bool {
+        match (a, b) { (MkAge x, MkAge y) -> x < y }
+    }
+    operator (>)(a: Age, b: Age) -> Bool {
+        match (a, b) { (MkAge x, MkAge y) -> x > y }
+    }
+    operator (<=)(a: Age, b: Age) -> Bool {
+        match (a, b) { (MkAge x, MkAge y) -> x <= y }
+    }
+    operator (>=)(a: Age, b: Age) -> Bool {
+        match (a, b) { (MkAge x, MkAge y) -> x >= y }
+    }
+}
+
+young = MkAge(20)
+old = MkAge(60)
+print(young < old)   // true
+print(old > young)   // true
+print(young <= young) // true
+print(old >= young)  // true
+
+// ============================================
+// Numeric trait: + - * / % **
+// ============================================
+type Money = MkMoney Int
+
+instance Numeric Money {
+    operator (+)(a: Money, b: Money) -> Money {
+        match (a, b) { (MkMoney x, MkMoney y) -> MkMoney(x + y) }
+    }
+    operator (-)(a: Money, b: Money) -> Money {
+        match (a, b) { (MkMoney x, MkMoney y) -> MkMoney(x - y) }
+    }
+    operator (*)(a: Money, b: Money) -> Money {
+        match (a, b) { (MkMoney x, MkMoney y) -> MkMoney(x * y) }
+    }
+    operator (/)(a: Money, b: Money) -> Money {
+        match (a, b) { (MkMoney x, MkMoney y) -> MkMoney(x / y) }
+    }
+    operator (%)(a: Money, b: Money) -> Money {
+        match (a, b) { (MkMoney x, MkMoney y) -> MkMoney(x % y) }
+    }
+    operator (**)(a: Money, b: Money) -> Money {
+        match (a, b) { (MkMoney x, MkMoney y) -> MkMoney(x ** y) }
+    }
+}
+
+fun getMoney(m: Money) -> Int { match m { MkMoney x -> x } }
+
+m1 = MkMoney(100)
+m2 = MkMoney(30)
+print(getMoney(m1 + m2))   // 130
+print(getMoney(m1 - m2))   // 70
+print(getMoney(m1 * m2))   // 3000
+print(getMoney(m1 / m2))   // 3
+print(getMoney(m1 % m2))   // 10
+print(getMoney(MkMoney(2) ** MkMoney(8)))  // 256
+
+// ============================================
+// Bitwise trait: & | ^ << >>
+// ============================================
+type Mask = MkMask Int
+
+instance Bitwise Mask {
+    operator (&)(a: Mask, b: Mask) -> Mask {
+        match (a, b) { (MkMask x, MkMask y) -> MkMask(x & y) }
+    }
+    operator (|)(a: Mask, b: Mask) -> Mask {
+        match (a, b) { (MkMask x, MkMask y) -> MkMask(x | y) }
+    }
+    operator (^)(a: Mask, b: Mask) -> Mask {
+        match (a, b) { (MkMask x, MkMask y) -> MkMask(x ^ y) }
+    }
+    operator (<<)(a: Mask, b: Mask) -> Mask {
+        match (a, b) { (MkMask x, MkMask y) -> MkMask(x << y) }
+    }
+    operator (>>)(a: Mask, b: Mask) -> Mask {
+        match (a, b) { (MkMask x, MkMask y) -> MkMask(x >> y) }
+    }
+}
+
+fun getMask(m: Mask) -> Int { match m { MkMask x -> x } }
+
+mask1 = MkMask(12)  // 1100
+mask2 = MkMask(10)  // 1010
+print(getMask(mask1 & mask2))   // 8  (1000)
+print(getMask(mask1 | mask2))   // 14 (1110)
+print(getMask(mask1 ^ mask2))   // 6  (0110)
+print(getMask(MkMask(1) << MkMask(4)))  // 16
+print(getMask(MkMask(32) >> MkMask(2))) // 8
+
+// ============================================
+// Concat trait: ++
+// ============================================
+type Path = MkPath String
+
+instance Concat Path {
+    operator (++)(a: Path, b: Path) -> Path {
+        match (a, b) { (MkPath x, MkPath y) -> MkPath(x ++ "/" ++ y) }
+    }
+}
+
+fun getPath(p: Path) -> String { match p { MkPath x -> x } }
+
+dir = MkPath("home")
+file = MkPath("file.txt")
+print(getPath(dir ++ file))  // home/file.txt
+
+// ============================================
+// Summary
+// ============================================
+print("All operator traits work!")
+

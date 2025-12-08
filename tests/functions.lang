@@ -1,0 +1,23 @@
+fun add(a: Int, b: Int) -> Int {
+    a + b
+}
+
+fun sub(a: Int, b: Int) -> Int {
+    a - b
+}
+
+fun factorial(n: Int) -> Int {
+    if n <= 1 {
+        1
+    } else {
+        n * factorial(n - 1)
+    }
+}
+
+x = 10
+y = 5
+
+print(add(x, y))
+print(sub(x, y))
+
+print(factorial(5))

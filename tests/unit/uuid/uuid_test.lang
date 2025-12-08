@@ -1,0 +1,249 @@
+import "lib/uuid" (*)
+import "lib/bytes" (bytesNew)
+import "lib/test" (*)
+
+// ============================================================================
+// Generation Tests
+// ============================================================================
+
+testRun("uuidNew generates valid v4", fun() -> {
+    u = uuidNew()
+    assertEquals(len(uuidToString(u)), 36)
+    assertEquals(uuidVersion(u), 4)
+})
+
+testRun("uuidV4 is alias for uuidNew", fun() -> {
+    u = uuidV4()
+    assertEquals(uuidVersion(u), 4)
+})
+
+testRun("uuidV7 generates valid v7", fun() -> {
+    u = uuidV7()
+    assertEquals(len(uuidToString(u)), 36)
+    assertEquals(uuidVersion(u), 7)
+})
+
+testRun("uuidNil is all zeros", fun() -> {
+    assertEquals(uuidToString(uuidNil()), "00000000-0000-0000-0000-000000000000")
+})
+
+testRun("uuidMax is all ones", fun() -> {
+    assertEquals(uuidToString(uuidMax()), "ffffffff-ffff-ffff-ffff-ffffffffffff")
+})
+
+testRun("uuidNew generates unique UUIDs", fun() -> {
+    u1 = uuidNew()
+    u2 = uuidNew()
+    assert(uuidToString(u1) != uuidToString(u2))
+})
+
+// ============================================================================
+// V5 (Deterministic) Tests
+// ============================================================================
+
+testRun("uuidV5 is deterministic", fun() -> {
+    ns = uuidNamespaceDNS()
+    u1 = uuidV5(ns, "example.com")
+    u2 = uuidV5(ns, "example.com")
+    assertEquals(uuidToString(u1), uuidToString(u2))
+})
+
+testRun("uuidV5 version is 5", fun() -> {
+    u = uuidV5(uuidNamespaceDNS(), "test")
+    assertEquals(uuidVersion(u), 5)
+})
+
+testRun("uuidV5 different names produce different UUIDs", fun() -> {
+    ns = uuidNamespaceDNS()
+    u1 = uuidV5(ns, "a")
+    u2 = uuidV5(ns, "b")
+    assert(uuidToString(u1) != uuidToString(u2))
+})
+
+testRun("uuidV5 different namespaces produce different UUIDs", fun() -> {
+    u1 = uuidV5(uuidNamespaceDNS(), "test")
+    u2 = uuidV5(uuidNamespaceURL(), "test")
+    assert(uuidToString(u1) != uuidToString(u2))
+})
+
+// ============================================================================
+// Namespace Tests
+// ============================================================================
+
+testRun("namespaces are all different", fun() -> {
+    dns = uuidToString(uuidNamespaceDNS())
+    url = uuidToString(uuidNamespaceURL())
+    oid = uuidToString(uuidNamespaceOID())
+    x500 = uuidToString(uuidNamespaceX500())
+    assert(dns != url)
+    assert(url != oid)
+    assert(oid != x500)
+})
+
+// ============================================================================
+// Parsing Tests
+// ============================================================================
+
+testRun("uuidParse standard format", fun() -> {
+    match uuidParse("550e8400-e29b-41d4-a716-446655440000") {
+        Ok(u) -> assertEquals(uuidVersion(u), 4)
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("uuidParse compact format", fun() -> {
+    match uuidParse("550e8400e29b41d4a716446655440000") {
+        Ok(u) -> assertEquals(len(uuidToString(u)), 36)
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("uuidParse with braces", fun() -> {
+    match uuidParse("{550e8400-e29b-41d4-a716-446655440000}") {
+        Ok(u) -> assertEquals(uuidVersion(u), 4)
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("uuidParse uppercase", fun() -> {
+    match uuidParse("550E8400-E29B-41D4-A716-446655440000") {
+        Ok(u) -> assertEquals(uuidVersion(u), 4)
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("uuidParse urn format", fun() -> {
+    match uuidParse("urn:uuid:550e8400-e29b-41d4-a716-446655440000") {
+        Ok(u) -> assertEquals(uuidVersion(u), 4)
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("uuidParse invalid", fun() -> {
+    match uuidParse("invalid-uuid") {
+        Ok(_) -> assert(false)
+        Fail(_) -> assert(true)
+    }
+})
+
+testRun("uuidParse empty", fun() -> {
+    match uuidParse("") {
+        Ok(_) -> assert(false)
+        Fail(_) -> assert(true)
+    }
+})
+
+// ============================================================================
+// Conversion Tests
+// ============================================================================
+
+testRun("uuidToString format", fun() -> {
+    s = uuidToString(uuidNil())
+    assertEquals(len(s), 36)
+    // Check dashes at correct positions
+    assertEquals(s[8], '-')
+    assertEquals(s[13], '-')
+    assertEquals(s[18], '-')
+    assertEquals(s[23], '-')
+})
+
+testRun("uuidToStringCompact no dashes", fun() -> {
+    s = uuidToStringCompact(uuidNil())
+    assertEquals(len(s), 32)
+})
+
+testRun("uuidToStringUrn prefix", fun() -> {
+    s = uuidToStringUrn(uuidNil())
+    assert(len(s) > 9)
+    // Starts with "urn:uuid:"
+})
+
+testRun("uuidToStringBraces has braces", fun() -> {
+    s = uuidToStringBraces(uuidNil())
+    assertEquals(s[0], '{')
+    assertEquals(s[len(s) - 1], '}')
+})
+
+testRun("uuidToStringUpper is uppercase", fun() -> {
+    match uuidParse("550e8400-e29b-41d4-a716-446655440000") {
+        Ok(u) -> {
+            s = uuidToStringUpper(u)
+            assertEquals(s, "550E8400-E29B-41D4-A716-446655440000")
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+// ============================================================================
+// Bytes Conversion Tests
+// ============================================================================
+
+testRun("uuidToBytes length", fun() -> {
+    b = uuidToBytes(uuidNew())
+    assertEquals(len(b), 16)
+})
+
+testRun("uuidFromBytes roundtrip", fun() -> {
+    original = uuidNew()
+    bytes = uuidToBytes(original)
+    match uuidFromBytes(bytes) {
+        Ok(restored) -> assertEquals(uuidToString(original), uuidToString(restored))
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("uuidFromBytes invalid size", fun() -> {
+    match uuidFromBytes(bytesNew()) {
+        Ok(_) -> assert(false)
+        Fail(_) -> assert(true)
+    }
+})
+
+// ============================================================================
+// Info Tests
+// ============================================================================
+
+testRun("uuidIsNil true", fun() -> {
+    assert(uuidIsNil(uuidNil()))
+})
+
+testRun("uuidIsNil false", fun() -> {
+    assert(uuidIsNil(uuidNew()) == false)
+})
+
+testRun("uuidVersion v4", fun() -> {
+    assertEquals(uuidVersion(uuidNew()), 4)
+})
+
+testRun("uuidVersion v7", fun() -> {
+    assertEquals(uuidVersion(uuidV7()), 7)
+})
+
+// ============================================================================
+// Equality Tests
+// ============================================================================
+
+testRun("equality same uuid", fun() -> {
+    a = uuidNil()
+    b = uuidNil()
+    assert(a == b)
+})
+
+testRun("inequality different uuid", fun() -> {
+    a = uuidNew()
+    b = uuidNew()
+    assert(a != b)
+})
+
+testRun("equality parsed uuid", fun() -> {
+    match uuidParse("550e8400-e29b-41d4-a716-446655440000") {
+        Ok(u1) -> {
+            match uuidParse("550e8400-e29b-41d4-a716-446655440000") {
+                Ok(u2) -> assert(u1 == u2)
+                Fail(_) -> assert(false)
+            }
+        }
+        Fail(_) -> assert(false)
+    }
+})
+

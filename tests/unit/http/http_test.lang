@@ -1,0 +1,211 @@
+import "lib/test" (*)
+import "lib/http" (*)
+
+// =============================================
+// httpGet tests
+// =============================================
+
+testRun("httpGet returns mocked response", fun() -> {
+    mockHttp("https://httpbin.org/get", { status: 200, body: "response body", headers: [("Content-Type", "application/json")] })
+    
+    result = httpGet("https://httpbin.org/get")
+    assertOk(result)
+    
+    match result {
+        Ok(resp) -> {
+            assertEquals(resp.status, 200)
+            assert(len(resp.body) > 0)
+            assert(len(resp.headers) > 0)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+// =============================================
+// httpPost tests
+// =============================================
+
+testRun("httpPost returns mocked response", fun() -> {
+    mockHttp("https://httpbin.org/post", { status: 200, body: "post response", headers: [] })
+    
+    result = httpPost("https://httpbin.org/post", "hello world")
+    assertOk(result)
+    
+    match result {
+        Ok(resp) -> assertEquals(resp.status, 200)
+        Fail(_) -> assert(false)
+    }
+})
+
+// =============================================
+// httpPostJson tests
+// =============================================
+
+testRun("httpPostJson returns mocked response", fun() -> {
+    mockHttp("https://httpbin.org/post", { status: 200, body: "json response", headers: [("Content-Type", "application/json")] })
+    
+    data = { name: "test", value: 42 }
+    result = httpPostJson("https://httpbin.org/post", data)
+    assertOk(result)
+    
+    match result {
+        Ok(resp) -> {
+            assertEquals(resp.status, 200)
+            assert(len(resp.body) > 0)
+            assert(len(resp.headers) > 0)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+// =============================================
+// httpPut tests
+// =============================================
+
+testRun("httpPut returns mocked response", fun() -> {
+    mockHttp("https://httpbin.org/put", { status: 200, body: "put response", headers: [] })
+    
+    result = httpPut("https://httpbin.org/put", "updated")
+    assertOk(result)
+    
+    match result {
+        Ok(resp) -> assertEquals(resp.status, 200)
+        Fail(_) -> assert(false)
+    }
+})
+
+// =============================================
+// httpDelete tests
+// =============================================
+
+testRun("httpDelete returns mocked response", fun() -> {
+    mockHttp("https://httpbin.org/delete", { status: 200, body: "{}", headers: [] })
+    
+    result = httpDelete("https://httpbin.org/delete")
+    assertOk(result)
+    
+    match result {
+        Ok(resp) -> assertEquals(resp.status, 200)
+        Fail(_) -> assert(false)
+    }
+})
+
+// =============================================
+// httpRequest tests
+// =============================================
+
+testRun("httpRequest with headers", fun() -> {
+    mockHttp("https://httpbin.org/headers", { status: 200, body: "headers response", headers: [] })
+    
+    hdrs = [("X-Custom-Header", "test-value"), ("Accept", "application/json")]
+    result = httpRequest("GET", "https://httpbin.org/headers", hdrs, "", 0)
+    assertOk(result)
+    
+    match result {
+        Ok(resp) -> assertEquals(resp.status, 200)
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("httpRequest with default timeout", fun() -> {
+    mockHttp("https://httpbin.org/get", { status: 200, body: "{}", headers: [] })
+    
+    result = httpRequest("GET", "https://httpbin.org/get", [], "")
+    assertOk(result)
+    
+    match result {
+        Ok(resp) -> assertEquals(resp.status, 200)
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("httpRequest with all defaults", fun() -> {
+    mockHttp("https://httpbin.org/get", { status: 200, body: "{}", headers: [] })
+    
+    result = httpRequest("GET", "https://httpbin.org/get", [])
+    assertOk(result)
+    
+    match result {
+        Ok(resp) -> assertEquals(resp.status, 200)
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("httpRequest with explicit timeout", fun() -> {
+    mockHttp("https://httpbin.org/get", { status: 200, body: "{}", headers: [] })
+    
+    result = httpRequest("GET", "https://httpbin.org/get", [], "", 5000)
+    assertOk(result)
+    
+    match result {
+        Ok(resp) -> assertEquals(resp.status, 200)
+        Fail(_) -> assert(false)
+    }
+})
+
+// =============================================
+// Error handling tests
+// =============================================
+
+testRun("httpGet returns error on network failure", fun() -> {
+    mockHttpError("http://invalid-url-that-does-not-exist.xyz", "connection refused")
+    
+    result = httpGet("http://invalid-url-that-does-not-exist.xyz")
+    assertFail(result)
+})
+
+testRun("httpGet with ** wildcard (multiple segments)", fun() -> {
+    // ** matches multiple path segments
+    mockHttp("https://api.example.com/**", { status: 200, body: "ok", headers: [] })
+    
+    result = httpGet("https://api.example.com/users/123")
+    assertOk(result)
+    
+    match result {
+        Ok(resp) -> assertEquals(resp.status, 200)
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("httpGet with * wildcard (single segment)", fun() -> {
+    // * matches single path segment only
+    mockHttp("https://api.example.com/users/*", { status: 200, body: "user", headers: [] })
+    
+    result = httpGet("https://api.example.com/users/456")
+    assertOk(result)
+    
+    match result {
+        Ok(resp) -> assertEquals(resp.status, 200)
+        Fail(_) -> assert(false)
+    }
+})
+
+// =============================================
+// HTTP status codes
+// =============================================
+
+testRun("handles 404 response", fun() -> {
+    mockHttp("https://api.example.com/not-found", { status: 404, body: "Not Found", headers: [] })
+    
+    result = httpGet("https://api.example.com/not-found")
+    assertOk(result)
+    
+    match result {
+        Ok(resp) -> assertEquals(resp.status, 404)
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("handles 500 response", fun() -> {
+    mockHttp("https://api.example.com/error", { status: 500, body: "Internal Server Error", headers: [] })
+    
+    result = httpGet("https://api.example.com/error")
+    assertOk(result)
+    
+    match result {
+        Ok(resp) -> assertEquals(resp.status, 500)
+        Fail(_) -> assert(false)
+    }
+})
+
+print("HTTP tests completed")

@@ -1,0 +1,33 @@
+// Tuple basics
+val = (1, true, 3)
+val2 = ((1, 2), 3)
+
+print(val)
+print(val2)
+
+// Tuple pattern matching
+res1 = match val {
+  (a, b, c) -> a + c
+  _ -> 0
+}
+
+print(res1)
+
+res2 = match val2 {
+  ((x, y), z) -> x + y + z
+  _ -> 0
+}
+
+print(res2)
+
+// Tuple type alias
+type alias Pair = (Int, Int)
+
+pair: Pair = (10, 20)
+print(pair)
+
+// Pattern matching with type inference check
+res3 = match pair {
+  (a, b) -> a * b
+}
+print(res3)

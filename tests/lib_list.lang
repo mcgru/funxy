@@ -1,0 +1,454 @@
+import "lib/list" (*)
+
+// =============================================
+// head: List<T> -> T
+// =============================================
+fun headSemantics<T>(xs: List<T>) -> T {
+    match xs {
+        [x, rest...] -> x
+        [] -> panic("head: empty list")
+    }
+}
+lst = [1, 2, 3]
+a = head(lst)
+b = headSemantics(lst)
+print(a == b)  // true
+
+// =============================================
+// headOr: (List<T>, T) -> T
+// =============================================
+fun headOrSemantics<T>(xs: List<T>, fallback: T) -> T {
+    match xs {
+        [x, rest...] -> x
+        [] -> fallback
+    }
+}
+print(headOr([1, 2], 0) == headOrSemantics([1, 2], 0))  // true
+print(headOr([], 0) == headOrSemantics([], 0))          // true
+
+// =============================================
+// last: List<T> -> T
+// =============================================
+fun lastSemantics<T>(xs: List<T>) -> T {
+    match xs {
+        [x] -> x
+        [h, rest...] -> lastSemantics(rest)
+        [] -> panic("last: empty list")
+    }
+}
+print(last([1, 2, 3]) == lastSemantics([1, 2, 3]))  // true
+
+// =============================================
+// lastOr: (List<T>, T) -> T
+// =============================================
+fun lastOrSemantics<T>(xs: List<T>, fallback: T) -> T {
+    match xs {
+        [x] -> x
+        [h, rest...] -> lastOrSemantics(rest, fallback)
+        [] -> fallback
+    }
+}
+print(lastOr([1, 2, 3], 0) == lastOrSemantics([1, 2, 3], 0))  // true
+print(lastOr([], 0) == lastOrSemantics([], 0))                // true
+
+// =============================================
+// nth: (List<T>, Int) -> T
+// =============================================
+fun nthSemantics<T>(xs: List<T>, n: Int) -> T {
+    match (xs, n) {
+        ([x, rest...], 0) -> x
+        ([h, rest...], m) -> nthSemantics(rest, m - 1)
+        ([], m) -> panic("nth: index out of bounds")
+    }
+}
+print(nth([10, 20, 30], 0) == nthSemantics([10, 20, 30], 0))  // true
+print(nth([10, 20, 30], 2) == nthSemantics([10, 20, 30], 2))  // true
+
+// =============================================
+// nthOr: (List<T>, Int, T) -> T
+// =============================================
+fun nthOrSemantics<T>(xs: List<T>, n: Int, fallback: T) -> T {
+    match (xs, n) {
+        ([x, rest...], 0) -> x
+        ([h, rest...], m) -> nthOrSemantics(rest, m - 1, fallback)
+        ([], m) -> fallback
+    }
+}
+print(nthOr([10, 20], 5, -1) == nthOrSemantics([10, 20], 5, -1))  // true
+
+// =============================================
+// tail: List<T> -> List<T>
+// =============================================
+fun tailSemantics<T>(xs: List<T>) -> List<T> {
+    match xs {
+        [h, rest...] -> rest
+        [] -> panic("tail: empty list")
+    }
+}
+print(tail([1, 2, 3]) == tailSemantics([1, 2, 3]))  // true
+
+// =============================================
+// init: List<T> -> List<T>
+// =============================================
+fun initSemantics<T>(xs: List<T>) -> List<T> {
+    match xs {
+        [x] -> []
+        [x, rest...] -> x :: initSemantics(rest)
+        [] -> panic("init: empty list")
+    }
+}
+print(init([1, 2, 3]) == initSemantics([1, 2, 3]))  // true
+
+// =============================================
+// take: (List<T>, Int) -> List<T>
+// =============================================
+fun takeSemantics<T>(xs: List<T>, n: Int) -> List<T> {
+    if n <= 0 { [] }
+    else {
+        match xs {
+            [x, rest...] -> x :: takeSemantics(rest, n - 1)
+            [] -> []
+        }
+    }
+}
+print(take([1, 2, 3, 4, 5], 3) == takeSemantics([1, 2, 3, 4, 5], 3))  // true
+
+// =============================================
+// drop: (List<T>, Int) -> List<T>
+// =============================================
+fun dropSemantics<T>(xs: List<T>, n: Int) -> List<T> {
+    if n <= 0 { xs }
+    else {
+        match xs {
+            [h, rest...] -> dropSemantics(rest, n - 1)
+            [] -> []
+        }
+    }
+}
+print(drop([1, 2, 3, 4, 5], 2) == dropSemantics([1, 2, 3, 4, 5], 2))  // true
+
+// =============================================
+// isEmpty: List<T> -> Bool
+// =============================================
+fun isEmptySemantics<T>(xs: List<T>) -> Bool {
+    match xs {
+        [] -> true
+        _ -> false
+    }
+}
+print(isEmpty([]) == isEmptySemantics([]))      // true
+print(isEmpty([1]) == isEmptySemantics([1]))    // true
+
+// =============================================
+// length: List<T> -> Int
+// =============================================
+fun lengthSemantics<T>(xs: List<T>) -> Int {
+    match xs {
+        [] -> 0
+        [h, rest...] -> 1 + lengthSemantics(rest)
+    }
+}
+print(length([1, 2, 3]) == lengthSemantics([1, 2, 3]))  // true
+
+// =============================================
+// filter: (List<T>, (T) -> Bool) -> List<T>
+// =============================================
+fun filterSemantics<T>(xs: List<T>, pred: (T) -> Bool) -> List<T> {
+    match xs {
+        [] -> []
+        [x, rest...] -> if pred(x) { x :: filterSemantics(rest, pred) } else { filterSemantics(rest, pred) }
+    }
+}
+print(filter(fun(x) -> x > 2, [1, 2, 3, 4]) == filterSemantics([1, 2, 3, 4], fun(x) -> x > 2))  // true
+
+// =============================================
+// map: (List<T>, (T) -> U) -> List<U>
+// =============================================
+fun mapSemantics<T, U>(xs: List<T>, f: (T) -> U) -> List<U> {
+    match xs {
+        [] -> []
+        [x, rest...] -> f(x) :: mapSemantics(rest, f)
+    }
+}
+print(map(fun(x) -> x * 2, [1, 2, 3]) == mapSemantics([1, 2, 3], fun(x) -> x * 2))  // true
+
+// =============================================
+// contains: (List<T>, T) -> Bool
+// =============================================
+fun containsSemantics<T>(xs: List<T>, elem: T) -> Bool {
+    match xs {
+        [] -> false
+        [x, rest...] -> if x == elem { true } else { containsSemantics(rest, elem) }
+    }
+}
+print(contains([1, 2, 3], 2) == containsSemantics([1, 2, 3], 2))  // true
+print(contains([1, 2, 3], 5) == containsSemantics([1, 2, 3], 5))  // true
+
+// =============================================
+// indexOf: (List<T>, T) -> Option<Int>
+// =============================================
+fun indexOfSemantics<T>(xs: List<T>, elem: T) -> Option<Int> {
+    indexOfHelperS(xs, elem, 0)
+}
+fun indexOfHelperS<T>(xs: List<T>, elem: T, idx: Int) -> Option<Int> {
+    match xs {
+        [] -> Zero
+        [x, rest...] -> if x == elem { Some(idx) } else { indexOfHelperS(rest, elem, idx + 1) }
+    }
+}
+print(indexOf([10, 20, 30], 20) == indexOfSemantics([10, 20, 30], 20))  // true (Some(1))
+print(indexOf([10, 20, 30], 99) == indexOfSemantics([10, 20, 30], 99))  // true (Zero)
+
+// =============================================
+// reverse: List<T> -> List<T>
+// =============================================
+fun reverseSemantics<T>(xs: List<T>) -> List<T> {
+    reverseHelperS(xs, [])
+}
+fun reverseHelperS<T>(xs: List<T>, acc: List<T>) -> List<T> {
+    match xs {
+        [] -> acc
+        [x, rest...] -> reverseHelperS(rest, x :: acc)
+    }
+}
+print(reverse([1, 2, 3]) == reverseSemantics([1, 2, 3]))  // true
+
+// =============================================
+// concat: (List<T>, List<T>) -> List<T>
+// =============================================
+fun concatSemantics<T>(xs: List<T>, ys: List<T>) -> List<T> {
+    xs ++ ys
+}
+print(concat([1, 2], [3, 4]) == concatSemantics([1, 2], [3, 4]))  // true
+
+// =============================================
+// flatten: List<List<T>> -> List<T>
+// =============================================
+fun flattenSemantics<T>(xss: List<List<T>>) -> List<T> {
+    match xss {
+        [] -> []
+        [xs, rest...] -> xs ++ flattenSemantics(rest)
+    }
+}
+print(flatten([[1, 2], [3]]) == [1, 2, 3])  // true
+print(flatten([[1, 2], [3, 4], [5]]) == flattenSemantics([[1, 2], [3, 4], [5]]))  // true
+
+// =============================================
+// unique: List<T> -> List<T>
+// =============================================
+fun uniqueSemantics<T>(xs: List<T>) -> List<T> {
+    uniqueHelperS(xs, [])
+}
+fun uniqueHelperS<T>(xs: List<T>, seen: List<T>) -> List<T> {
+    match xs {
+        [] -> []
+        [x, rest...] -> {
+            if containsSemantics(seen, x) {
+                uniqueHelperS(rest, seen)
+            } else {
+                x :: uniqueHelperS(rest, x :: seen)
+            }
+        }
+    }
+}
+print(unique([1, 2, 2, 3, 1]) == uniqueSemantics([1, 2, 2, 3, 1]))  // true
+
+// =============================================
+// zip: (List<A>, List<B>) -> List<(A, B)>
+// =============================================
+fun zipSemantics<A, B>(xs: List<A>, ys: List<B>) -> List<(A, B)> {
+    match (xs, ys) {
+        ([x, xrest...], [y, yrest...]) -> (x, y) :: zipSemantics(xrest, yrest)
+        _ -> []
+    }
+}
+print(zip([1, 2], [3, 4]) == zipSemantics([1, 2], [3, 4]))  // true
+
+// =============================================
+// unzip: List<(A, B)> -> (List<A>, List<B>)
+// =============================================
+fun unzipSemantics<A, B>(prs: List<(A, B)>) -> (List<A>, List<B>) {
+    match prs {
+        [] -> ([], [])
+        [first, rest...] -> {
+            (fst, snd) = first
+            (fsts, snds) = unzipSemantics(rest)
+            ([fst, ...fsts], [snd, ...snds])
+        }
+    }
+}
+pairs: List<(Int, Int)> = [(1, 3), (2, 4)]
+print(unzip(pairs) == ([1, 2], [3, 4]))              // true
+print(unzip(pairs) == unzipSemantics(pairs))        // true
+
+// =============================================
+// sort: List<T> -> List<T> (requires Order constraint)
+// =============================================
+fun sortSemantics<T: Order>(xs: List<T>) -> List<T> {
+    match xs {
+        [] -> []
+        [pivot, rest...] -> {
+            less = filterSemantics(rest, fun(x) -> x < pivot)
+            greater = filterSemantics(rest, fun(x) -> x >= pivot)
+            sortSemantics(less) ++ [pivot] ++ sortSemantics(greater)
+        }
+    }
+}
+print(sort([3, 1, 2]) == [1, 2, 3])  // true
+print(sort([3, 1, 4, 1, 5, 9, 2, 6]) == sortSemantics([3, 1, 4, 1, 5, 9, 2, 6]))  // true
+
+// =============================================
+// sortBy: (List<T>, (T,T)->Int) -> List<T>
+// =============================================
+words = ["banana", "apple", "kiwi"]
+cmp = fun(a, b) -> length(a) - length(b)
+print(sortBy(words, cmp) == ["kiwi", "apple", "banana"])  // true
+
+// =============================================
+// foldl: (List<T>, U, (U, T) -> U) -> U
+// =============================================
+fun foldlSemantics<T, U>(xs: List<T>, init: U, f: (U, T) -> U) -> U {
+    match xs {
+        [] -> init
+        [x, rest...] -> foldlSemantics(rest, f(init, x), f)
+    }
+}
+print(foldl((+), 0, [1, 2, 3, 4]) == foldlSemantics([1, 2, 3, 4], 0, (+)))  // true (10)
+print(foldl(fun(acc, x) -> acc - x, 0, [1, 2, 3]) == -6)  // true: ((0-1)-2)-3 = -6
+
+// =============================================
+// foldr: (List<T>, U, (T, U) -> U) -> U
+// =============================================
+fun foldrSemantics<T, U>(xs: List<T>, init: U, f: (T, U) -> U) -> U {
+    match xs {
+        [] -> init
+        [x, rest...] -> f(x, foldrSemantics(rest, init, f))
+    }
+}
+print(foldr((+), 0, [1, 2, 3, 4]) == foldrSemantics([1, 2, 3, 4], 0, (+)))  // true (10)
+print(foldr(fun(x, acc) -> x - acc, 0, [1, 2, 3]) == 2)  // true: 1-(2-(3-0)) = 2
+
+// =============================================
+// find: (List<T>, (T) -> Bool) -> Option<T>
+// =============================================
+fun findSemantics<T>(xs: List<T>, pred: (T) -> Bool) -> Option<T> {
+    match xs {
+        [] -> Zero
+        [x, rest...] -> if pred(x) { Some(x) } else { findSemantics(rest, pred) }
+    }
+}
+print(find(fun(x) -> x > 2, [1, 2, 3, 4]) == Some(3))  // true
+print(find(fun(x) -> x > 10, [1, 2, 3]) == Zero)       // true
+print(find(fun(x) -> x > 2, [1, 2, 3, 4]) == findSemantics([1, 2, 3, 4], fun(x) -> x > 2))  // true
+
+// =============================================
+// findIndex: (List<T>, (T) -> Bool) -> Option<Int>
+// =============================================
+print(findIndex(fun(x) -> x > 2, [1, 2, 3, 4]) == Some(2))  // true (index of 3)
+print(findIndex(fun(x) -> x > 10, [1, 2, 3]) == Zero)       // true
+
+// =============================================
+// any: (List<T>, (T) -> Bool) -> Bool
+// =============================================
+fun anySemantics<T>(xs: List<T>, pred: (T) -> Bool) -> Bool {
+    match xs {
+        [] -> false
+        [x, rest...] -> if pred(x) { true } else { anySemantics(rest, pred) }
+    }
+}
+print(any(fun(x) -> x > 2, [1, 2, 3]) == true)   // true
+print(any(fun(x) -> x > 10, [1, 2, 3]) == false) // true
+print(any(fun(x) -> x > 2, [1, 2, 3]) == anySemantics([1, 2, 3], fun(x) -> x > 2))  // true
+
+// =============================================
+// all: (List<T>, (T) -> Bool) -> Bool
+// =============================================
+fun allSemantics<T>(xs: List<T>, pred: (T) -> Bool) -> Bool {
+    match xs {
+        [] -> true
+        [x, rest...] -> if pred(x) { allSemantics(rest, pred) } else { false }
+    }
+}
+print(all(fun(x) -> x > 0, [1, 2, 3]) == true)   // true
+print(all(fun(x) -> x > 2, [1, 2, 3]) == false)  // true
+print(all(fun(x) -> x > 0, [1, 2, 3]) == allSemantics([1, 2, 3], fun(x) -> x > 0))  // true
+
+// =============================================
+// takeWhile: (List<T>, (T) -> Bool) -> List<T>
+// =============================================
+fun takeWhileSemantics<T>(xs: List<T>, pred: (T) -> Bool) -> List<T> {
+    match xs {
+        [] -> []
+        [x, rest...] -> if pred(x) { x :: takeWhileSemantics(rest, pred) } else { [] }
+    }
+}
+print(takeWhile(fun(x) -> x < 4, [1, 2, 3, 4, 5]) == [1, 2, 3])  // true
+print(takeWhile(fun(x) -> x > 10, [1, 2, 3]) == [])             // true
+print(takeWhile(fun(x) -> x < 3, [1, 2, 3, 4]) == takeWhileSemantics([1, 2, 3, 4], fun(x) -> x < 3))  // true
+
+// =============================================
+// dropWhile: (List<T>, (T) -> Bool) -> List<T>
+// =============================================
+fun dropWhileSemantics<T>(xs: List<T>, pred: (T) -> Bool) -> List<T> {
+    match xs {
+        [] -> []
+        [x, rest...] -> if pred(x) { dropWhileSemantics(rest, pred) } else { xs }
+    }
+}
+print(dropWhile(fun(x) -> x < 4, [1, 2, 3, 4, 5]) == [4, 5])  // true
+print(dropWhile(fun(x) -> x > 10, [1, 2, 3]) == [1, 2, 3])    // true
+print(dropWhile(fun(x) -> x < 3, [1, 2, 3, 4]) == dropWhileSemantics([1, 2, 3, 4], fun(x) -> x < 3))  // true
+
+// =============================================
+// partition: (List<T>, (T) -> Bool) -> (List<T>, List<T>)
+// =============================================
+fun partitionSemantics<T>(xs: List<T>, pred: (T) -> Bool) -> (List<T>, List<T>) {
+    match xs {
+        [] -> ([], [])
+        [x, rest...] -> {
+            (yes, no) = partitionSemantics(rest, pred)
+            if pred(x) { (x :: yes, no) } else { (yes, x :: no) }
+        }
+    }
+}
+print(partition(fun(x) -> x % 2 == 0, [1, 2, 3, 4, 5]) == ([2, 4], [1, 3, 5]))  // true
+print(partition(fun(x) -> x % 2 == 0, [1, 2, 3, 4, 5]) == partitionSemantics([1, 2, 3, 4, 5], fun(x) -> x % 2 == 0))  // true
+
+// =============================================
+// forEach: ((T) -> Nil, List<T>) -> Nil
+// =============================================
+// forEach executes a function for each element (side effects only)
+// It always returns Nil
+
+// Test 1: forEach returns Nil
+result = forEach(fun(x) -> { Nil }, [1, 2, 3])
+print(result == Nil)  // true
+
+// Test 2: forEach executes for all elements (using mutable accumulator pattern)
+count = 0
+forEach(fun(x) -> { count = count + 1, Nil }, [1, 2, 3, 4, 5])
+print(count == 5)  // true
+
+// Test 3: forEach with empty list
+count2 = 0
+forEach(fun(x) -> { count2 = count2 + 1, Nil }, [])
+print(count2 == 0)  // true
+
+// Test 4: forEach in pipe
+sum = 0
+[10, 20, 30] |> forEach(fun(x) -> { sum = sum + x, Nil })
+print(sum == 60)  // true
+
+// =============================================
+// range: (Int, Int) -> List<Int>
+// =============================================
+fun rangeSemantics(start: Int, end: Int) -> List<Int> {
+    if start >= end { [] } else { start :: rangeSemantics(start + 1, end) }
+}
+print(range(1, 5) == [1, 2, 3, 4])  // true
+print(range(0, 3) == [0, 1, 2])     // true
+print(range(5, 5) == [])            // true (empty when start >= end)
+print(range(10, 5) == [])           // true (empty when start > end)
+print(range(1, 5) == rangeSemantics(1, 5))  // true
+
+print("All lib/list tests passed!")

@@ -1,0 +1,195 @@
+import "lib/date" (*)
+
+// =============================================
+// Date creation (offset defaults to local)
+// =============================================
+
+// dateNew: (Int, Int, Int, offset?: Int) -> Date
+date1 = dateNew(2025, 12, 2)
+print(dateYear(date1) == 2025)
+print(dateMonth(date1) == 12)
+print(dateDay(date1) == 2)
+// Local offset is used by default
+localOff = dateOffset(date1)
+print(localOff != 0 || localOff == 0)  // always true, just check it's accessible
+
+// dateNewTime: (Int, Int, Int, Int, Int, Int, offset?: Int) -> Date
+date2 = dateNewTime(2025, 12, 2, 14, 30, 45)
+print(dateYear(date2) == 2025)
+print(dateMonth(date2) == 12)
+print(dateDay(date2) == 2)
+print(dateHour(date2) == 14)
+print(dateMinute(date2) == 30)
+print(dateSecond(date2) == 45)
+
+// =============================================
+// Offset tests
+// =============================================
+
+// Create date with explicit UTC offset (0)
+utcDate = dateNew(2025, 12, 2, 0)
+print(dateOffset(utcDate) == 0)
+
+// Create date with Moscow offset (+3 hours = 180 minutes)
+moscowDate = dateNewTime(2025, 12, 2, 12, 0, 0, 180)
+print(dateOffset(moscowDate) == 180)
+
+// Create date with New York offset (-5 hours = -300 minutes)
+nyDate = dateNewTime(2025, 12, 2, 12, 0, 0, -300)
+print(dateOffset(nyDate) == -300)
+
+// dateWithOffset: change offset (adjusts time)
+// 12:00 Moscow (UTC+3) = 09:00 UTC = 04:00 New York (UTC-5)
+moscowToUtc = dateWithOffset(moscowDate, 0)
+print(dateOffset(moscowToUtc) == 0)
+print(dateHour(moscowToUtc) == 9)  // 12:00 UTC+3 = 09:00 UTC
+
+moscowToNy = dateWithOffset(moscowDate, -300)
+print(dateOffset(moscowToNy) == -300)
+print(dateHour(moscowToNy) == 4)  // 12:00 UTC+3 = 04:00 UTC-5
+
+// =============================================
+// dateNow vs dateNowUtc
+// =============================================
+
+now = dateNow()
+nowUtc = dateNowUtc()
+print(dateOffset(nowUtc) == 0)  // UTC has offset 0
+// Local offset should match system timezone
+print(dateOffset(now) == localOff)
+
+// =============================================
+// Date components
+// =============================================
+
+// dateWeekday: 2025-12-02 is Tuesday = 2
+print(dateWeekday(date1) == 2)
+
+// =============================================
+// Date formatting
+// =============================================
+
+// dateFormat: (Date, String) -> String
+formatted = dateFormat(date1, "YYYY-MM-DD")
+print(formatted == "2025-12-02")
+
+formatted2 = dateFormat(date2, "DD.MM.YYYY HH:mm:ss")
+print(formatted2 == "02.12.2025 14:30:45")
+
+// =============================================
+// Date parsing
+// =============================================
+
+// dateParse: (String, String) -> Option<Date>
+parsed = dateParse("2025-12-25", "YYYY-MM-DD")
+match parsed {
+    Some(d) -> {
+        print(dateYear(d) == 2025)
+        print(dateMonth(d) == 12)
+        print(dateDay(d) == 25)
+    }
+    Zero -> print(false)
+}
+
+// Invalid date
+invalidParsed = dateParse("invalid", "YYYY-MM-DD")
+match invalidParsed {
+    Some(_) -> print(false)
+    Zero -> print(true)
+}
+
+// =============================================
+// Date arithmetic (preserves offset)
+// =============================================
+
+// dateAddDays
+tomorrow = dateAddDays(date1, 1)
+print(dateDay(tomorrow) == 3)
+print(dateOffset(tomorrow) == localOff)  // offset preserved
+
+yesterday = dateAddDays(date1, -1)
+print(dateDay(yesterday) == 1)
+
+// dateAddMonths
+nextMonth = dateAddMonths(date1, 1)
+print(dateMonth(nextMonth) == 1)  // Wraps to January 2026
+print(dateYear(nextMonth) == 2026)
+
+// dateAddYears
+nextYear = dateAddYears(date1, 1)
+print(dateYear(nextYear) == 2026)
+
+// dateAddHours
+laterToday = dateAddHours(date2, 3)
+print(dateHour(laterToday) == 17)
+
+// dateAddMinutes
+laterMinutes = dateAddMinutes(date2, 45)
+print(dateMinute(laterMinutes) == 15)  // 30 + 45 = 75 -> 15 (next hour)
+print(dateHour(laterMinutes) == 15)    // Hour incremented
+
+// dateAddSeconds
+laterSeconds = dateAddSeconds(date2, 30)
+print(dateSecond(laterSeconds) == 15)  // 45 + 30 = 75 -> 15 (next minute)
+
+// =============================================
+// Date difference (works correctly with offsets)
+// =============================================
+
+// Same moment in time, different offsets should have diff = 0
+moscow12 = dateNewTime(2025, 12, 2, 12, 0, 0, 180)   // 12:00 UTC+3
+utc9 = dateNewTime(2025, 12, 2, 9, 0, 0, 0)          // 09:00 UTC
+print(dateDiffSeconds(moscow12, utc9) == 0)  // Same moment!
+
+// Different moments
+utc10 = dateNewTime(2025, 12, 2, 10, 0, 0, 0)  // 10:00 UTC
+print(dateDiffSeconds(utc10, utc9) == 3600)    // 1 hour = 3600 seconds
+
+// dateDiffDays
+date3 = dateNew(2025, 12, 10)
+diff = dateDiffDays(date3, date1)
+print(diff == 8)  // 10 - 2 = 8 days
+
+// Negative difference
+diffNeg = dateDiffDays(date1, date3)
+print(diffNeg == -8)
+
+// =============================================
+// Timestamp conversion (works with any offset)
+// =============================================
+
+// dateToTimestamp: (Date) -> Int
+ts = dateToTimestamp(date1)
+print(ts > 0)
+
+// Same moment = same timestamp regardless of offset
+ts1 = dateToTimestamp(moscow12)
+ts2 = dateToTimestamp(utc9)
+print(ts1 == ts2)  // Same Unix timestamp!
+
+// dateFromTimestamp: (Int) -> Date
+fromTs = dateFromTimestamp(ts)
+print(dateYear(fromTs) == 2025)
+print(dateMonth(fromTs) == 12)
+print(dateDay(fromTs) == 2)
+
+// Round-trip
+ts2_ = dateToTimestamp(date2)
+fromTs2 = dateFromTimestamp(ts2_)
+print(dateHour(fromTs2) == 14)
+print(dateMinute(fromTs2) == 30)
+
+// =============================================
+// dateToUtc and dateToLocal
+// =============================================
+
+// dateToUtc converts to offset=0
+utcConverted = dateToUtc(moscowDate)
+print(dateOffset(utcConverted) == 0)
+print(dateHour(utcConverted) == 9)  // 12:00 UTC+3 = 09:00 UTC
+
+// dateToLocal converts to local offset
+localConverted = dateToLocal(utcConverted)
+print(dateOffset(localConverted) == localOff)
+
+print("lib/date tests passed!")

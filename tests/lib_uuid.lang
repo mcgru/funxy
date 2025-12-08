@@ -1,0 +1,121 @@
+import "lib/uuid" (*)
+import "lib/bytes" (bytesNew)
+
+// Test uuidNew (v4)
+u1 = uuidNew()
+print(len(uuidToString(u1)) == 36)  // true
+
+// Test uuidV4 (alias)
+u2 = uuidV4()
+print(len(uuidToString(u2)) == 36)  // true
+
+// Test uuidV7 (time-ordered)
+u3 = uuidV7()
+print(len(uuidToString(u3)) == 36)  // true
+print(uuidVersion(u3) == 7)  // true
+
+// Test uuidNil
+nilUuid = uuidNil()
+print(uuidToString(nilUuid) == "00000000-0000-0000-0000-000000000000")  // true
+print(uuidIsNil(nilUuid) == true)  // true
+
+// Test uuidMax
+maxUuid = uuidMax()
+print(uuidToString(maxUuid) == "ffffffff-ffff-ffff-ffff-ffffffffffff")  // true
+
+// Test uuidVersion
+v4uuid = uuidNew()
+print(uuidVersion(v4uuid) == 4)  // true
+
+// Test uuidIsNil on non-nil
+nonNil = uuidNew()
+print(uuidIsNil(nonNil) == false)  // true
+
+// Test uuidParse
+parseResult = uuidParse("550e8400-e29b-41d4-a716-446655440000")
+match parseResult {
+    Ok(u) -> {
+        ver = uuidVersion(u)
+        print(ver == 4)  // true
+    }
+    Fail(_) -> print(false)
+}
+
+// Test uuidParse invalid
+match uuidParse("invalid-uuid") {
+    Ok(_) -> print(false)
+    Fail(_) -> print(true)  // true
+}
+
+// Test uuidParse compact format
+match uuidParse("550e8400e29b41d4a716446655440000") {
+    Ok(parsed) -> {
+        str = uuidToString(parsed)
+        print(len(str) == 36)  // true
+    }
+    Fail(_) -> print(false)
+}
+
+// Test uuidV5 (deterministic)
+ns = uuidNamespaceDNS()
+u5a = uuidV5(ns, "example.com")
+u5b = uuidV5(ns, "example.com")
+print(uuidToString(u5a) == uuidToString(u5b))  // true - same input = same output
+print(uuidVersion(u5a) == 5)  // true
+
+// Test different namespaces
+nsUrl = uuidNamespaceURL()
+nsOid = uuidNamespaceOID()
+nsX500 = uuidNamespaceX500()
+print(uuidToString(ns) != uuidToString(nsUrl))  // true
+
+// Test uuidToStringCompact
+u = uuidNil()
+print(uuidToStringCompact(u) == "00000000000000000000000000000000")  // true
+
+// Test uuidToStringUrn
+print(uuidToStringUrn(u) == "urn:uuid:00000000-0000-0000-0000-000000000000")  // true
+
+// Test uuidToStringBraces
+print(uuidToStringBraces(u) == "{00000000-0000-0000-0000-000000000000}")  // true
+
+// Test uuidToStringUpper
+match uuidParse("550e8400-e29b-41d4-a716-446655440000") {
+    Ok(parsed) -> {
+        upper = uuidToStringUpper(parsed)
+        print(upper == "550E8400-E29B-41D4-A716-446655440000")  // true
+    }
+    Fail(_) -> print(false)
+}
+
+// Test uuidToBytes and uuidFromBytes
+original = uuidNew()
+bytes = uuidToBytes(original)
+print(len(bytes) == 16)  // true
+
+match uuidFromBytes(bytes) {
+    Ok(restored) -> {
+        origStr = uuidToString(original)
+        restStr = uuidToString(restored)
+        print(origStr == restStr)  // true
+    }
+    Fail(_) -> print(false)
+}
+
+// Test uuidFromBytes invalid size
+emptyBytes = bytesNew()
+match uuidFromBytes(emptyBytes) {
+    Ok(_) -> print(false)
+    Fail(_) -> print(true)  // true - invalid size
+}
+
+// Test equality
+a = uuidNil()
+b = uuidNil()
+print(a == b)  // true
+
+c = uuidNew()
+d = uuidNew()
+print(c != d)  // true - different random UUIDs
+
+print("lib/uuid tests passed!")

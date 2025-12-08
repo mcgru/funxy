@@ -1,0 +1,107 @@
+import "lib/regex" (*)
+
+// =============================================
+// regexMatch: (String, String) -> Bool
+// =============================================
+print(regexMatch("\d+", "abc123def"))  // true
+print(regexMatch("\d+", "abcdef"))     // false
+print(regexMatch("^hello", "hello world"))  // true
+print(regexMatch("^hello", "say hello"))    // false
+
+// =============================================
+// regexFind: (String, String) -> Option<String>
+// =============================================
+result = regexFind("\d+", "abc123def456")
+print(result)  // Some("123")
+
+noMatch = regexFind("\d+", "abcdef")
+print(noMatch)  // Zero
+
+// =============================================
+// regexFindAll: (String, String) -> List<String>
+// =============================================
+allMatches = regexFindAll("\d+", "a1b2c3d4")
+print(allMatches)  // ["1", "2", "3", "4"]
+
+noMatches = regexFindAll("\d+", "abcd")
+print(noMatches)  // []
+
+// =============================================
+// regexCapture: (String, String) -> Option<List<String>>
+// =============================================
+// Pattern with capture groups: (year)-(month)-(day)
+dateCapture = regexCapture("(\d{4})-(\d{2})-(\d{2})", "Date: 2024-03-15")
+match dateCapture {
+    Some(groups) -> {
+        print(groups[0])  // "2024-03-15" (full match)
+        print(groups[1])  // "2024" (year)
+        print(groups[2])  // "03" (month)
+        print(groups[3])  // "15" (day)
+    }
+    Zero -> print("No match")
+}
+
+noCapture = regexCapture("(\d+)-(\d+)", "no numbers here")
+print(noCapture)  // Zero
+
+// =============================================
+// regexReplace: (String, String, String) -> String
+// =============================================
+// Replace first match only
+replaced = regexReplace("\d+", "X", "a1b2c3")
+print(replaced)  // "aXb2c3"
+
+// No match - original string returned
+noReplace = regexReplace("\d+", "X", "abc")
+print(noReplace)  // "abc"
+
+// =============================================
+// regexReplaceAll: (String, String, String) -> String
+// =============================================
+// Replace all matches
+replacedAll = regexReplaceAll("\d+", "X", "a1b2c3")
+print(replacedAll)  // "aXbXcX"
+
+// With backreference ($1)
+wrapped = regexReplaceAll("(\w+)", "[$1]", "hello world")
+print(wrapped)  // "[hello] [world]"
+
+// =============================================
+// regexSplit: (String, String) -> List<String>
+// =============================================
+// Split by comma and optional spaces
+parts = regexSplit(",\s*", "a, b,c,  d")
+print(parts)  // ["a", "b", "c", "d"]
+
+// Split by any whitespace (spaces only in this test)
+words = regexSplit("\s+", "hello   world   foo")
+print(words)  // ["hello", "world", "foo"]
+
+// =============================================
+// regexValidate: (String) -> Result<String, Nil>
+// =============================================
+validResult = regexValidate("\d+")
+match validResult {
+    Ok(_) -> print("Valid pattern")
+    Fail(err) -> print("Invalid: ${err}")
+}
+
+invalidResult = regexValidate("[invalid")
+match invalidResult {
+    Ok(_) -> print("Valid pattern")
+    Fail(_) -> print("Invalid pattern detected")
+}
+
+// =============================================
+// Common patterns
+// =============================================
+// Email-like pattern
+emailPattern = "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
+print(regexMatch(emailPattern, "test@example.com"))  // true
+print(regexMatch(emailPattern, "not-an-email"))      // false
+
+// Phone number (simple)
+phonePattern = "\d{3}-\d{3}-\d{4}"
+print(regexMatch(phonePattern, "123-456-7890"))  // true
+
+print("lib/regex tests passed!")

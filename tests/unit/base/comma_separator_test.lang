@@ -1,0 +1,158 @@
+import "lib/list" (head)
+import "lib/test" (*)
+
+// =============================================
+// COMMA AS STATEMENT SEPARATOR
+// Tests: multiple statements on one line
+// =============================================
+
+// === Basic cases ===
+
+testRun("Comma: two statements on one line", fun() -> {
+    x = 1, y = 2
+    assert(x == 1)
+    assert(y == 2)
+})
+
+testRun("Comma: three statements on one line", fun() -> {
+    a = 10, b = 20, c = 30
+    assert(a + b + c == 60)
+})
+
+testRun("Comma: statements with expressions", fun() -> {
+    x = 1 + 2, y = 3 * 4, z = 5 - 1
+    assert(x == 3)
+    assert(y == 12)
+    assert(z == 4)
+})
+
+// === Trailing comma ===
+
+testRun("Comma: trailing comma at end of line", fun() -> {
+    x = 1, y = 2,
+    assert(x == 1)
+    assert(y == 2)
+})
+
+testRun("Comma: trailing comma before newline then more statements", fun() -> {
+    a = 1, b = 2,
+    c = 3, d = 4,
+    assert(a + b + c + d == 10)
+})
+
+// === Inside blocks ===
+
+testRun("Comma: inside block expression", fun() -> {
+    result = { x = 5, y = 10, x + y }
+    assert(result == 15)
+})
+
+testRun("Comma: inside if block", fun() -> {
+    cond = true
+    result = if cond { a = 1, b = 2, a + b } else { 0 }
+    assert(result == 3)
+})
+
+testRun("Comma: inside else block", fun() -> {
+    cond = false
+    result = if cond { 0 } else { a = 10, b = 20, a * b }
+    assert(result == 200)
+})
+
+// === Mixed with newlines ===
+
+testRun("Comma: mixed with newlines", fun() -> {
+    x = 1, y = 2
+    z = 3, w = 4
+    assert(x + y + z + w == 10)
+})
+
+testRun("Comma: comma then newline then comma", fun() -> {
+    a = 1,
+    b = 2, c = 3
+    assert(a + b + c == 6)
+})
+
+// === With function calls ===
+
+testRun("Comma: with function calls", fun() -> {
+    sum = fun(a, b) -> a + b
+    x = sum(1, 2), y = sum(3, 4), z = sum(5, 6)
+    assert(x == 3)
+    assert(y == 7)
+    assert(z == 11)
+})
+
+testRun("Comma: print and assign", fun() -> {
+    captured = []
+    log = fun(x) -> { captured = captured ++ [x], x }
+    a = log(1), b = log(2), c = log(3)
+    assert(a == 1)
+    assert(b == 2)
+    assert(c == 3)
+    assert(captured == [1, 2, 3])
+})
+
+// === Nested blocks ===
+
+testRun("Comma: nested blocks with commas", fun() -> {
+    outer = {
+        inner1 = { x = 1, y = 2, x + y },
+        inner2 = { a = 3, b = 4, a * b },
+        inner1 + inner2
+    }
+    assert(outer == 15)  // (1+2) + (3*4) = 3 + 12
+})
+
+// === With pattern matching ===
+
+testRun("Comma: after match expression", fun() -> {
+    val = (1, "hello")
+    first = match val {
+        (x, _) -> x
+    }, second = first * 2
+    assert(first == 1)
+    assert(second == 2)
+})
+
+// === With for loops ===
+
+testRun("Comma: inside for loop body", fun() -> {
+    sum = 0
+    for i in [1, 2, 3] {
+        doubled = i * 2, sum = sum + doubled
+    }
+    assert(sum == 12)  // 2 + 4 + 6
+})
+
+// === Edge cases ===
+
+testRun("Comma: single statement with trailing comma", fun() -> {
+    x = 42,
+    assert(x == 42)
+})
+
+testRun("Comma: empty-ish (just assignments)", fun() -> {
+    a = 1, b = a + 1, c = b + 1, d = c + 1
+    assert(d == 4)
+})
+
+testRun("Comma: with list operations", fun() -> {
+    list = [1, 2, 3], first = head $ list
+    assert(first == 1)
+})
+
+testRun("Comma: with record operations", fun() -> {
+    rec = { x: 1, y: 2 }, sum = rec.x + rec.y
+    assert(sum == 3)
+})
+
+// === Multiple trailing commas (should work) ===
+
+testRun("Comma: statement after trailing comma on prev line", fun() -> {
+    x = 1,
+    y = 2,
+    z = 3,
+    assert(x + y + z == 6)
+})
+

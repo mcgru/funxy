@@ -1,0 +1,13 @@
+// Test: Missing required method error
+
+trait Cmp<T> {
+    fun cmp(a: T, b: T) -> Bool           // Required
+    fun notCmp(a: T, b: T) -> Bool {      // Default
+        if cmp(a, b) { false } else { true }
+    }
+}
+
+// ERROR: Instance without required 'cmp' method
+instance Cmp Int {}
+
+print("should not reach")

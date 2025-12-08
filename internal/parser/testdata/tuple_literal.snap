@@ -1,0 +1,13 @@
+--- AST Tree ---
+Program
+  Assign
+    Left: Identifier(x)
+    Value: Tuple
+      IntegerLiteral(1)
+      BooleanLiteral(true)
+      Identifier(a)
+
+
+
+--- Source Code ---
+x = (1, true, a)

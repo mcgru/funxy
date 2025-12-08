@@ -1,0 +1,109 @@
+import "lib/rand" (*)
+import "lib/list" (sort)
+
+// Set seed for reproducible tests
+randomSeed(42)
+
+// =============================================
+// randomInt: () -> Int
+// =============================================
+n = randomInt()
+print(n >= 0)  // Should be non-negative
+
+// =============================================
+// randomIntRange: (Int, Int) -> Int
+// =============================================
+r1 = randomIntRange(1, 10)
+print(r1 >= 1 && r1 <= 10)
+
+r2 = randomIntRange(5, 5)  // Same min/max
+print(r2 == 5)
+
+r3 = randomIntRange(-10, -5)
+print(r3 >= -10 && r3 <= -5)
+
+// =============================================
+// randomFloat: () -> Float
+// =============================================
+f = randomFloat()
+print(f >= 0.0 && f < 1.0)
+
+// =============================================
+// randomFloatRange: (Float, Float) -> Float
+// =============================================
+fr = randomFloatRange(1.0, 2.0)
+print(fr >= 1.0 && fr < 2.0)
+
+fr2 = randomFloatRange(-5.0, 5.0)
+print(fr2 >= -5.0 && fr2 < 5.0)
+
+// =============================================
+// randomBool: () -> Bool
+// =============================================
+// Just check it returns a boolean without error
+b = randomBool()
+print(b == true || b == false)
+
+// =============================================
+// randomChoice: List<A> -> Option<A>
+// =============================================
+list = [1, 2, 3, 4, 5]
+choice = randomChoice(list)
+match choice {
+    Some(x) -> print(x >= 1 && x <= 5)
+    Zero -> print(false)  // Should not happen
+}
+
+// Empty list
+emptyChoice = randomChoice([])
+match emptyChoice {
+    Some(_) -> print(false)  // Should not happen
+    Zero -> print(true)
+}
+
+// =============================================
+// randomShuffle: List<A> -> List<A>
+// =============================================
+original = [1, 2, 3, 4, 5]
+shuffled = randomShuffle(original)
+print(len(shuffled) == 5)
+
+// Check all elements are preserved (sorted comparison)
+print(sort(shuffled) == [1, 2, 3, 4, 5])
+
+// Empty list shuffle
+emptyShuffled = randomShuffle([])
+print(emptyShuffled == [])
+
+// =============================================
+// randomSample: (List<A>, Int) -> List<A>
+// =============================================
+sampleList = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+sample = randomSample(sampleList, 3)
+print(len(sample) == 3)
+
+// Sample larger than list
+largeSample = randomSample([1, 2, 3], 10)
+print(len(largeSample) == 3)
+
+// Zero sample
+zeroSample = randomSample([1, 2, 3], 0)
+print(len(zeroSample) == 0)
+
+// =============================================
+// randomSeed: Int -> Nil
+// =============================================
+// Test reproducibility
+randomSeed(123)
+a1 = randomInt()
+a2 = randomInt()
+
+randomSeed(123)
+b1 = randomInt()
+b2 = randomInt()
+
+print(a1 == b1)
+print(a2 == b2)
+
+print("lib/rand tests passed!")
+

@@ -1,0 +1,254 @@
+import "lib/url" (*)
+import "lib/test" (*)
+
+// ============================================================================
+// urlParse
+// ============================================================================
+
+testRun("urlParse simple", fun() -> {
+    match urlParse("https://example.com") {
+        Ok(url) -> {
+            assertEquals(urlScheme(url), "https")
+            assertEquals(urlHost(url), "example.com")
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("urlParse full URL", fun() -> {
+    match urlParse("https://user:pass@example.com:8080/path?q=1#frag") {
+        Ok(url) -> {
+            assertEquals(urlScheme(url), "https")
+            assertEquals(urlUserinfo(url), "user:pass")
+            assertEquals(urlHost(url), "example.com")
+            assertSome(urlPort(url))
+            assertEquals(urlPath(url), "/path")
+            assertEquals(urlQuery(url), "q=1")
+            assertEquals(urlFragment(url), "frag")
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("urlParse without port", fun() -> {
+    match urlParse("https://example.com/path") {
+        Ok(url) -> assertZero(urlPort(url))
+        Fail(_) -> assert(false)
+    }
+})
+
+// ============================================================================
+// urlToString
+// ============================================================================
+
+testRun("urlToString roundtrip", fun() -> {
+    original = "https://example.com:8080/path?q=1#frag"
+    match urlParse(original) {
+        Ok(url) -> assertEquals(urlToString(url), original)
+        Fail(_) -> assert(false)
+    }
+})
+
+// ============================================================================
+// Query params
+// ============================================================================
+
+testRun("urlQueryParam single value", fun() -> {
+    match urlParse("https://example.com?name=test") {
+        Ok(url) -> {
+            match urlQueryParam(url, "name") {
+                Some(v) -> assertEquals(v, "test")
+                Zero -> assert(false)
+            }
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("urlQueryParam missing", fun() -> {
+    match urlParse("https://example.com?name=test") {
+        Ok(url) -> assertZero(urlQueryParam(url, "missing"))
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("urlQueryParamAll multiple values", fun() -> {
+    match urlParse("https://example.com?tag=a&tag=b&tag=c") {
+        Ok(url) -> {
+            tags = urlQueryParamAll(url, "tag")
+            assertEquals(len(tags), 3)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("urlQueryParams as map", fun() -> {
+    match urlParse("https://example.com?a=1&b=2") {
+        Ok(url) -> {
+            params = urlQueryParams(url)
+            assertEquals(len(params), 2)
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+// ============================================================================
+// Modifiers
+// ============================================================================
+
+testRun("urlWithScheme", fun() -> {
+    match urlParse("https://example.com") {
+        Ok(url) -> {
+            url2 = urlWithScheme(url, "http")
+            assertEquals(urlScheme(url2), "http")
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("urlWithHost", fun() -> {
+    match urlParse("https://old.com") {
+        Ok(url) -> {
+            url2 = urlWithHost(url, "new.com")
+            assertEquals(urlHost(url2), "new.com")
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("urlWithPort", fun() -> {
+    match urlParse("https://example.com") {
+        Ok(url) -> {
+            url2 = urlWithPort(url, 9000)
+            match urlPort(url2) {
+                Some(p) -> assertEquals(p, 9000)
+                Zero -> assert(false)
+            }
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("urlWithPath", fun() -> {
+    match urlParse("https://example.com/old") {
+        Ok(url) -> {
+            url2 = urlWithPath(url, "/new")
+            assertEquals(urlPath(url2), "/new")
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("urlWithQuery", fun() -> {
+    match urlParse("https://example.com") {
+        Ok(url) -> {
+            url2 = urlWithQuery(url, "key=val")
+            assertEquals(urlQuery(url2), "key=val")
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("urlWithFragment", fun() -> {
+    match urlParse("https://example.com") {
+        Ok(url) -> {
+            url2 = urlWithFragment(url, "section")
+            assertEquals(urlFragment(url2), "section")
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("urlWithUserinfo", fun() -> {
+    match urlParse("https://example.com") {
+        Ok(url) -> {
+            url2 = urlWithUserinfo(url, "admin:pass")
+            assertEquals(urlUserinfo(url2), "admin:pass")
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("urlAddQueryParam", fun() -> {
+    match urlParse("https://example.com?a=1") {
+        Ok(url) -> {
+            url2 = urlAddQueryParam(url, "b", "2")
+            assert(urlQuery(url2) == "a=1&b=2")
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+// ============================================================================
+// urlJoin
+// ============================================================================
+
+testRun("urlJoin relative", fun() -> {
+    match urlParse("https://example.com/base/") {
+        Ok(base) -> {
+            match urlJoin(base, "page") {
+                Ok(joined) -> assertEquals(urlPath(joined), "/base/page")
+                Fail(_) -> assert(false)
+            }
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("urlJoin absolute", fun() -> {
+    match urlParse("https://example.com/base/") {
+        Ok(base) -> {
+            match urlJoin(base, "/absolute") {
+                Ok(joined) -> assertEquals(urlPath(joined), "/absolute")
+                Fail(_) -> assert(false)
+            }
+        }
+        Fail(_) -> assert(false)
+    }
+})
+
+// ============================================================================
+// urlEncode/urlDecode
+// ============================================================================
+
+testRun("urlEncode basic", fun() -> {
+    assertEquals(urlEncode("hello world"), "hello+world")
+})
+
+testRun("urlEncode special chars", fun() -> {
+    assertEquals(urlEncode("a=b&c=d"), "a%3Db%26c%3Dd")
+})
+
+testRun("urlDecode basic", fun() -> {
+    match urlDecode("hello+world") {
+        Ok(d) -> assertEquals(d, "hello world")
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("urlDecode special chars", fun() -> {
+    match urlDecode("a%3Db%26c%3Dd") {
+        Ok(d) -> assertEquals(d, "a=b&c=d")
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("urlEncode/urlDecode roundtrip", fun() -> {
+    original = "test value & special!"
+    match urlDecode(urlEncode(original)) {
+        Ok(d) -> assertEquals(d, original)
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("urlEncode empty", fun() -> {
+    assertEquals(urlEncode(""), "")
+})
+
+testRun("urlDecode empty", fun() -> {
+    match urlDecode("") {
+        Ok(d) -> assertEquals(d, "")
+        Fail(_) -> assert(false)
+    }
+})
+

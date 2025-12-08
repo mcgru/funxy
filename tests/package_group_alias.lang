@@ -1,0 +1,6 @@
+import "pkggroup" as pkg
+
+print(pkg.double(4))
+print(pkg.triple(4))
+print(pkg.greet("Alias"))
+print(pkg.exclaim("Works"))

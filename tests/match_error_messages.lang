@@ -1,0 +1,25 @@
+// Test improved error messages for match expressions
+
+// This file tests that:
+// 1. Pattern type errors are shown
+// 2. Exhaustiveness errors are shown (even with pattern errors)
+// 3. No duplicate errors
+
+// === 1. Basic exhaustive match - should pass ===
+x = 5
+result1 = match x {
+    _ -> "matched"
+}
+print(result1)
+
+// === 2. Option match - exhaustive ===
+type MyOption<T> = MySome T | MyZero
+
+opt = MySome(10)
+result2 = match opt {
+    MySome(v) -> print(v)
+    MyZero -> print("none")
+}
+
+print("All tests passed!")
+

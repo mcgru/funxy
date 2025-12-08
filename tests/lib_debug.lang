@@ -1,0 +1,23 @@
+// Test debug and trace functions
+import "lib/list" (map, filter)
+
+// debug prints value with type and location
+x = 42
+debug(x)
+
+list = [1, 2, 3]
+debug(list)
+
+record = { name: "Alice", age: 30 }
+debug(record)
+
+// trace prints and returns value (useful in pipes)
+result = [1, 2, 3, 4, 5]
+    |> trace
+    |> filter(fun(x) { x > 2 })
+    |> trace
+    |> map(fun(x) { x * 2 })
+    |> trace
+
+print(result)
+print("=== debug/trace tests passed! ===")

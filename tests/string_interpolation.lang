@@ -1,0 +1,38 @@
+// Basic interpolation
+name = "World"
+print("Hello, ${name}!")
+
+// Expression interpolation
+x = 5
+y = 3
+print("${x} + ${y} = ${x + y}")
+
+// Nested access
+person = { name: "Alice", age: 30 }
+print("${person.name} is ${person.age} years old")
+
+// Function call in interpolation
+fun double(n) { n * 2 }
+print("Double of 5 is ${double(5)}")
+
+// Empty interpolation parts
+greeting = "Hi"
+print("${greeting}!")
+
+// Multiple interpolations
+a = 1
+b = 2
+c = 3
+print("${a}, ${b}, ${c}")
+
+// String without interpolation (should still work)
+print("No interpolation here")
+
+// Interpolation with boolean
+flag = true
+print("Flag is ${flag}")
+
+// Interpolation with list
+nums = [1, 2, 3]
+print("Numbers: ${nums}")
+

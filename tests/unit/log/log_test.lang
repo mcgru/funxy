@@ -1,0 +1,123 @@
+import "lib/log" (*)
+import "lib/test" (*)
+
+// Note: Log output goes to stderr, so we mainly test that functions don't error
+
+testRun("logDebug does not error", fun() -> {
+    logLevel("debug")
+    logDebug("test debug")
+    assert(true)
+})
+
+testRun("logInfo does not error", fun() -> {
+    logLevel("info")
+    logInfo("test info")
+    assert(true)
+})
+
+testRun("logWarn does not error", fun() -> {
+    logWarn("test warn")
+    assert(true)
+})
+
+testRun("logError does not error", fun() -> {
+    logError("test error")
+    assert(true)
+})
+
+testRun("logFatal does not error", fun() -> {
+    logFatal("test fatal")
+    assert(true)
+})
+
+testRun("logLevel accepts valid levels", fun() -> {
+    logLevel("debug")
+    logLevel("info")
+    logLevel("warn")
+    logLevel("error")
+    logLevel("fatal")
+    assert(true)
+})
+
+testRun("logFormat accepts text", fun() -> {
+    logFormat("text")
+    assert(true)
+})
+
+testRun("logFormat accepts json", fun() -> {
+    logFormat("json")
+    logInfo("json test")
+    logFormat("text")
+    assert(true)
+})
+
+testRun("logColor toggle", fun() -> {
+    logColor(false)
+    logInfo("no color")
+    logColor(true)
+    logInfo("with color")
+    assert(true)
+})
+
+testRun("logWithFields works", fun() -> {
+    logWithFields("info", "test message", %{ "key" => "value" })
+    assert(true)
+})
+
+testRun("logWithPrefix creates logger", fun() -> {
+    logger = logWithPrefix("test")
+    assert(true)
+})
+
+testRun("loggerInfo works", fun() -> {
+    logger = logWithPrefix("test")
+    loggerInfo(logger, "test message")
+    assert(true)
+})
+
+testRun("loggerDebug works", fun() -> {
+    logLevel("debug")
+    logger = logWithPrefix("test")
+    loggerDebug(logger, "debug message")
+    assert(true)
+})
+
+testRun("loggerWarn works", fun() -> {
+    logger = logWithPrefix("test")
+    loggerWarn(logger, "warn message")
+    assert(true)
+})
+
+testRun("loggerError works", fun() -> {
+    logger = logWithPrefix("test")
+    loggerError(logger, "error message")
+    assert(true)
+})
+
+testRun("loggerFatal works", fun() -> {
+    logger = logWithPrefix("test")
+    loggerFatal(logger, "fatal message")
+    assert(true)
+})
+
+// Note: loggerFatalExit not tested as it calls os.Exit(1)
+
+testRun("loggerWithFields works", fun() -> {
+    logger = logWithPrefix("test")
+    loggerWithFields(logger, "info", "structured", %{ "foo" => "bar" })
+    assert(true)
+})
+
+testRun("logOutput stderr", fun() -> {
+    assertOk(logOutput("stderr"))
+})
+
+testRun("logOutput stdout", fun() -> {
+    assertOk(logOutput("stdout"))
+    // Reset to stderr
+    match logOutput("stderr") {
+        Ok(_) -> Nil
+        Fail(_) -> Nil
+    }
+})
+

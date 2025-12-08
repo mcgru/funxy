@@ -1,0 +1,63 @@
+import "lib/list" (map, filter, foldl, length, head, reverse)
+
+// === Оператор ,, (композиция функций, справа налево как Haskell .) ===
+// (f ,, g)(x) = f(g(x))
+
+// Простые функции
+double = fun(x) -> x * 2
+inc = fun(x) -> x + 1
+square = fun(x) -> x * x
+
+// Композиция двух функций
+// doubleInc = double ,, inc означает: сначала inc, потом double
+doubleInc = double ,, inc
+print(doubleInc(5))  // double(inc(5)) = double(6) = 12
+
+// Композиция трёх функций
+// squareDoubleInc(x) = square(double(inc(x)))
+squareDoubleInc = square ,, double ,, inc
+print(squareDoubleInc(3))  // square(double(inc(3))) = square(double(4)) = square(8) = 64
+
+// Композиция со строками
+exclaim = fun(s: String) -> s ++ "!"
+greet = fun(name: String) -> "Hello, " ++ name
+
+greetExclaim = exclaim ,, greet
+print(greetExclaim("World"))  // "Hello, World!"
+
+// Композиция с функциями из lib/list
+// Длина после reverse (должна быть такая же)
+lenAfterReverse = length ,, reverse
+print(lenAfterReverse([1, 2, 3, 4, 5]))  // 5
+
+// Голова после reverse = последний элемент
+headOfReversed = head ,, reverse
+print(headOfReversed([1, 2, 3]))  // 3
+
+// Композиция с лямбдами inline
+tripleSquare = (fun(x) -> x * 3) ,, (fun(x) -> x * x)
+print(tripleSquare(2))  // (2*2) = 4, then 4*3 = 12
+
+// Использование в map
+composed = square ,, inc
+result = map(composed, [1, 2, 3])
+print(result)  // [4, 9, 16]
+
+// Ассоциативность: (f ,, g) ,, h == f ,, (g ,, h)
+f = fun(x) -> x + 1
+g = fun(x) -> x * 2
+h = fun(x) -> x - 3
+
+fg_h = (f ,, g) ,, h
+f_gh = f ,, (g ,, h)
+
+print(fg_h(10))  // 15
+print(f_gh(10))  // 15
+print(fg_h(10) == f_gh(10))  // true
+
+// id как нейтральный элемент
+print((inc ,, id)(5))   // 6
+print((id ,, inc)(5))   // 6
+
+print("Composition (,,) tests passed!")
+

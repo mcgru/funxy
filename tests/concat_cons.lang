@@ -1,0 +1,38 @@
+// Test: ++ (concatenation) and :: (cons) operators
+
+// List concatenation
+a = [1, 2, 3]
+b = [4, 5, 6]
+c = a ++ b
+print(c)  // [1, 2, 3, 4, 5, 6]
+
+// String concatenation
+s1 = "Hello"
+s2 = " World"
+s3 = s1 ++ s2
+print(s3)  // Hello World
+
+// Cons - prepend element
+x = 0 :: [1, 2, 3]
+print(x)  // [0, 1, 2, 3]
+
+// Chained cons - right-associative, no parens needed
+// 1 :: 2 :: 3 :: [] parses as 1 :: (2 :: (3 :: []))
+y = 1 :: 2 :: 3 :: []
+print(y)  // [1, 2, 3]
+
+// Empty concat
+empty1: List<Int> = [] ++ [1, 2]
+print(empty1)  // [1, 2]
+
+empty2 = [1, 2] ++ []
+print(empty2)  // [1, 2]
+
+// Cons with strings (chars)
+hello = 'H' :: "ello"
+print(hello)  // Hello
+
+// Multiple concats
+multi = [1] ++ [2] ++ [3]
+print(multi)  // [1, 2, 3]
+

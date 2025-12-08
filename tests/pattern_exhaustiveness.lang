@@ -1,0 +1,75 @@
+// Test exhaustiveness checking and error messages
+
+// === 1. Basic exhaustive match ===
+x = 5
+result1 = match x {
+    _ -> "matched"
+}
+print(result1)
+
+// === 2. Bool exhaustive ===
+flag = true
+result2 = match flag {
+    true -> "yes"
+    false -> "no"
+}
+print(result2)
+
+// === 3. ADT exhaustive ===
+type Color = Red | Green | Blue
+
+color = Red
+result3 = match color {
+    Red -> "red"
+    Green -> "green"
+    Blue -> "blue"
+}
+print(result3)
+
+// === 4. Nested ADT exhaustive ===
+type Tree<T> = Leaf T | Node (Tree<T>) (Tree<T>)
+
+tree = Node(Leaf(1), Leaf(2))
+result4 = match tree {
+    Leaf(v) -> v
+    Node(l, r) -> 0
+}
+print(result4)
+
+// === 5. Option exhaustive with nested patterns ===
+type MyOption<T> = MySome T | MyNone
+
+opt = MySome(10)
+result5 = match opt {
+    MySome(v) -> v
+    MyNone -> 0
+}
+print(result5)
+
+// === 6. List exhaustive with spread ===
+nums = [1, 2, 3]
+result6 = match nums {
+    [] -> "empty"
+    [x, xs...] -> "non-empty"
+}
+print(result6)
+
+// === 7. Tuple exhaustive with wildcards ===
+pair = (1, 2)
+result7 = match pair {
+    (a, b) -> a + b
+}
+print(result7)
+
+// === 8. Complex nested pattern ===
+type Outcome<T, E> = Success T | Failure E
+
+res = Success(42)
+result8 = match res {
+    Success(v) -> v
+    Failure(e) -> 0
+}
+print(result8)
+
+print("All exhaustive patterns passed!")
+

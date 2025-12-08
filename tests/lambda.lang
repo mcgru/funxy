@@ -1,0 +1,29 @@
+// Lambda test
+
+// Simple lambda
+add = fun(x: Int, y: Int) -> x + y
+print(add(5, 10)) // 15
+
+// Lambda with block
+mul = fun(x: Int, y: Int) {
+  x * y
+}
+print(mul(3, 4)) // 12
+
+// Higher order function
+fun apply(f: (Int) -> Int, x: Int) Int {
+  f(x)
+}
+
+// Inline lambda
+res = apply(fun(n) -> n * n, 5)
+print(res) // 25
+
+// Closure in lambda
+fun make_adder(x: Int) (Int) -> Int {
+  fun(y) -> x + y
+}
+
+add10 = make_adder(10)
+print(add10(5)) // 15
+

@@ -1,0 +1,112 @@
+// Test Pattern Matching on Lists and Records
+
+fun testListPatterns() {
+    // Exact match
+    match [1, 2, 3] {
+        [1, 2, 3] -> print("List Exact Match: Pass")
+        _ -> print("List Exact Match: Fail")
+    }
+
+    // Head/Tail match
+    match [1, 2, 3] {
+        [x, xs...] -> {
+            if x == 1 {
+                // xs should be [2, 3]
+                match xs {
+                    [2, 3] -> print("List Head/Tail Match: Pass")
+                    _ -> print("List Head/Tail Match: Fail (Tail)")
+                }
+            } else {
+                print("List Head/Tail Match: Fail (Head)")
+            }
+        }
+        _ -> print("List Head/Tail Match: Fail (Pattern)")
+    }
+
+    // Empty list match
+    match [] {
+        [] -> print("List Empty Match: Pass")
+        _ -> print("List Empty Match: Fail")
+    }
+    
+    // Complex nested list match
+    match [[1, 2], [3, 4]] {
+        [[1, a], [b, 4]] -> {
+            if a == 2 {
+                 if b == 3 {
+                     print("Nested List Match: Pass")
+                 } else {
+                     print("Nested List Match: Fail (b)")
+                 }
+            } else {
+                 print("Nested List Match: Fail (a)")
+            }
+        }
+        _ -> print("Nested List Match: Fail")
+    }
+}
+
+fun testRecordPatterns() {
+    // Simple Record Match
+    match { x: 10, y: 20 } {
+        { x: 10, y: a } -> {
+            if a == 20 {
+                print("Record Match: Pass")
+            } else {
+                print("Record Match: Fail (Val)")
+            }
+        }
+        _ -> print("Record Match: Fail (Pattern)")
+    }
+
+    // Nested Record Match
+    match { pt: { x: 1, y: 2 }, color: "red" } {
+        { pt: { x: xVal, y: _ }, color: c } -> {
+            if xVal == 1 {
+                if c == "red" {
+                    print("Nested Record Match: Pass")
+                } else {
+                    print("Nested Record Match: Fail (Color)")
+                }
+            } else {
+                print("Nested Record Match: Fail (xVal)")
+            }
+        }
+        _ -> print("Nested Record Match: Fail")
+    }
+    
+    // Partial match
+    match { x: 1, y: 2, z: 3 } {
+        { x: 1, z: 3 } -> print("Partial Record Match: Pass")
+        _ -> print("Partial Record Match: Fail")
+    }
+}
+
+fun testTuplePatterns() {
+    match (1, "hello") {
+        (1, s) -> {
+            if s == "hello" {
+                print("Tuple Match: Pass")
+            } else {
+                print("Tuple Match: Fail (Val)")
+            }
+        }
+        _ -> print("Tuple Match: Fail (Pattern)")
+    }
+
+    match (1, 2, 3) {
+        (1, rest...) -> {
+            // rest should be (2, 3)
+            if rest == (2, 3) {
+                print("Tuple Spread Match: Pass")
+            } else {
+                print("Tuple Spread Match: Fail")
+            }
+        }
+        _ -> print("Tuple Spread Match: Fail (Pattern)")
+    }
+}
+
+testListPatterns()
+testRecordPatterns()
+testTuplePatterns()

@@ -1,0 +1,166 @@
+import "lib/task" (*)
+import "lib/test" (*)
+
+// =============================================
+// Creation
+// =============================================
+
+testRun("async creates Task", fun() {
+    task = async(fun() { 1 })
+    assert(taskIsDone(task) || !taskIsDone(task), "task exists")
+})
+
+testRun("taskResolve creates completed Task", fun() {
+    task = taskResolve(42)
+    assert(taskIsDone(task))
+})
+
+testRun("taskReject creates failed Task", fun() {
+    task = taskReject("error")
+    assert(taskIsDone(task))
+})
+
+// =============================================
+// Awaiting
+// =============================================
+
+testRun("await returns Ok for resolved task", fun() {
+    task = taskResolve(100)
+    assertOk(await(task))
+})
+
+testRun("await returns Fail for rejected task", fun() {
+    task = taskReject("oops")
+    assertFail(await(task))
+})
+
+testRun("awaitTimeout returns Ok for fast task", fun() {
+    task = taskResolve(1)
+    assertOk(awaitTimeout(task, 1000))
+})
+
+testRun("awaitAll returns all results", fun() {
+    tasks = [taskResolve(1), taskResolve(2), taskResolve(3)]
+    match awaitAll(tasks) {
+        Ok(results) -> assertEquals([1, 2, 3], results)
+        Fail(_) -> assert(false, "should not fail")
+    }
+})
+
+testRun("awaitAll fails if any task fails", fun() {
+    tasks = [taskResolve(1), taskReject("fail"), taskResolve(3)]
+    assertFail(awaitAll(tasks))
+})
+
+testRun("awaitAny returns first success", fun() {
+    tasks = [taskReject("a"), taskResolve(42), taskReject("b")]
+    assertOk(awaitAny(tasks))
+})
+
+testRun("awaitAny fails if all fail", fun() {
+    tasks = [taskReject("a"), taskReject("b")]
+    assertFail(awaitAny(tasks))
+})
+
+testRun("awaitFirst returns first completed", fun() {
+    tasks = [taskResolve(1)]
+    assertOk(awaitFirst(tasks))
+})
+
+testRun("awaitFirst can return failure", fun() {
+    tasks = [taskReject("error")]
+    assertFail(awaitFirst(tasks))
+})
+
+// =============================================
+// Control
+// =============================================
+
+testRun("taskIsDone true for resolved", fun() {
+    assert(taskIsDone(taskResolve(1)))
+})
+
+testRun("taskIsDone true for rejected", fun() {
+    assert(taskIsDone(taskReject("e")))
+})
+
+testRun("taskCancel sets cancelled flag", fun() {
+    task = taskResolve(1)
+    taskCancel(task)
+    assert(taskIsCancelled(task))
+})
+
+// =============================================
+// Pool
+// =============================================
+
+testRun("taskSetGlobalPool changes limit", fun() {
+    old = taskGetGlobalPool()
+    taskSetGlobalPool(123)
+    assertEquals(123, taskGetGlobalPool())
+    taskSetGlobalPool(old)
+})
+
+testRun("taskGetGlobalPool returns current limit", fun() {
+    limit = taskGetGlobalPool()
+    assert(limit > 0, "pool limit should be positive")
+})
+
+// =============================================
+// Combinators
+// =============================================
+
+testRun("taskMap transforms success", fun() {
+    task = taskResolve(10)
+    mapped = taskMap(task, fun(x) { x * 2 })
+    match await(mapped) {
+        Ok(v) -> assertEquals(20, v)
+        Fail(_) -> assert(false, "should not fail")
+    }
+})
+
+testRun("taskMap propagates failure", fun() {
+    task = taskReject("error")
+    mapped = taskMap(task, fun(x) { x * 2 })
+    assertFail(await(mapped))
+})
+
+testRun("taskFlatMap chains tasks", fun() {
+    task = taskResolve(5)
+    chained = taskFlatMap(task, fun(x) { taskResolve(x + 10) })
+    match await(chained) {
+        Ok(v) -> assertEquals(15, v)
+        Fail(_) -> assert(false, "should not fail")
+    }
+})
+
+testRun("taskFlatMap propagates outer failure", fun() {
+    task = taskReject("outer")
+    chained = taskFlatMap(task, fun(x) { taskResolve(x) })
+    assertFail(await(chained))
+})
+
+testRun("taskFlatMap propagates inner failure", fun() {
+    task = taskResolve(1)
+    chained = taskFlatMap(task, fun(x) { taskReject("inner") })
+    assertFail(await(chained))
+})
+
+testRun("taskCatch recovers from error", fun() {
+    task = taskReject("oops")
+    recovered = taskCatch(task, fun(err) { 42 })
+    match await(recovered) {
+        Ok(v) -> assertEquals(42, v)
+        Fail(_) -> assert(false, "should not fail")
+    }
+})
+
+testRun("taskCatch passes through success", fun() {
+    task = taskResolve(100)
+    recovered = taskCatch(task, fun(err) { 0 })
+    match await(recovered) {
+        Ok(v) -> assertEquals(100, v)
+        Fail(_) -> assert(false, "should not fail")
+    }
+})
+

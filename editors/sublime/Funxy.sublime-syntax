@@ -1,0 +1,90 @@
+%YAML 1.2
+---
+name: Funxy
+file_extensions:
+  - lang
+  - funxy
+  - fx
+scope: source.funxy
+
+contexts:
+  main:
+    - include: comments
+    - include: strings
+    - include: chars
+    - include: bytes
+    - include: numbers
+    - include: keywords
+    - include: types
+    - include: builtins
+    - include: operators
+    - include: functions
+
+  comments:
+    - match: //.*$
+      scope: comment.line.double-slash.funxy
+
+  strings:
+    - match: '"'
+      scope: punctuation.definition.string.begin.funxy
+      push: string_double
+
+  string_double:
+    - meta_scope: string.quoted.double.funxy
+    - match: \\.
+      scope: constant.character.escape.funxy
+    - match: \$\{
+      scope: punctuation.section.interpolation.begin.funxy
+      push: interpolation
+    - match: '"'
+      scope: punctuation.definition.string.end.funxy
+      pop: true
+
+  interpolation:
+    - meta_scope: meta.embedded.line.funxy
+    - match: \}
+      scope: punctuation.section.interpolation.end.funxy
+      pop: true
+    - include: main
+
+  chars:
+    - match: "'(?:[^'\\\\]|\\\\.)'?"
+      scope: string.quoted.single.funxy
+
+  bytes:
+    - match: '@[xb]?"[^"]*"'
+      scope: string.quoted.other.bytes.funxy
+
+  numbers:
+    - match: \b0x[0-9a-fA-F]+\b
+      scope: constant.numeric.hex.funxy
+    - match: \b\d+\.\d+\b
+      scope: constant.numeric.float.funxy
+    - match: \b\d+\b
+      scope: constant.numeric.integer.funxy
+
+  keywords:
+    - match: \b(fun|type|alias|match|if|else|for|in|break|continue|return)\b
+      scope: keyword.control.funxy
+    - match: \b(import|export|package|trait|instance|operator|async|await)\b
+      scope: keyword.other.funxy
+    - match: \b(true|false|Nil|Zero)\b
+      scope: constant.language.funxy
+
+  types:
+    - match: \b(Int|Float|String|Bool|Nil|List|Map|Option|Result|Some|Zero|Ok|Fail|Bytes|BigInt|Rational|Char|Unit|Tuple)\b
+      scope: support.type.builtin.funxy
+    - match: \b[A-Z][a-zA-Z0-9_]*\b
+      scope: entity.name.type.funxy
+
+  builtins:
+    - match: \b(print|show|len|read|getType|default|panic|id|const|fst|snd|map|filter|foldl|foldr|head|tail|range|intToFloat|floatToInt|charToCode|charFromCode)\b
+      scope: support.function.builtin.funxy
+
+  operators:
+    - match: '->|=>|>>=|<\*>|<>|\|>|<\||\+\+|::|==|!=|<=|>=|&&|\|\||:=|:-|,,|\$'
+      scope: keyword.operator.funxy
+
+  functions:
+    - match: '\b([a-z_][a-zA-Z0-9_]*)(?=\s*[\(<])'
+      scope: entity.name.function.funxy

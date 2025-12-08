@@ -1,0 +1,27 @@
+// Test: Equal trait with operator (==)
+// Uses built-in Equal trait (no need to redefine)
+
+// Define a custom type - wrapper around Int
+type BoxInt = MkBoxInt Int
+
+// Helper to get value
+fun unbox(b: BoxInt) -> Int {
+    match b { MkBoxInt x -> x }
+}
+
+// Implement Equal for BoxInt
+instance Equal BoxInt {
+    operator (==)(a: BoxInt, b: BoxInt) -> Bool {
+        unbox(a) == unbox(b)
+    }
+}
+
+// Test: Create boxes and compare them
+b1 = MkBoxInt(42)
+b2 = MkBoxInt(42)
+b3 = MkBoxInt(99)
+
+print(b1 == b2)  // true
+print(b1 == b3)  // false
+print(b1 != b3)  // true (using default implementation)
+

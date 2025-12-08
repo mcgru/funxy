@@ -1,0 +1,75 @@
+// Test: prelude types work without any imports
+// No imports needed!
+
+// =============================================
+// List
+// =============================================
+list: List<Int> = [1, 2, 3]
+print(len(list) == 3)
+first = list[0]
+print(first == 1)  // index returns element directly
+
+// =============================================
+// Map
+// =============================================
+map: Map<String, Int> = %{ "a" => 1, "b" => 2 }
+print(len(map) == 2)
+print(map["a"] == Some(1))
+
+// =============================================
+// Bytes
+// =============================================
+bytes: Bytes = @"hello"
+print(len(bytes) == 5)
+
+// =============================================
+// Bits
+// =============================================
+bits: Bits = #b"10101010"
+print(len(bits) == 8)
+
+// =============================================
+// Option
+// =============================================
+opt: Option<Int> = Some(42)
+print(opt == Some(42))
+print(Zero == Zero)
+
+// =============================================
+// Result
+// =============================================
+res: Result<String, Int> = Ok(100)
+print(res == Ok(100))
+
+// =============================================
+// String (alias for List<Char>)
+// =============================================
+str: String = "test"
+print(len(str) == 4)
+
+// =============================================
+// Primitives
+// =============================================
+i: Int = 42
+f: Float = 3.14
+b: Bool = true
+c: Char = 'x'
+n: Nil = Nil
+
+print(i == 42)
+print(f > 3.0)
+print(b == true)
+print(c == 'x')
+print(n == Nil)
+
+// =============================================
+// BigInt and Rational
+// =============================================
+big: BigInt = 123456789012345678901234567890n
+print(big > 0n)
+
+rat: Rational = 1r / 3r
+print(rat < 1r)
+
+print("All prelude types work!")
+

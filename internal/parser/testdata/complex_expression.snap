@@ -1,0 +1,14 @@
+--- AST Tree ---
+Program
+  Assign
+    Left: Identifier(a)
+    Value: Infix(*)
+      Left: Infix(+)
+        Left: Identifier(b)
+        Right: Identifier(c)
+      Right: Prefix(-)
+        Identifier(d)
+
+
+--- Source Code ---
+a = (b + c) * -d

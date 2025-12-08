@@ -1,0 +1,104 @@
+import "lib/crypto" (*)
+
+// =============================================
+// Base64 encoding/decoding
+// =============================================
+encoded = base64Encode("Hello, World!")
+print(encoded)  // SGVsbG8sIFdvcmxkIQ==
+
+decoded = base64Decode(encoded)
+print(decoded)  // Hello, World!
+
+// Round-trip
+print(base64Decode(base64Encode("test")) == "test")  // true
+
+// =============================================
+// Hex encoding/decoding
+// =============================================
+hexStr = hexEncode("ABC")
+print(hexStr)  // 414243
+
+hexDecoded = hexDecode(hexStr)
+print(hexDecoded)  // ABC
+
+// Round-trip
+print(hexDecode(hexEncode("test")) == "test")  // true
+
+// =============================================
+// Hash functions
+// =============================================
+// MD5 - 32 hex chars
+md5Hash = md5("hello")
+print(len(md5Hash) == 32)  // true
+print(md5Hash)  // 5d41402abc4b2a76b9719d911017c592
+
+// SHA1 - 40 hex chars  
+sha1Hash = sha1("hello")
+print(len(sha1Hash) == 40)  // true
+print(sha1Hash)  // aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d
+
+// SHA256 - 64 hex chars
+sha256Hash = sha256("hello")
+print(len(sha256Hash) == 64)  // true
+print(sha256Hash)  // 2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824
+
+// SHA512 - 128 hex chars
+sha512Hash = sha512("hello")
+print(len(sha512Hash) == 128)  // true
+
+// =============================================
+// HMAC functions
+// =============================================
+// HMAC-SHA256
+hmac256 = hmacSha256("secret", "message")
+print(len(hmac256) == 64)  // true - 64 hex chars
+print(hmac256)  // 8b5f48702995c1598c573db1e21866a9b825d4a794d169d7060a03605796360b
+
+// HMAC-SHA512
+hmac512 = hmacSha512("secret", "message")
+print(len(hmac512) == 128)  // true - 128 hex chars
+
+// =============================================
+// Consistency: same input -> same output
+// =============================================
+print(md5("test") == md5("test"))  // true
+print(sha256("data") == sha256("data"))  // true
+
+// Different inputs -> different outputs
+print(md5("a") != md5("b"))  // true
+
+// =============================================
+// Cryptographically secure random
+// =============================================
+// cryptoRandomBytes: Int -> List<Int>
+bytes = cryptoRandomBytes(16)
+print(len(bytes) == 16)  // true
+
+// All bytes in range [0, 255]
+bytesInRange = true
+for b in bytes {
+    if b < 0 || b > 255 {
+        bytesInRange = false
+    }
+}
+print(bytesInRange)  // true
+
+// Empty bytes
+emptyBytes = cryptoRandomBytes(0)
+print(len(emptyBytes) == 0)  // true
+
+// cryptoRandomHex: Int -> String
+hexRandom = cryptoRandomHex(16)
+print(len(hexRandom) == 32)  // true - 16 bytes = 32 hex chars
+
+// Multiple calls should produce different results (with very high probability)
+hex1 = cryptoRandomHex(16)
+hex2 = cryptoRandomHex(16)
+print(hex1 != hex2)  // true (extremely unlikely to be equal)
+
+// Empty hex
+emptyHex = cryptoRandomHex(0)
+print(emptyHex == "")  // true
+
+print("lib/crypto tests passed!")
+

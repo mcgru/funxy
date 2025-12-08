@@ -1,0 +1,166 @@
+import "lib/io" (*)
+
+// Test file path
+testFile :- "/tmp/test_lib_io.txt"
+testContent :- "Hello, World!"
+testDir :- "/tmp/test_lib_io_dir"
+
+// Test fileWrite
+match fileWrite(testFile, testContent) {
+    Ok(bytes) -> print(bytes == 13)  // true
+    Fail(err) -> print("fileWrite failed: " ++ err)
+}
+
+// Test fileExists
+print(fileExists(testFile) == true)  // true
+
+// Test fileSize
+match fileSize(testFile) {
+    Ok(size) -> print(size == 13)  // true
+    Fail(err) -> print("fileSize failed: " ++ err)
+}
+
+// Test fileRead
+match fileRead(testFile) {
+    Ok(content) -> print(content == testContent)  // true
+    Fail(err) -> print("fileRead failed: " ++ err)
+}
+
+// Test fileReadAt - read "World" (bytes 7-12)
+match fileReadAt(testFile, 7, 5) {
+    Ok(content) -> print(content == "World")  // true
+    Fail(err) -> print("fileReadAt failed: " ++ err)
+}
+
+// Test fileAppend
+match fileAppend(testFile, "!") {
+    Ok(bytes) -> print(bytes == 1)  // true
+    Fail(err) -> print("fileAppend failed: " ++ err)
+}
+
+// Verify append worked
+match fileRead(testFile) {
+    Ok(content) -> print(content == "Hello, World!!")  // true
+    Fail(err) -> print("fileRead after append failed: " ++ err)
+}
+
+// Test fileDelete
+match fileDelete(testFile) {
+    Ok(_) -> print(true)  // true
+    Fail(err) -> print("fileDelete failed: " ++ err)
+}
+
+// Verify file is deleted
+print(fileExists(testFile) == false)  // true
+
+// Test error handling - read non-existent file
+match fileRead("/tmp/nonexistent_file_12345.txt") {
+    Ok(_) -> print(false)  // should not happen
+    Fail(_) -> print(true)  // true - got error as expected
+}
+
+// Test ? operator with lib/io
+fun copyFile(src: String, dst: String) -> Result<String, Int> {
+    content = fileRead(src)?      // Unwrap or propagate Fail
+    bytes = fileWrite(dst, content)?
+    Ok(bytes)
+}
+
+// Setup: create source file
+fileWrite("/tmp/src_copy_test.txt", "Copy me!")
+
+// Test successful copy with ?
+match copyFile("/tmp/src_copy_test.txt", "/tmp/dst_copy_test.txt") {
+    Ok(bytes) -> print(bytes == 8)  // true
+    Fail(err) -> print("copy failed: " ++ err)
+}
+
+// Test failure propagation with ?
+match copyFile("/tmp/nonexistent.txt", "/tmp/dst.txt") {
+    Ok(_) -> print(false)       // should not happen
+    Fail(_) -> print(true)      // true - error propagated
+}
+
+// Cleanup
+fileDelete("/tmp/src_copy_test.txt")
+fileDelete("/tmp/dst_copy_test.txt")
+
+// =============================================
+// Directory Operations
+// =============================================
+
+// Test dirCreate
+match dirCreate(testDir) {
+    Ok(_) -> print(true)
+    Fail(_) -> print(false)
+}
+
+// Test dirExists
+print(dirExists(testDir) == true)
+
+// Test isDir
+print(isDir(testDir) == true)
+
+// Test isFile on directory
+print(isFile(testDir) == false)
+
+// Test dirCreateAll (nested)
+nestedDir = testDir ++ "/a/b/c"
+match dirCreateAll(nestedDir) {
+    Ok(_) -> print(true)
+    Fail(_) -> print(false)
+}
+
+// Verify nested exists
+print(dirExists(nestedDir) == true)
+
+// Create file inside directory
+testFileInDir = testDir ++ "/test.txt"
+match fileWrite(testFileInDir, "test content") {
+    Ok(_) -> print(true)
+    Fail(_) -> print(false)
+}
+
+// Test isFile
+print(isFile(testFileInDir) == true)
+
+// Test isDir on file
+print(isDir(testFileInDir) == false)
+
+// Test dirList
+match dirList(testDir) {
+    Ok(items) -> print(len(items) == 2)  // "a" and "test.txt"
+    Fail(_) -> print(false)
+}
+
+// Test dirRemove on non-empty directory (should fail)
+match dirRemove(testDir) {
+    Ok(_) -> print(false)  // should not succeed
+    Fail(_) -> print(true)  // expected to fail
+}
+
+// Test dirRemoveAll
+match dirRemoveAll(testDir) {
+    Ok(_) -> print(true)
+    Fail(_) -> print(false)
+}
+
+// Verify directory is gone
+print(dirExists(testDir) == false)
+
+// Test dirExists on non-existent
+print(dirExists("/tmp/nonexistent_dir_12345") == false)
+
+// Test isDir on non-existent
+print(isDir("/tmp/nonexistent_12345") == false)
+
+// Test isFile on non-existent
+print(isFile("/tmp/nonexistent_12345") == false)
+
+// Test dirList on non-existent
+match dirList("/tmp/nonexistent_dir_12345") {
+    Ok(_) -> print(false)
+    Fail(_) -> print(true)
+}
+
+print("lib/io tests passed!")

@@ -1,0 +1,38 @@
+// Explicit Generics
+fun id<T>(x: T) -> T {
+    x
+}
+
+// Call with Int
+i = id(5)
+print(i) // 5
+
+// Call with String (List Char)
+s = id("hello")
+print(s) // "hello"
+
+// Generic Function with List
+fun first<T>(list: List<T>) -> Option<T> {
+    if len(list) > 0 {
+        Some(list[0])
+    } else {
+        Zero
+    }
+}
+
+f1 = first([1, 2, 3])
+print(f1) // Some(1)
+
+f2 = first([])
+print(f2) // Zero
+
+// Generic Wrapper Struct
+type Box<T> = { value: T }
+
+fun makeBox<T>(v: T) -> Box<T> {
+    { value: v }
+}
+
+b = makeBox(42)
+print(b.value) // 42
+

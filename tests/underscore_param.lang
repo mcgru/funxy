@@ -1,0 +1,62 @@
+import "lib/list" (foldl, map, filter)
+
+// Test 1: _ in pattern matching (already works)
+pair = (1, 2)
+match pair {
+    (x, _) -> print(x)
+}
+
+// Test 2: Simple _ in function parameter
+f = fun(x, _) -> x
+print(f(10, 20))
+
+// Test 3: _ in lambda with foldl (count elements)
+list = [1, 2, 3, 4, 5]
+count = foldl(fun(acc, _) -> acc + 1, 0, list)
+print(count)
+
+// Test 4: Multiple _ in same function
+g = fun(_, _, x) -> x
+print(g(1, 2, 3))
+
+// Test 5: _ with map (create list of same value)
+zeroed = map(fun(_) -> 0, list)
+print(zeroed)
+
+// Test 6: _ as first parameter
+h = fun(_, y) -> y * 2
+print(h(100, 5))
+
+// Test 7: Named function with _
+fun process(_, value: Int) -> Int {
+    value + 10
+}
+print(process("ignored", 32))
+
+// Test 8: _ with filter (use only some args)
+result = filter(fun(x) -> x > 2, list)
+print(result)
+
+// Test 9: Nested lambdas with _
+nested = fun(x) -> fun(_, z) -> x + z
+print(nested(10)(99, 5))
+
+// Test 10: _ in tuple pattern and lambda combined
+items = [(1, "a"), (2, "b"), (3, "c")]
+nums = map(fun(item) -> match item { (n, _) -> n }, items)
+print(nums)
+
+// Test 11: _ in extension method parameters
+fun (x: Int) addIgnoring(_, y: Int) -> Int {
+    x + y
+}
+print(10.addIgnoring("ignored", 5))
+
+// Test 12: Multiple _ in extension method
+fun (x: Int) mulIgnoring(_, _, multiplier: Int) -> Int {
+    x * multiplier
+}
+print(10.mulIgnoring(1, 2, 5))
+
+print("underscore tests passed!")
+

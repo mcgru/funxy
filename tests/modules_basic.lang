@@ -1,0 +1,3 @@
+import "./utils" as math
+
+print(math.add(2, 3))

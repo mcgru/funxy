@@ -1,0 +1,68 @@
+// Advanced Extension Methods Tests
+
+type MyOption<T> = Yes T | NoVal
+
+fun<T, R> (o: MyOption<T>) map(f: (T) -> R) -> MyOption<R> {
+    match o {
+        Yes(v) -> Yes(f(v))
+        NoVal -> NoVal
+    }
+}
+
+fun<T> (o: MyOption<T>) unwrapOr(default: T) -> T {
+    match o {
+        Yes(v) -> v
+        NoVal -> default
+    }
+}
+
+fun (i: Int) double() -> Int {
+    i * 2
+}
+
+fun (i: Int) add(other: Int) -> Int {
+    i + other
+}
+
+// Chaining
+val = Yes(10)
+// map returns MyOption(Int), unwrapOr returns Int, double returns Int, add returns Int
+res = val.map(fun(x: Int) Int { x + 1 }).unwrapOr(0).double().add(5)
+print(res) // (10+1) -> 11, unwrap -> 11, double -> 22, add 5 -> 27
+
+noneVal = NoVal
+res2 = noneVal.map(fun(x: Int) Int { x + 1 }).unwrapOr(-1).double()
+print(res2) // map -> None, unwrap -> -1, double -> -2
+
+// Extension on List
+fun<T, R> (l: List<T>) mapList(f: (T) -> R) -> List<R> {
+    match l {
+        [] -> []
+        [head, tail...] -> [f(head), tail.mapList(f)...]
+    }
+}
+
+list = [1, 2, 3]
+mapped = list.mapList(fun(x: Int) Int { x * 2 })
+print(mapped)
+
+// Extension on Record
+type Point = { x: Int, y: Int }
+fun (p: Point) magnitude() Int {
+    // Approximation for integer arithmetic
+    p.x + p.y 
+}
+
+pt: Point = { x: 3, y: 4 }
+print(pt.magnitude())
+
+// Extension on String (List Char)
+fun (s: String) shout() String {
+    // This would be complex without char conversion functions, 
+    // let's just append "!"
+    // String is List Char, so we can append ['!']
+    // Note: We don't have '+' for lists yet, but we have spread syntax in list literal
+    [s..., '!']
+}
+
+print("hello".shout())

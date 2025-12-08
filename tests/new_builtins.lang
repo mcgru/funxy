@@ -1,0 +1,78 @@
+// Test: New builtin functions and composition operator
+
+// === id function ===
+print(id(42))           // 42
+print(id("hello"))      // hello
+print(id(true))         // true
+
+// === const function ===
+print(const(1, 2))      // 1
+print(const("a", 999))  // a
+print(const(true, "x")) // true
+
+// === read function ===
+// Syntax: read(string, Type) -> Option<Type>
+
+// Successful parsing - various types
+x = read("42", Int)
+print(match x { Some v -> v; Zero -> -1 })  // 42
+
+y = read("3.14", Float)
+print(match y { Some v -> v; Zero -> -1.0 })  // 3.14
+
+z = read("true", Bool)
+print(match z { Some v -> v; Zero -> false })  // true
+
+w = read("false", Bool)
+print(match w { Some v -> v; Zero -> true })  // false
+
+// Parse failure returns Zero
+bad = read("abc", Int)
+print(match bad { Some v -> v; Zero -> -999 })  // -999
+
+badFloat = read("not-a-number", Float)
+print(match badFloat { Some v -> v; Zero -> -1.0 })  // -1.0
+
+badBool = read("yes", Bool)
+print(match badBool { Some v -> v; Zero -> false })  // false (only "true"/"false" work)
+
+// read with ? propagation
+fun parseSum() -> Option<Int> {
+    a = read("10", Int)?
+    b = read("20", Int)?
+    Some(a + b)
+}
+print(match parseSum() { Some v -> v; Zero -> -1 })  // 30
+
+fun parseFail() -> Option<Int> {
+    a = read("10", Int)?
+    b = read("bad", Int)?
+    Some(a + b)
+}
+print(match parseFail() { Some v -> v; Zero -> -1 })  // -1
+
+// === Composition operator ,, ===
+// Right-to-left: (f ,, g)(x) = f(g(x))
+
+double = fun(x: Int) Int { x * 2 }
+addOne = fun(x: Int) Int { x + 1 }
+square = fun(x: Int) Int { x * x }
+
+// double ,, addOne = fun(x) { double(addOne(x)) }
+composed1 = double ,, addOne
+print(composed1(5))  // addOne(5)=6, double(6)=12
+
+// Chain of compositions (right-associative)
+composed2 = square ,, double ,, addOne
+// = square ,, (double ,, addOne)
+// addOne(4)=5, double(5)=10, square(10)=100
+print(composed2(4))  // 100
+
+// With inferred types
+inc = fun(x) -> x + 1
+triple = fun(x) -> x * 3
+process = triple ,, inc
+print(process(10))  // inc(10)=11, triple(11)=33
+
+print("All new builtins work!")
+

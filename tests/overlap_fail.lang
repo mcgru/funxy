@@ -1,0 +1,12 @@
+trait Show<T> {
+    fun show(x: T) -> String
+}
+
+instance Show Int {
+    fun show(x: Int) -> String { "Int" }
+}
+
+instance Show Int {
+    fun show(x: Int) -> String { "Int2" }
+}
+

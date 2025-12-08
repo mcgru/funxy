@@ -1,0 +1,83 @@
+import "lib/test" (*)
+import "./testlib" (*)
+
+// =============================================
+// WILDCARD IMPORTS: import "path" (*)
+// Tests: all exported symbols are available
+// =============================================
+
+testRun("Wildcard: access type directly", fun() -> {
+    p: Point = { x: 1, y: 1 }
+    assert(p.x == 1)
+    assert(p.y == 1)
+})
+
+testRun("Wildcard: access function directly", fun() -> {
+    p1: Point = { x: 1, y: 2 }
+    p2: Point = { x: 3, y: 4 }
+    result = add(p1, p2)
+    assert(result.x == 4)
+    assert(result.y == 6)
+})
+
+testRun("Wildcard: access ADT constructor", fun() -> {
+    c = Radius(9.0)
+    assertEquals(c, Radius(9.0))
+})
+
+testRun("Wildcard: trait instance for type alias (Semigroup)", fun() -> {
+    p1: Point = { x: 10, y: 20 }
+    p2: Point = { x: 30, y: 40 }
+    result = p1 <> p2
+    assert(result.x == 40)
+    assert(result.y == 60)
+})
+
+testRun("Wildcard: trait instance for ADT (Semigroup)", fun() -> {
+    c1 = Radius(1.0)
+    c2 = Radius(2.0)
+    result = c1 <> c2
+    assertEquals(result, Radius(3.0))
+})
+
+testRun("Wildcard: extension method for type alias (scale)", fun() -> {
+    p: Point = { x: 2, y: 2 }
+    scaled = p.scale(5)
+    assert(scaled.x == 10)
+    assert(scaled.y == 10)
+})
+
+testRun("Wildcard: extension method for type alias (magnitude)", fun() -> {
+    p: Point = { x: 5, y: 12 }
+    mag = p.magnitude()
+    assert(mag == 13.0)
+})
+
+testRun("Wildcard: extension method for ADT (diameter)", fun() -> {
+    c = Radius(3.0)
+    d = c.diameter()
+    assert(d == 6.0)
+})
+
+testRun("Wildcard: extension method for ADT (area)", fun() -> {
+    c = Radius(2.0)
+    a = c.area()
+    // pi * 4 ≈ 12.566
+    assert(a > 12.5)
+    assert(a < 12.7)
+})
+
+testRun("Wildcard: function using lib import (distance)", fun() -> {
+    p: Point = { x: 5, y: 12 }
+    d = distance(p)
+    assert(d == 13.0)
+})
+
+testRun("Wildcard: trait + extension chain", fun() -> {
+    p1: Point = { x: 1, y: 0 }
+    p2: Point = { x: 0, y: 1 }
+    combined = p1 <> p2
+    scaled = combined.scale(10)
+    assert(scaled.x == 10)
+    assert(scaled.y == 10)
+})

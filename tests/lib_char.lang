@@ -1,0 +1,100 @@
+import "lib/char" (*)
+
+// =============================================================================
+// lib/char - Character Functions Tests
+// =============================================================================
+
+print("=== charToCode ===")
+
+// charToCode: (Char) -> Int
+print(charToCode('A'))   // 65
+print(charToCode('Z'))   // 90
+print(charToCode('a'))   // 97
+print(charToCode('z'))   // 122
+print(charToCode('0'))   // 48
+print(charToCode('9'))   // 57
+print(charToCode(' '))   // 32
+print(charToCode('\n'))  // 10
+print(charToCode('\t'))  // 9
+print(charToCode('\0'))  // 0
+print(charToCode('\\'))  // 92
+
+print("=== charFromCode ===")
+
+// charFromCode: (Int) -> Char
+print(charFromCode(65))        // 'A'
+print(charFromCode(97))        // 'a'
+print(charFromCode(48))        // '0'
+print(charFromCode(32))        // ' '
+
+// Unicode via charFromCode()
+print(charFromCode(1071))      // Cyrillic 'Я'
+print(charFromCode(12354))     // Japanese hiragana 'あ'
+
+print("=== charIsUpper ===")
+
+// charIsUpper: (Char) -> Bool
+print(charIsUpper('A'))  // true
+print(charIsUpper('Z'))  // true
+print(charIsUpper('a'))  // false
+print(charIsUpper('z'))  // false
+print(charIsUpper('5'))  // false
+print(charIsUpper(' '))  // false
+
+// Unicode uppercase
+cyrillic_upper = charFromCode(1071)  // 'Я'
+print(charIsUpper(cyrillic_upper))  // true
+
+print("=== charIsLower ===")
+
+// charIsLower: (Char) -> Bool
+print(charIsLower('a'))  // true
+print(charIsLower('z'))  // true
+print(charIsLower('A'))  // false
+print(charIsLower('Z'))  // false
+print(charIsLower('5'))  // false
+
+// Unicode lowercase
+cyrillic_lower = charFromCode(1103)  // 'я'
+print(charIsLower(cyrillic_lower))  // true
+
+print("=== charToUpper ===")
+
+// charToUpper: (Char) -> Char
+print(charToUpper('a'))  // 'A'
+print(charToUpper('z'))  // 'Z'
+print(charToUpper('A'))  // 'A' (already upper)
+print(charToUpper('5'))  // '5' (unchanged)
+
+// Unicode
+print(charToUpper(charFromCode(1103)))  // 'я' -> 'Я'
+
+print("=== charToLower ===")
+
+// charToLower: (Char) -> Char
+print(charToLower('A'))  // 'a'
+print(charToLower('Z'))  // 'z'
+print(charToLower('a'))  // 'a' (already lower)
+print(charToLower('5'))  // '5' (unchanged)
+
+// Unicode
+print(charToLower(charFromCode(1071)))  // 'Я' -> 'я'
+
+print("=== Practical Examples ===")
+
+// Check if string starts with uppercase
+s = "Hello"
+print(charIsUpper(s[0]))  // true
+
+// Convert first char to upper
+s2 = "world"
+first = charToUpper(s2[0])
+print(first)  // 'W'
+
+// Round-trip conversion
+c = 'x'
+code = charToCode(c)
+back = charFromCode(code)
+print(c == back)  // true
+
+print("=== lib/char tests passed! ===")

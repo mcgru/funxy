@@ -1,0 +1,8 @@
+// Test importing a package with .fx extension
+
+import "lib/test" (*)
+import "./fxlib" (square)
+
+testRun("Import .fx package - square", fun() -> {
+    assertEquals(square(7), 49)
+})

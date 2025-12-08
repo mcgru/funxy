@@ -1,0 +1,76 @@
+// =============================================
+// OptionalSemantics<F> — custom trait with Optional semantics
+// Tests that user-defined traits work correctly with types
+// where inner type is NOT at Args[0]
+// =============================================
+
+// Custom trait with Optional-like semantics
+trait OptionalSemantics<F> {
+    fun semIsEmpty(v: F<A>) -> Bool
+    fun semUnwrap(v: F<A>) -> A
+    fun semWrap(a: A) -> F<A>
+    
+    // Default: getOrElse derived from isEmpty and unwrap
+    fun semGetOrElse(v: F<A>, fallback: A) -> A {
+        if semIsEmpty(v) { fallback }
+        else { semUnwrap(v) }
+    }
+}
+
+// Custom type where inner type is at Args[1], NOT Args[0]
+// Validated<E, A> - E is error type, A is value type
+type Validated<E, A> = Invalid E | Valid A
+
+// Implement OptionalSemantics for Validated
+// unwrap signature: Validated<E, A> -> A shows inner type is A (Args[1])
+instance OptionalSemantics Validated {
+    fun semIsEmpty(v: Validated<E, A>) -> Bool {
+        match v {
+            Invalid(_) -> true
+            Valid(_) -> false
+        }
+    }
+    
+    fun semUnwrap(v: Validated<E, A>) -> A {
+        match v {
+            Invalid(_) -> panic("semUnwrap on Invalid")
+            Valid(a) -> a
+        }
+    }
+    
+    fun semWrap(a: A) -> Validated<E, A> {
+        Valid(a)
+    }
+}
+
+// Test values - inner type is Int (Args[1]), NOT String (Args[0])
+val1: Validated<String, Int> = Valid(42)
+val2: Validated<String, Int> = Invalid("error")
+
+// Test semIsEmpty
+print(semIsEmpty(val1))          // false
+print(semIsEmpty(val2))          // true
+
+// Test semUnwrap (only on Valid)
+print(semUnwrap(val1))           // 42
+
+// Test semWrap
+val3 = semWrap(100) : Validated<String, Int>
+print(val3)                      // Valid(100)
+
+// Test semGetOrElse (default implementation)
+// This proves type inference correctly extracts Int as inner type
+print(semGetOrElse(val1, 0))     // 42
+print(semGetOrElse(val2, 0))     // 0
+
+// Test with different inner types
+valA: Validated<Int, String> = Valid("hello")
+valB: Validated<Int, String> = Invalid(404)
+
+print(semIsEmpty(valA))          // false
+print(semIsEmpty(valB))          // true
+print(semUnwrap(valA))           // hello
+print(semGetOrElse(valA, "default"))  // hello
+print(semGetOrElse(valB, "default"))  // default
+
+print("OptionalSemantics test passed!")

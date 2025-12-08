@@ -1,0 +1,37 @@
+// Test pure/mempty dispatch based on expected return type from TypeMap
+
+// Define Applicative trait with pure
+trait MyApplicative<F> {
+    fun myPure<A>(x: A) -> F<A>
+}
+
+// Instance for Option
+instance MyApplicative<Option> {
+    fun myPure<A>(x: A) -> Option<A> {
+        Some(x)
+    }
+}
+
+// Instance for List
+instance MyApplicative<List> {
+    fun myPure<A>(x: A) -> List<A> {
+        [x]
+    }
+}
+
+// Test with explicit type annotation - analyzer knows the expected type!
+opt: Option<Int> = myPure(42)
+print(opt)  // Should print Some(42)
+
+lst: List<Int> = myPure(100)
+print(lst)  // Should print [100]
+
+// Test with String
+optStr: Option<String> = myPure("hello")
+print(optStr)
+
+lstStr: List<String> = myPure("world")
+print(lstStr)
+
+print("pure type dispatch test passed!")
+

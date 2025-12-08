@@ -1,0 +1,39 @@
+import "lib/time" (timeNow, clockNs, clockMs, sleep, sleepMs)
+
+// Test timeNow() - Unix timestamp
+t = timeNow()
+print(t > 1700000000)  // true (after Nov 2023)
+
+// Test clockMs() - monotonic
+t1 = clockMs()
+t2 = clockMs()
+print(t2 >= t1)  // true (monotonic)
+
+// Test clockNs() - monotonic
+n1 = clockNs()
+n2 = clockNs()
+print(n2 >= n1)  // true (monotonic)
+
+// Test clockNs precision (should be more precise than clockMs)
+// Multiple clockNs calls should show different values
+ns1 = clockNs()
+ns2 = clockNs()
+ns3 = clockNs()
+// At least some should be different (very likely)
+print(ns2 >= ns1 && ns3 >= ns2)  // true
+
+// Test sleepMs (short delay)
+before = clockMs()
+sleepMs(50)  // 50 ms
+after = clockMs()
+elapsed = after - before
+print(elapsed >= 40)  // true (at least ~40ms passed, allowing some slack)
+
+// Test sleep (1 second is too long for tests, skip)
+// Uncomment to test manually:
+// before = clockMs()
+// sleep(1)
+// after = clockMs()
+// print(after - before >= 900)  // true
+
+print("lib/time tests passed!")

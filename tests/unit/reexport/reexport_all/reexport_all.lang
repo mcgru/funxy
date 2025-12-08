@@ -1,0 +1,7 @@
+package reexport_all (*, source(*))
+
+import "../source" (*)
+
+fun double(x: Float) -> Float {
+    x * 2.0
+}

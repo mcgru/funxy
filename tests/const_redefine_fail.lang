@@ -1,0 +1,5 @@
+// Test that cannot redefine existing variable with :-
+a = "hello"
+a :- "world"  // ERROR: redefinition
+print(a)
+

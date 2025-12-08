@@ -1,0 +1,6 @@
+package funxylib (*)
+
+fun triple(x: Int) -> Int {
+    x * 3
+}
+

@@ -1,0 +1,22 @@
+x = 10
+if typeOf(x, Int) {
+  print(1)
+} else {
+  print(0)
+}
+
+y = true
+if typeOf(y, Bool) {
+  print(2)
+}
+
+type MyOption<T> = Yes T | NoVal
+
+o = Yes(1)
+if typeOf(o, MyOption) {
+  print(3)
+}
+
+if typeOf(o, MyOption(Int)) {
+  print(4)
+}

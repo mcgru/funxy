@@ -1,0 +1,17 @@
+// Test overlapping instances detection
+// instance MyCmp A - polymorphic instance for all types
+// instance MyCmp Int - specific instance for Int
+// These overlap because Int is included in "all types A"
+
+trait MyCmp<T> {
+    fun cmp(x: T, y: T) -> Bool
+}
+
+instance MyCmp A {
+    fun cmp(x: A, y: A) -> Bool { true }
+}
+
+instance MyCmp Int {
+    fun cmp(x: Int, y: Int) -> Bool { true }
+}
+

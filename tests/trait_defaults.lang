@@ -1,0 +1,36 @@
+// Test: Trait default implementations
+
+trait Cmp<T> {
+    fun same(a: T, b: T) -> Bool
+    
+    // Default implementation
+    fun diff(a: T, b: T) -> Bool {
+        if same(a, b) { false } else { true }
+    }
+}
+
+// Instance only defines required method, diff uses default
+instance Cmp Int {
+    fun same(a: Int, b: Int) -> Bool {
+        a == b
+    }
+}
+
+// Test same
+print(same(1, 1))      // true
+print(same(1, 2))      // false
+
+// Test diff (default implementation)
+print(diff(1, 1))   // false
+print(diff(1, 2))   // true
+
+// Another instance - String
+instance Cmp String {
+    fun same(a: String, b: String) -> Bool {
+        a == b
+    }
+}
+
+print(same("hello", "hello"))    // true
+print(diff("hello", "world")) // true
+

@@ -1,0 +1,14 @@
+--- AST Tree ---
+Program
+Match
+    Identifier(x)
+    Arm: TuplePattern
+      Lit(1)
+      Var(a)
+ -> BooleanLiteral(true)
+
+
+--- Source Code ---
+match x {
+    (1, a) -> true
+}

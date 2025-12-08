@@ -1,0 +1,736 @@
+package evaluator
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"github.com/funvibe/funxy/internal/typesystem"
+	"time"
+)
+
+// HTTP client timeout (default 30 seconds)
+var httpTimeout = 30 * time.Second
+
+// Running HTTP servers (for async mode)
+var httpServers = make(map[int64]*http.Server)
+var httpServerCounter int64 = 0
+
+// HttpBuiltins returns built-in functions for lib/http virtual package
+func HttpBuiltins() map[string]*Builtin {
+	return map[string]*Builtin{
+		"httpGet":        {Fn: builtinHttpGet, Name: "httpGet"},
+		"httpPost":       {Fn: builtinHttpPost, Name: "httpPost"},
+		"httpPostJson":   {Fn: builtinHttpPostJson, Name: "httpPostJson"},
+		"httpPut":        {Fn: builtinHttpPut, Name: "httpPut"},
+		"httpDelete":     {Fn: builtinHttpDelete, Name: "httpDelete"},
+		"httpRequest":    {Fn: builtinHttpRequest, Name: "httpRequest"},
+		"httpSetTimeout": {Fn: builtinHttpSetTimeout, Name: "httpSetTimeout"},
+		"httpServe":      {Fn: builtinHttpServe, Name: "httpServe"},
+		"httpServeAsync": {Fn: builtinHttpServeAsync, Name: "httpServeAsync"},
+		"httpServerStop": {Fn: builtinHttpServerStop, Name: "httpServerStop"},
+	}
+}
+
+// httpGet: (String) -> Result<HttpResponse, String>
+func builtinHttpGet(e *Evaluator, args ...Object) Object {
+	if len(args) != 1 {
+		return newError("httpGet expects 1 argument, got %d", len(args))
+	}
+
+	urlList, ok := args[0].(*List)
+	if !ok {
+		return newError("httpGet expects a string URL, got %s", args[0].Type())
+	}
+
+	url := listToString(urlList)
+	return doHttpRequest("GET", url, nil, "")
+}
+
+// httpPost: (String, String) -> Result<HttpResponse, String>
+func builtinHttpPost(e *Evaluator, args ...Object) Object {
+	if len(args) != 2 {
+		return newError("httpPost expects 2 arguments, got %d", len(args))
+	}
+
+	urlList, ok := args[0].(*List)
+	if !ok {
+		return newError("httpPost expects a string URL, got %s", args[0].Type())
+	}
+
+	bodyList, ok := args[1].(*List)
+	if !ok {
+		return newError("httpPost expects a string body, got %s", args[1].Type())
+	}
+
+	url := listToString(urlList)
+	body := listToString(bodyList)
+	return doHttpRequest("POST", url, nil, body)
+}
+
+// httpPostJson: (String, A) -> Result<HttpResponse, String>
+func builtinHttpPostJson(e *Evaluator, args ...Object) Object {
+	if len(args) != 2 {
+		return newError("httpPostJson expects 2 arguments, got %d", len(args))
+	}
+
+	urlList, ok := args[0].(*List)
+	if !ok {
+		return newError("httpPostJson expects a string URL, got %s", args[0].Type())
+	}
+
+	url := listToString(urlList)
+
+	// Encode data to JSON
+	jsonBody, err := objectToJson(args[1])
+	if err != nil {
+		return makeFail(stringToList("failed to encode JSON: " + err.Error()))
+	}
+
+	headers := [][2]string{{"Content-Type", "application/json"}}
+	return doHttpRequest("POST", url, headers, jsonBody)
+}
+
+// httpPut: (String, String) -> Result<HttpResponse, String>
+func builtinHttpPut(e *Evaluator, args ...Object) Object {
+	if len(args) != 2 {
+		return newError("httpPut expects 2 arguments, got %d", len(args))
+	}
+
+	urlList, ok := args[0].(*List)
+	if !ok {
+		return newError("httpPut expects a string URL, got %s", args[0].Type())
+	}
+
+	bodyList, ok := args[1].(*List)
+	if !ok {
+		return newError("httpPut expects a string body, got %s", args[1].Type())
+	}
+
+	url := listToString(urlList)
+	body := listToString(bodyList)
+	return doHttpRequest("PUT", url, nil, body)
+}
+
+// httpDelete: (String) -> Result<HttpResponse, String>
+func builtinHttpDelete(e *Evaluator, args ...Object) Object {
+	if len(args) != 1 {
+		return newError("httpDelete expects 1 argument, got %d", len(args))
+	}
+
+	urlList, ok := args[0].(*List)
+	if !ok {
+		return newError("httpDelete expects a string URL, got %s", args[0].Type())
+	}
+
+	url := listToString(urlList)
+	return doHttpRequest("DELETE", url, nil, "")
+}
+
+// httpRequest: (String, String, List<(String, String)>, String, Int) -> Result<HttpResponse, String>
+// timeout is in milliseconds, 0 or negative means use global default
+func builtinHttpRequest(e *Evaluator, args ...Object) Object {
+	if len(args) != 5 {
+		return newError("httpRequest expects 5 arguments, got %d", len(args))
+	}
+
+	methodList, ok := args[0].(*List)
+	if !ok {
+		return newError("httpRequest expects a string method, got %s", args[0].Type())
+	}
+
+	urlList, ok := args[1].(*List)
+	if !ok {
+		return newError("httpRequest expects a string URL, got %s", args[1].Type())
+	}
+
+	headersList, ok := args[2].(*List)
+	if !ok {
+		return newError("httpRequest expects a list of headers, got %s", args[2].Type())
+	}
+
+	bodyList, ok := args[3].(*List)
+	if !ok {
+		return newError("httpRequest expects a string body, got %s", args[3].Type())
+	}
+
+	timeoutInt, ok := args[4].(*Integer)
+	if !ok {
+		return newError("httpRequest expects an integer timeout (ms), got %s", args[4].Type())
+	}
+
+	method := listToString(methodList)
+	url := listToString(urlList)
+	body := listToString(bodyList)
+
+	// Parse headers
+	var headers [][2]string
+	for _, h := range headersList.toSlice() {
+		tuple, ok := h.(*Tuple)
+		if !ok || len(tuple.Elements) != 2 {
+			return newError("httpRequest expects headers as list of (String, String) tuples")
+		}
+		keyList, ok1 := tuple.Elements[0].(*List)
+		valList, ok2 := tuple.Elements[1].(*List)
+		if !ok1 || !ok2 {
+			return newError("httpRequest header key and value must be strings")
+		}
+		headers = append(headers, [2]string{listToString(keyList), listToString(valList)})
+	}
+
+	// Use per-request timeout if specified, otherwise global
+	timeout := httpTimeout
+	if timeoutInt.Value > 0 {
+		timeout = time.Duration(timeoutInt.Value) * time.Millisecond
+	}
+
+	return doHttpRequestWithTimeout(method, url, headers, body, timeout)
+}
+
+// httpSetTimeout: (Int) -> Nil
+func builtinHttpSetTimeout(e *Evaluator, args ...Object) Object {
+	if len(args) != 1 {
+		return newError("httpSetTimeout expects 1 argument, got %d", len(args))
+	}
+
+	msInt, ok := args[0].(*Integer)
+	if !ok {
+		return newError("httpSetTimeout expects an integer (milliseconds), got %s", args[0].Type())
+	}
+
+	httpTimeout = time.Duration(msInt.Value) * time.Millisecond
+	return &Nil{}
+}
+
+// doHttpRequest performs the actual HTTP request with global timeout
+func doHttpRequest(method, url string, headers [][2]string, body string) Object {
+	return doHttpRequestWithTimeout(method, url, headers, body, httpTimeout)
+}
+
+// doHttpRequestWithTimeout performs HTTP request with specified timeout
+func doHttpRequestWithTimeout(method, url string, headers [][2]string, body string, timeout time.Duration) Object {
+	// Check for HTTP mocks first
+	tr := GetTestRunner()
+	
+	// Check for error mock
+	if errMsg, found := tr.FindHttpMockError(url); found {
+		return makeFail(stringToList(errMsg))
+	}
+	
+	// Check for response mock
+	if mockResp, found := tr.FindHttpMock(url); found {
+		return makeOk(mockResp)
+	}
+	
+	// Check if we should block real HTTP (mocks active but no match)
+	if tr.ShouldBlockHttp(url) {
+		return makeFail(stringToList("HTTP request blocked: no mock found for " + url))
+	}
+	
+	// Make real HTTP request
+	client := &http.Client{
+		Timeout: timeout,
+	}
+
+	var reqBody io.Reader
+	if body != "" {
+		reqBody = bytes.NewBufferString(body)
+	}
+
+	req, err := http.NewRequest(method, url, reqBody)
+	if err != nil {
+		return makeFail(stringToList("failed to create request: " + err.Error()))
+	}
+
+	// Set headers
+	for _, h := range headers {
+		req.Header.Set(h[0], h[1])
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return makeFail(stringToList("request failed: " + err.Error()))
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return makeFail(stringToList("failed to read response: " + err.Error()))
+	}
+
+	// Build response headers
+	var respHeaders []Object
+	for key, values := range resp.Header {
+		for _, val := range values {
+			respHeaders = append(respHeaders, &Tuple{
+				Elements: []Object{stringToList(key), stringToList(val)},
+			})
+		}
+	}
+
+	// Build response record
+	response := &RecordInstance{
+		Fields: map[string]Object{
+			"status":  &Integer{Value: int64(resp.StatusCode)},
+			"body":    stringToList(string(respBody)),
+			"headers": newList(respHeaders),
+		},
+	}
+
+	return makeOk(response)
+}
+
+// objectToJson converts an Object to JSON string
+func objectToJson(obj Object) (string, error) {
+	goVal := objectToGoValue(obj)
+	jsonBytes, err := json.Marshal(goVal)
+	if err != nil {
+		return "", err
+	}
+	return string(jsonBytes), nil
+}
+
+// objectToGoValue converts Object to Go value for JSON encoding
+func objectToGoValue(obj Object) interface{} {
+	switch o := obj.(type) {
+	case *Integer:
+		return o.Value
+	case *Float:
+		return o.Value
+	case *Boolean:
+		return o.Value
+	case *Char:
+		return string(rune(o.Value))
+	case *List:
+		// Check if it's a string (list of chars)
+		if isStringList(o) {
+			return listToString(o)
+		}
+		// Regular list
+		arr := make([]interface{}, o.len())
+		for i, el := range o.toSlice() {
+			arr[i] = objectToGoValue(el)
+		}
+		return arr
+	case *Tuple:
+		arr := make([]interface{}, len(o.Elements))
+		for i, el := range o.Elements {
+			arr[i] = objectToGoValue(el)
+		}
+		return arr
+	case *RecordInstance:
+		m := make(map[string]interface{})
+		for k, v := range o.Fields {
+			m[k] = objectToGoValue(v)
+		}
+		return m
+	case *DataInstance:
+		// Handle Option/Result etc
+		switch o.Name {
+		case "Some":
+			if len(o.Fields) > 0 {
+				return objectToGoValue(o.Fields[0])
+			}
+			return nil
+		case "Zero", "JNull":
+			return nil
+		case "Ok":
+			if len(o.Fields) > 0 {
+				return objectToGoValue(o.Fields[0])
+			}
+			return nil
+		case "Fail":
+			if len(o.Fields) > 0 {
+				return map[string]interface{}{"error": objectToGoValue(o.Fields[0])}
+			}
+			return map[string]interface{}{"error": nil}
+		default:
+			// Generic ADT - return as object with constructor
+			if len(o.Fields) == 0 {
+				return o.Name
+			}
+			if len(o.Fields) == 1 {
+				return objectToGoValue(o.Fields[0])
+			}
+			arr := make([]interface{}, len(o.Fields))
+			for i, f := range o.Fields {
+				arr[i] = objectToGoValue(f)
+			}
+			return arr
+		}
+	case *Nil:
+		return nil
+	default:
+		return nil
+	}
+}
+
+// isStringList checks if a list is a string (list of chars)
+func isStringList(l *List) bool {
+	if l.len() == 0 {
+		return false
+	}
+	_, ok := l.get(0).(*Char)
+	return ok
+}
+
+// httpServe: (Int, (HttpRequest) -> HttpResponse) -> Result<Nil, String>
+func builtinHttpServe(e *Evaluator, args ...Object) Object {
+	if len(args) != 2 {
+		return newError("httpServe expects 2 arguments, got %d", len(args))
+	}
+
+	portInt, ok := args[0].(*Integer)
+	if !ok {
+		return newError("httpServe expects an integer port, got %s", args[0].Type())
+	}
+
+	handler, ok := args[1].(*Function)
+	if !ok {
+		return newError("httpServe expects a handler function, got %s", args[1].Type())
+	}
+
+	port := int(portInt.Value)
+	_ = e // evaluator reference (currently unused, kept for future callback support)
+
+	// Create HTTP server
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// Build HttpRequest object
+		var headers []Object
+		for key, values := range r.Header {
+			for _, val := range values {
+				headers = append(headers, &Tuple{
+					Elements: []Object{stringToList(key), stringToList(val)},
+				})
+			}
+		}
+
+		bodyBytes, _ := io.ReadAll(r.Body)
+		defer func() { _ = r.Body.Close() }()
+
+		request := &RecordInstance{
+			Fields: map[string]Object{
+				"method":  stringToList(r.Method),
+				"path":    stringToList(r.URL.Path),
+				"query":   stringToList(r.URL.RawQuery),
+				"headers": newList(headers),
+				"body":    stringToList(string(bodyBytes)),
+			},
+		}
+
+		// Call handler
+		result := e.applyFunction(handler, []Object{request})
+
+		// Parse response
+		if result == nil {
+			w.WriteHeader(500)
+			_, _ = w.Write([]byte("Handler returned nil"))
+			return
+		}
+
+		if errObj, ok := result.(*Error); ok {
+			w.WriteHeader(500)
+			_, _ = w.Write([]byte(errObj.Message))
+			return
+		}
+
+		respRec, ok := result.(*RecordInstance)
+		if !ok {
+			w.WriteHeader(500)
+			_, _ = w.Write([]byte("Handler must return HttpResponse record"))
+			return
+		}
+
+		// Set response headers
+		if headersObj, ok := respRec.Fields["headers"]; ok {
+			if headersList, ok := headersObj.(*List); ok {
+				for _, h := range headersList.toSlice() {
+					if tuple, ok := h.(*Tuple); ok && len(tuple.Elements) == 2 {
+						key := listToString(tuple.Elements[0].(*List))
+						val := listToString(tuple.Elements[1].(*List))
+						w.Header().Set(key, val)
+					}
+				}
+			}
+		}
+
+		// Set status
+		status := 200
+		if statusObj, ok := respRec.Fields["status"]; ok {
+			if statusInt, ok := statusObj.(*Integer); ok {
+				status = int(statusInt.Value)
+			}
+		}
+		w.WriteHeader(status)
+
+		// Write body
+		if bodyObj, ok := respRec.Fields["body"]; ok {
+			if bodyList, ok := bodyObj.(*List); ok {
+				_, _ = w.Write([]byte(listToString(bodyList)))
+			}
+		}
+	})
+
+	server := &http.Server{
+		Addr:    fmt.Sprintf(":%d", port),
+		Handler: mux,
+	}
+
+	// Start server (blocking)
+	err := server.ListenAndServe()
+	if err != nil {
+		return makeFail(stringToList(err.Error()))
+	}
+
+	return makeOk(&Nil{})
+}
+
+// httpServeAsync: (Int, (HttpRequest) -> HttpResponse) -> Int
+// Starts a non-blocking HTTP server and returns server ID
+func builtinHttpServeAsync(e *Evaluator, args ...Object) Object {
+	if len(args) != 2 {
+		return newError("httpServeAsync expects 2 arguments, got %d", len(args))
+	}
+
+	portInt, ok := args[0].(*Integer)
+	if !ok {
+		return newError("httpServeAsync expects an integer port, got %s", args[0].Type())
+	}
+
+	handler, ok := args[1].(*Function)
+	if !ok {
+		return newError("httpServeAsync expects a handler function, got %s", args[1].Type())
+	}
+
+	port := int(portInt.Value)
+	_ = e // evaluator reference (currently unused, kept for future callback support)
+
+	// Create HTTP server with same handler logic as httpServe
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// Build HttpRequest object
+		var headers []Object
+		for key, values := range r.Header {
+			for _, val := range values {
+				headers = append(headers, &Tuple{
+					Elements: []Object{stringToList(key), stringToList(val)},
+				})
+			}
+		}
+
+		bodyBytes, _ := io.ReadAll(r.Body)
+		defer func() { _ = r.Body.Close() }()
+
+		request := &RecordInstance{
+			Fields: map[string]Object{
+				"method":  stringToList(r.Method),
+				"path":    stringToList(r.URL.Path),
+				"query":   stringToList(r.URL.RawQuery),
+				"headers": newList(headers),
+				"body":    stringToList(string(bodyBytes)),
+			},
+		}
+
+		// Call handler
+		result := e.applyFunction(handler, []Object{request})
+
+		// Parse response
+		if result == nil {
+			w.WriteHeader(500)
+			_, _ = w.Write([]byte("Handler returned nil"))
+			return
+		}
+
+		if errObj, ok := result.(*Error); ok {
+			w.WriteHeader(500)
+			_, _ = w.Write([]byte(errObj.Message))
+			return
+		}
+
+		respRec, ok := result.(*RecordInstance)
+		if !ok {
+			w.WriteHeader(500)
+			_, _ = w.Write([]byte("Handler must return HttpResponse record"))
+			return
+		}
+
+		// Set response headers
+		if headersObj, ok := respRec.Fields["headers"]; ok {
+			if headersList, ok := headersObj.(*List); ok {
+				for _, h := range headersList.toSlice() {
+					if tuple, ok := h.(*Tuple); ok && len(tuple.Elements) == 2 {
+						key := listToString(tuple.Elements[0].(*List))
+						val := listToString(tuple.Elements[1].(*List))
+						w.Header().Set(key, val)
+					}
+				}
+			}
+		}
+
+		// Set status
+		status := 200
+		if statusObj, ok := respRec.Fields["status"]; ok {
+			if statusInt, ok := statusObj.(*Integer); ok {
+				status = int(statusInt.Value)
+			}
+		}
+		w.WriteHeader(status)
+
+		// Write body
+		if bodyObj, ok := respRec.Fields["body"]; ok {
+			if bodyList, ok := bodyObj.(*List); ok {
+				_, _ = w.Write([]byte(listToString(bodyList)))
+			}
+		}
+	})
+
+	server := &http.Server{
+		Addr:    fmt.Sprintf(":%d", port),
+		Handler: mux,
+	}
+
+	// Generate server ID
+	httpServerCounter++
+	serverId := httpServerCounter
+
+	// Store server
+	httpServers[serverId] = server
+
+	// Start server in background (non-blocking)
+	go func() {
+		err := server.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed {
+			// Log error but don't fail - server might have been stopped
+		}
+		// Clean up when server stops
+		delete(httpServers, serverId)
+	}()
+
+	// Give server a moment to start
+	time.Sleep(10 * time.Millisecond)
+
+	return &Integer{Value: serverId}
+}
+
+// httpServerStop: (Int) -> Nil
+// Stops a running HTTP server by ID
+func builtinHttpServerStop(e *Evaluator, args ...Object) Object {
+	if len(args) != 1 {
+		return newError("httpServerStop expects 1 argument, got %d", len(args))
+	}
+
+	idInt, ok := args[0].(*Integer)
+	if !ok {
+		return newError("httpServerStop expects an integer server ID, got %s", args[0].Type())
+	}
+
+	serverId := idInt.Value
+	server, exists := httpServers[serverId]
+	if !exists {
+		return newError("server with ID %d not found", serverId)
+	}
+
+	// Shutdown server gracefully
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		return newError("error shutting down server: %s", err.Error())
+	}
+
+	delete(httpServers, serverId)
+	return &Nil{}
+}
+
+// SetHttpBuiltinTypes sets type info for http builtins
+func SetHttpBuiltinTypes(builtins map[string]*Builtin) {
+	// String = List<Char>
+	stringType := typesystem.TApp{
+		Constructor: typesystem.TCon{Name: "List"},
+		Args:        []typesystem.Type{typesystem.Char},
+	}
+
+	// (String, String) - header tuple
+	headerTuple := typesystem.TTuple{
+		Elements: []typesystem.Type{stringType, stringType},
+	}
+
+	// List<(String, String)> - headers
+	headersType := typesystem.TApp{
+		Constructor: typesystem.TCon{Name: "List"},
+		Args:        []typesystem.Type{headerTuple},
+	}
+
+	// HttpResponse = { status: Int, body: String, headers: List<(String, String)> }
+	responseType := typesystem.TRecord{
+		Fields: map[string]typesystem.Type{
+			"status":  typesystem.Int,
+			"body":    stringType,
+			"headers": headersType,
+		},
+	}
+
+	// Result<HttpResponse, String>
+	resultResponse := typesystem.TApp{
+		Constructor: typesystem.TCon{Name: "Result"},
+		Args:        []typesystem.Type{responseType, stringType},
+	}
+
+	// HttpRequest type for server
+	requestType := typesystem.TRecord{
+		Fields: map[string]typesystem.Type{
+			"method":  stringType,
+			"path":    stringType,
+			"query":   stringType,
+			"headers": headersType,
+			"body":    stringType,
+		},
+	}
+
+	// Handler function type: (HttpRequest) -> HttpResponse
+	handlerType := typesystem.TFunc{
+		Params:     []typesystem.Type{requestType},
+		ReturnType: responseType,
+	}
+
+	// Result<Nil, String>
+	resultNil := typesystem.TApp{
+		Constructor: typesystem.TCon{Name: "Result"},
+		Args:        []typesystem.Type{typesystem.Nil, stringType},
+	}
+
+	types := map[string]typesystem.Type{
+		"httpGet":        typesystem.TFunc{Params: []typesystem.Type{stringType}, ReturnType: resultResponse},
+		"httpPost":       typesystem.TFunc{Params: []typesystem.Type{stringType, stringType}, ReturnType: resultResponse},
+		"httpPostJson":   typesystem.TFunc{Params: []typesystem.Type{stringType, typesystem.TVar{Name: "A"}}, ReturnType: resultResponse},
+		"httpPut":        typesystem.TFunc{Params: []typesystem.Type{stringType, stringType}, ReturnType: resultResponse},
+		"httpDelete":     typesystem.TFunc{Params: []typesystem.Type{stringType}, ReturnType: resultResponse},
+		// httpRequest has 2 default params: body="" and timeout=0
+		"httpRequest": typesystem.TFunc{
+			Params:       []typesystem.Type{stringType, stringType, headersType, stringType, typesystem.Int},
+			ReturnType:   resultResponse,
+			DefaultCount: 2, // body and timeout have defaults
+		},
+		"httpSetTimeout":  typesystem.TFunc{Params: []typesystem.Type{typesystem.Int}, ReturnType: typesystem.Nil},
+		"httpServe":       typesystem.TFunc{Params: []typesystem.Type{typesystem.Int, handlerType}, ReturnType: resultNil},
+		"httpServeAsync":  typesystem.TFunc{Params: []typesystem.Type{typesystem.Int, handlerType}, ReturnType: typesystem.Int},
+		"httpServerStop":  typesystem.TFunc{Params: []typesystem.Type{typesystem.Int}, ReturnType: typesystem.Nil},
+	}
+
+	for name, typ := range types {
+		if b, ok := builtins[name]; ok {
+			b.TypeInfo = typ
+		}
+	}
+	
+	// Set default arguments for httpRequest: body="" and timeout=0
+	if b, ok := builtins["httpRequest"]; ok {
+		b.DefaultArgs = []Object{
+			stringToList(""),    // body default = ""
+			&Integer{Value: 0},  // timeout default = 0
+		}
+	}
+}

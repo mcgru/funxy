@@ -1,0 +1,5 @@
+// Test: undefined types should produce errors
+// This file should FAIL to compile
+
+f = fun(u: Uuid) { u }  // ERROR: undefined type 'Uuid'
+

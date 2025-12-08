@@ -1,0 +1,203 @@
+import "lib/path" (*)
+
+// =============================================
+// pathJoin
+// =============================================
+
+path1 = pathJoin(["home", "user", "file.txt"])
+print(path1 == "home/user/file.txt")
+
+path2 = pathJoin(["a", "b", "c"])
+print(path2 == "a/b/c")
+
+// Empty list
+path3 = pathJoin([])
+print(path3 == "")
+
+// Single element
+path4 = pathJoin(["single"])
+print(path4 == "single")
+
+// =============================================
+// pathDir
+// =============================================
+
+print(pathDir("/home/user/file.txt") == "/home/user")
+print(pathDir("file.txt") == ".")
+print(pathDir("/") == "/")
+
+// =============================================
+// pathBase
+// =============================================
+
+print(pathBase("/home/user/file.txt") == "file.txt")
+print(pathBase("file.txt") == "file.txt")
+print(pathBase("/home/user/") == "user")
+
+// =============================================
+// pathExt
+// =============================================
+
+print(pathExt("/home/file.txt") == ".txt")
+print(pathExt("/home/file.tar.gz") == ".gz")
+print(pathExt("/home/file") == "")
+print(pathExt(".gitignore") == ".gitignore")
+
+// =============================================
+// pathStem
+// =============================================
+
+print(pathStem("/home/file.txt") == "file")
+print(pathStem("/home/file.tar.gz") == "file.tar")
+print(pathStem("/home/file") == "file")
+print(pathStem(".gitignore") == "")
+
+// =============================================
+// pathWithExt
+// =============================================
+
+print(pathWithExt("/home/file.txt", ".md") == "/home/file.md")
+print(pathWithExt("/home/file.txt", "md") == "/home/file.md")
+print(pathWithExt("/home/file", ".txt") == "/home/file.txt")
+print(pathWithExt("/home/file.tar.gz", ".zip") == "/home/file.tar.zip")
+
+// =============================================
+// pathWithBase
+// =============================================
+
+print(pathWithBase("/home/old.txt", "new.txt") == "/home/new.txt")
+print(pathWithBase("/home/user/file.txt", "other.md") == "/home/user/other.md")
+
+// =============================================
+// pathIsAbs / pathIsRel
+// =============================================
+
+print(pathIsAbs("/home/user") == true)
+print(pathIsAbs("/") == true)
+print(pathIsAbs("./file") == false)
+print(pathIsAbs("file.txt") == false)
+
+print(pathIsRel("/home/user") == false)
+print(pathIsRel("./file") == true)
+print(pathIsRel("file.txt") == true)
+
+// =============================================
+// pathClean
+// =============================================
+
+print(pathClean("/home/user/../admin") == "/home/admin")
+print(pathClean("/home/./user") == "/home/user")
+print(pathClean("a/b/../c") == "a/c")
+print(pathClean("//home//user//") == "/home/user")
+
+// =============================================
+// pathAbs
+// =============================================
+
+match pathAbs("./file.txt") {
+    Ok(abs) -> {
+        print(pathIsAbs(abs) == true)
+        print(len(abs) > 5)
+    }
+    Fail(_) -> print(false)
+}
+
+// =============================================
+// pathRel
+// =============================================
+
+match pathRel("/home/user", "/home/user/docs/file.txt") {
+    Ok(rel) -> print(rel == "docs/file.txt")
+    Fail(_) -> print(false)
+}
+
+match pathRel("/home/user", "/home/admin/file.txt") {
+    Ok(rel) -> print(rel == "../admin/file.txt")
+    Fail(_) -> print(false)
+}
+
+// =============================================
+// pathMatch
+// =============================================
+
+match pathMatch("*.txt", "file.txt") {
+    Ok(matched) -> print(matched == true)
+    Fail(_) -> print(false)
+}
+
+match pathMatch("*.txt", "file.md") {
+    Ok(matched) -> print(matched == false)
+    Fail(_) -> print(false)
+}
+
+match pathMatch("file.*", "file.txt") {
+    Ok(matched) -> print(matched == true)
+    Fail(_) -> print(false)
+}
+
+match pathMatch("?ile.txt", "file.txt") {
+    Ok(matched) -> print(matched == true)
+    Fail(_) -> print(false)
+}
+
+// =============================================
+// pathSplit
+// =============================================
+
+parts1 = pathSplit("/home/user/file.txt")
+print(len(parts1) == 4)  // "/", "home", "user", "file.txt"
+
+parts2 = pathSplit("a/b/c")
+print(len(parts2) == 3)
+
+parts3 = pathSplit("file.txt")
+print(len(parts3) == 1)
+
+// =============================================
+// pathSep
+// =============================================
+
+sep = pathSep()
+print(sep == "/" || sep == "\\")
+
+// =============================================
+// pathTemp
+// =============================================
+
+temp = pathTemp()
+print(len(temp) > 0)  // Should return non-empty temp directory
+print(pathIsAbs(temp) == true)  // Should be absolute path
+
+// =============================================
+// pathExtPosix (POSIX-style, handles dotfiles)
+// =============================================
+
+print(pathExtPosix(".gitignore") == "")
+print(pathExtPosix(".bashrc") == "")
+print(pathExtPosix(".config.json") == ".json")
+print(pathExtPosix("file.txt") == ".txt")
+print(pathExtPosix("file") == "")
+
+// =============================================
+// pathStemPosix (POSIX-style, handles dotfiles)
+// =============================================
+
+print(pathStemPosix(".gitignore") == ".gitignore")
+print(pathStemPosix(".bashrc") == ".bashrc")
+print(pathStemPosix(".config.json") == ".config")
+print(pathStemPosix("file.txt") == "file")
+print(pathStemPosix("file") == "file")
+
+// =============================================
+// pathIsHidden
+// =============================================
+
+print(pathIsHidden(".gitignore") == true)
+print(pathIsHidden(".bashrc") == true)
+print(pathIsHidden("file.txt") == false)
+print(pathIsHidden(".") == false)
+print(pathIsHidden("..") == false)
+print(pathIsHidden("/home/.config") == true)
+
+print("lib/path tests passed!")
+

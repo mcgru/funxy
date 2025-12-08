@@ -1,0 +1,349 @@
+import "lib/test" (*)
+
+// =============================================
+// COMPREHENSIVE USER TRAIT TEST
+// 
+// This test validates:
+// 1. User-defined traits with operators (UserOpCombine, UserOpChoose)
+// 2. User-defined traits with methods
+// 3. Trait inheritance (Child : Parent)
+// 4. Multiple inheritance (Child : Parent1, Parent2)
+// 5. Instance definitions for custom types
+// 6. Interaction between traits and operators
+// =============================================
+
+// =============================================
+// PART 1: Base traits with operators
+// =============================================
+
+// Trait with <> operator - Semigroup
+type Text = MkText String
+
+fun getText(t: Text) -> String {
+    match t { MkText s -> s }
+}
+
+instance Semigroup Text {
+    operator (<>)(a: Text, b: Text) -> Text {
+        MkText(getText(a) ++ getText(b))
+    }
+}
+
+testRun("UserOpCombine - Text concatenation", fun() -> {
+    t1 = MkText("Hello")
+    t2 = MkText(" ")
+    t3 = MkText("World")
+    result = t1 <> t2 <> t3
+    assertEquals(getText(result), "Hello World")
+})
+
+testRun("UserOpCombine - associativity", fun() -> {
+    a = MkText("A")
+    b = MkText("B")
+    c = MkText("C")
+    left = (a <> b) <> c
+    right = a <> (b <> c)
+    assertEquals(getText(left), getText(right))
+})
+
+// =============================================
+// PART 2: User trait with methods
+// =============================================
+
+trait Stringify<T> {
+    fun stringify(x: T) -> String
+}
+
+instance Stringify Text {
+    fun stringify(x: Text) -> String {
+        "Text(" ++ getText(x) ++ ")"
+    }
+}
+
+instance Stringify Int {
+    fun stringify(x: Int) -> String {
+        "Int(" ++ show(x) ++ ")"
+    }
+}
+
+testRun("Stringify trait - Text", fun() -> {
+    t = MkText("test")
+    assertEquals(stringify(t), "Text(test)")
+})
+
+testRun("Stringify trait - Int", fun() -> {
+    assertEquals(stringify(42), "Int(42)")
+})
+
+// =============================================
+// PART 3: Trait inheritance
+// =============================================
+
+// Base trait
+trait Showable<T> {
+    fun display(x: T) -> String
+}
+
+// Child trait inherits from Showable
+trait Printable<T> : Showable<T> {
+    fun format(x: T) -> String
+}
+
+type Item = MkItem String Int
+
+fun itemName(i: Item) -> String {
+    match i { MkItem(n, _) -> n }
+}
+
+fun itemValue(i: Item) -> Int {
+    match i { MkItem(_, v) -> v }
+}
+
+// First implement parent trait
+instance Showable Item {
+    fun display(x: Item) -> String {
+        itemName(x) ++ ":" ++ show(itemValue(x))
+    }
+}
+
+// Then implement child trait
+instance Printable Item {
+    fun format(x: Item) -> String {
+        "[" ++ display(x) ++ "]"
+    }
+}
+
+testRun("Trait inheritance - parent method", fun() -> {
+    item = MkItem("apple", 5)
+    assertEquals(display(item), "apple:5")
+})
+
+testRun("Trait inheritance - child method", fun() -> {
+    item = MkItem("banana", 3)
+    assertEquals(format(item), "[banana:3]")
+})
+
+// =============================================
+// PART 4: Multiple operators on same type
+// =============================================
+
+type Score = MkScore Int
+
+fun getScore(s: Score) -> Int {
+    match s { MkScore n -> n }
+}
+
+// Combine scores with <>
+instance Semigroup Score {
+    operator (<>)(a: Score, b: Score) -> Score {
+        MkScore(getScore(a) + getScore(b))
+    }
+}
+
+// Choose higher score with <|>
+instance UserOpChoose Score {
+    operator (<|>)(a: Score, b: Score) -> Score {
+        if getScore(a) >= getScore(b) { a } else { b }
+    }
+}
+
+testRun("Multiple operators - combine scores", fun() -> {
+    s1 = MkScore(10)
+    s2 = MkScore(20)
+    s3 = MkScore(30)
+    total = s1 <> s2 <> s3
+    assertEquals(getScore(total), 60)
+})
+
+testRun("Multiple operators - choose higher", fun() -> {
+    s1 = MkScore(10)
+    s2 = MkScore(50)
+    s3 = MkScore(30)
+    best = s1 <|> s2 <|> s3
+    assertEquals(getScore(best), 50)
+})
+
+testRun("Multiple operators - mixed usage", fun() -> {
+    // Combine two, then choose vs another
+    s1 = MkScore(10)
+    s2 = MkScore(20)
+    s3 = MkScore(25)
+    combined = s1 <> s2  // 30
+    result = combined <|> s3  // max(30, 25) = 30
+    assertEquals(getScore(result), 30)
+})
+
+// =============================================
+// PART 5: Generic trait with constraints
+// =============================================
+
+trait Summable<T> {
+    fun add(a: T, b: T) -> T
+    fun zero() -> T
+}
+
+instance Summable Int {
+    fun add(a: Int, b: Int) -> Int { a + b }
+    fun zero() -> Int { 0 }
+}
+
+instance Summable Score {
+    fun add(a: Score, b: Score) -> Score {
+        MkScore(getScore(a) + getScore(b))
+    }
+    fun zero() -> Score { MkScore(0) }
+}
+
+// Functions using Summable trait
+fun sumInts(list: List<Int>) -> Int {
+    match list {
+        [] -> (zero() : Int)
+        [x, xs...] -> add(x, sumInts(xs))
+    }
+}
+
+fun sumScores(list: List<Score>) -> Score {
+    match list {
+        [] -> (zero() : Score)
+        [x, xs...] -> add(x, sumScores(xs))
+    }
+}
+
+testRun("Summable trait - Int list", fun() -> {
+    nums: List<Int> = [1, 2, 3, 4, 5]
+    assertEquals(sumInts(nums), 15)
+})
+
+testRun("Summable trait - Score list", fun() -> {
+    scores = [MkScore(10), MkScore(20), MkScore(30)]
+    result = sumScores(scores)
+    assertEquals(getScore(result), 60)
+})
+
+// =============================================
+// PART 6: Trait with default implementation
+// =============================================
+
+trait Describable<T> {
+    fun describe(x: T) -> String
+    
+    // Default implementation
+    fun longDescribe(x: T) -> String {
+        "Description: " ++ describe(x)
+    }
+}
+
+type Product = MkProduct String Float
+
+fun productName(p: Product) -> String {
+    match p { MkProduct(n, _) -> n }
+}
+
+fun productPrice(p: Product) -> Float {
+    match p { MkProduct(_, pr) -> pr }
+}
+
+instance Describable Product {
+    fun describe(x: Product) -> String {
+        productName(x) ++ " ($" ++ show(productPrice(x)) ++ ")"
+    }
+    // Uses default longDescribe
+}
+
+testRun("Default implementation - describe", fun() -> {
+    p = MkProduct("Widget", 9.99)
+    assertEquals(describe(p), "Widget ($9.99)")
+})
+
+testRun("Default implementation - longDescribe", fun() -> {
+    p = MkProduct("Gadget", 19.99)
+    assertEquals(longDescribe(p), "Description: Gadget ($19.99)")
+})
+
+// =============================================
+// PART 7: Complex interaction
+// =============================================
+
+// Type that implements multiple traits
+type Counter = MkCounter Int String
+
+fun counterValue(c: Counter) -> Int {
+    match c { MkCounter(v, _) -> v }
+}
+
+fun counterLabel(c: Counter) -> String {
+    match c { MkCounter(_, l) -> l }
+}
+
+instance Semigroup Counter {
+    operator (<>)(a: Counter, b: Counter) -> Counter {
+        MkCounter(counterValue(a) + counterValue(b), counterLabel(a) ++ "+" ++ counterLabel(b))
+    }
+}
+
+instance Stringify Counter {
+    fun stringify(x: Counter) -> String {
+        counterLabel(x) ++ "=" ++ show(counterValue(x))
+    }
+}
+
+instance Summable Counter {
+    fun add(a: Counter, b: Counter) -> Counter {
+        a <> b  // Reuse <> operator
+    }
+    fun zero() -> Counter { MkCounter(0, "zero") }
+}
+
+fun sumCounters(list: List<Counter>) -> Counter {
+    match list {
+        [] -> (zero() : Counter)
+        [x, xs...] -> add(x, sumCounters(xs))
+    }
+}
+
+testRun("Complex - Counter with multiple traits", fun() -> {
+    c1 = MkCounter(10, "a")
+    c2 = MkCounter(20, "b")
+    c3 = MkCounter(30, "c")
+    
+    // Use <> operator
+    combined = c1 <> c2
+    assertEquals(counterValue(combined), 30)
+    assertEquals(counterLabel(combined), "a+b")
+    
+    // Use stringify
+    assertEquals(stringify(c1), "a=10")
+    
+    // Use sumCounters (uses Summable which uses <>)
+    list = [c1, c2, c3]
+    total = sumCounters(list)
+    assertEquals(counterValue(total), 60)
+})
+
+// =============================================
+// PART 8: Operators as first-class functions
+// =============================================
+
+testRun("Operator as function - (<>)", fun() -> {
+    combine = (<>)
+    t1 = MkText("X")
+    t2 = MkText("Y")
+    result = combine(t1, t2)
+    assertEquals(getText(result), "XY")
+})
+
+testRun("Operator as function - (<|>)", fun() -> {
+    choose = (<|>)
+    s1 = MkScore(100)
+    s2 = MkScore(50)
+    result = choose(s1, s2)
+    assertEquals(getScore(result), 100)
+})
+
+// =============================================
+// SUMMARY
+// =============================================
+
+print("=== Comprehensive User Trait Test ===")
+print("All tests completed successfully!")
+

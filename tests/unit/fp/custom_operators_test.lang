@@ -1,0 +1,347 @@
+import "lib/test" (*)
+
+// =============================================
+// Tests for User-Defined Types with FP Operators
+// Verifies that ContainerContext works for any trait operator
+// =============================================
+
+// =============================================
+// Part 1: Custom Monad type (Attempt)
+// =============================================
+
+type Attempt<A> = Success A | Failure String
+
+instance Functor Attempt {
+    fun fmap<A, B>(f: (A) -> B, fa: Attempt<A>) -> Attempt<B> {
+        match fa {
+            Success(a) -> Success(f(a))
+            Failure(e) -> Failure(e)
+        }
+    }
+}
+
+instance Applicative Attempt {
+    fun pure<A>(a: A) -> Attempt<A> { Success(a) }
+    
+    operator (<*>)<A, B>(ff: Attempt<(A) -> B>, fa: Attempt<A>) -> Attempt<B> {
+        match ff {
+            Failure(e) -> Failure(e)
+            Success(f) -> fmap(f, fa)
+        }
+    }
+}
+
+instance Monad Attempt {
+    operator (>>=)<A, B>(fa: Attempt<A>, f: (A) -> Attempt<B>) -> Attempt<B> {
+        match fa {
+            Success(a) -> f(a)
+            Failure(e) -> Failure(e)
+        }
+    }
+}
+
+instance Semigroup Attempt {
+    operator (<>)<A>(a: Attempt<A>, b: Attempt<A>) -> Attempt<A> {
+        match a {
+            Success(_) -> a
+            Failure(_) -> b
+        }
+    }
+}
+
+instance Monoid Attempt {
+    fun mempty<A>() -> Attempt<A> { Failure("empty") }
+}
+
+testRun("Attempt Functor - fmap", fun() -> {
+    m = Success(21)
+    result = fmap(fun(x) -> x * 2, m)
+    assertEquals(result, Success(42))
+})
+
+testRun("Attempt Functor Identity", fun() -> {
+    fun id<A>(x: A) -> A { x }
+    m = Success(42)
+    assert(fmap(id, m) == m)
+})
+
+testRun("Attempt Applicative - pure", fun() -> {
+    x: Attempt<Int> = pure(42)
+    assertEquals(x, Success(42))
+})
+
+testRun("Attempt Applicative - <*>", fun() -> {
+    f: Attempt<(Int) -> Int> = Success(fun(x) -> x + 10)
+    result = f <*> Success(5)
+    assertEquals(result, Success(15))
+})
+
+testRun("Attempt Monad - basic >>=", fun() -> {
+    result = Success(10) >>= fun(n) -> Success(n * 2)
+    assertEquals(result, Success(20))
+    
+    fail: Attempt<Int> = Failure("error")
+    result2 = fail >>= fun(n) -> Success(n * 2)
+    assertEquals(result2, Failure("error"))
+})
+
+testRun("Attempt Monad - m >>= pure = m (Right Identity)", fun() -> {
+    m = Success(99)
+    result = m >>= pure  // pure dispatches via ContainerContext = "Attempt"
+    assertEquals(result, m)
+})
+
+testRun("Attempt Monad - pure(a) >>= f = f(a) (Left Identity)", fun() -> {
+    a = 21
+    f = fun(x) -> Success(x * 2)
+    left = (pure(a) : Attempt<Int>) >>= f
+    right = f(a)
+    assertEquals(left, right)
+})
+
+testRun("Attempt Monad - Associativity", fun() -> {
+    m = Success(5)
+    f = fun(x) -> Success(x * 2)
+    g = fun(x) -> Success(x + 10)
+    left = (m >>= f) >>= g
+    right = m >>= fun(x) -> f(x) >>= g
+    assertEquals(left, right)
+})
+
+testRun("Attempt Semigroup - <>", fun() -> {
+    a = Success(1)
+    b = Success(2)
+    assertEquals(a <> b, Success(1))
+    
+    fail: Attempt<Int> = Failure("e")
+    assertEquals(fail <> a, Success(1))
+})
+
+testRun("Attempt Semigroup - Associativity", fun() -> {
+    a = Success(1)
+    b: Attempt<Int> = Failure("e1")
+    c = Success(3)
+    left = (a <> b) <> c
+    right = a <> (b <> c)
+    assertEquals(left, right)
+})
+
+testRun("Attempt Monoid - mempty", fun() -> {
+    x = Success(42)
+    empty: Attempt<Int> = mempty
+    assertEquals(empty <> x, Success(42))
+})
+
+testRun("Attempt Monoid - Left Identity", fun() -> {
+    x = Success(42)
+    assertEquals((mempty : Attempt<Int>) <> x, x)
+})
+
+testRun("Attempt Monoid - Right Identity", fun() -> {
+    x = Success(42)
+    assertEquals(x <> (mempty : Attempt<Int>), x)
+})
+
+// =============================================
+// Part 2: Custom Wrapper with Semigroup
+// =============================================
+
+type Wrapper<A> = Wrap A
+
+instance Functor Wrapper {
+    fun fmap<A, B>(f: (A) -> B, wa: Wrapper<A>) -> Wrapper<B> {
+        match wa {
+            Wrap(a) -> Wrap(f(a))
+        }
+    }
+}
+
+instance Semigroup Wrapper {
+    operator (<>)<A>(wa: Wrapper<A>, wb: Wrapper<A>) -> Wrapper<A> {
+        wa  // First wins
+    }
+}
+
+testRun("Wrapper Functor - fmap", fun() -> {
+    result = fmap(fun(x) -> x * 2, Wrap(21))
+    assertEquals(result, Wrap(42))
+})
+
+testRun("Wrapper Semigroup - <>", fun() -> {
+    a = Wrap(1)
+    b = Wrap(2)
+    result = a <> b
+    assertEquals(result, Wrap(1))
+})
+
+testRun("Wrapper Semigroup - associativity", fun() -> {
+    a = Wrap(1)
+    b = Wrap(2)
+    c = Wrap(3)
+    left = (a <> b) <> c
+    right = a <> (b <> c)
+    assertEquals(left, right)
+})
+
+// =============================================
+// Part 3: Chaining operations
+// =============================================
+
+testRun("Chaining >>= operations", fun() -> {
+    step1 = Success(1) >>= fun(a) -> Success(a + 1)
+    step2 = step1 >>= fun(b) -> Success(b * 2)
+    result = step2 >>= fun(c) -> Success(c + 10)
+    assertEquals(result, Success(14))  // ((1 + 1) * 2) + 10 = 14
+})
+
+testRun("Failure propagation with >>=", fun() -> {
+    step1 = Success(1) >>= fun(a) -> Success(a + 1)
+    fail: Attempt<Int> = Failure("oops")
+    step2 = step1 >>= fun(_) -> fail
+    result = step2 >>= fun(b) -> Success(b * 2)
+    assertEquals(result, Failure("oops"))
+})
+
+// =============================================
+// Part 4: Mix built-in and custom types
+// =============================================
+
+testRun("Mix Option and Attempt with >>=", fun() -> {
+    // Built-in Option
+    optResult = Some(10) >>= fun(x) -> Some(x * 2)
+    assertEquals(optResult, Some(20))
+    
+    // Custom Attempt  
+    attResult = Success(10) >>= fun(x) -> Success(x * 2)
+    assertEquals(attResult, Success(20))
+})
+
+testRun("Convert between Option and Attempt", fun() -> {
+    fun attemptToOption<A>(att: Attempt<A>) -> Option<A> {
+        match att {
+            Success(a) -> Some(a)
+            Failure(_) -> Zero
+        }
+    }
+    
+    fun optionToAttempt<A>(opt: Option<A>, errMsg: String) -> Attempt<A> {
+        match opt {
+            Some(a) -> Success(a)
+            Zero -> Failure(errMsg)
+        }
+    }
+    
+    // Transform through different monads
+    start: Attempt<Int> = Success(5)
+    step1 = start >>= fun(x) -> Success(x * 2)
+    step2 = attemptToOption(step1)
+    step3 = step2 >>= fun(x) -> Some(x + 5)
+    step4 = optionToAttempt(step3, "failed")
+    final = step4 >>= fun(x) -> Success(x * 3)
+    
+    assertEquals(final, Success(45))  // ((5 * 2) + 5) * 3 = 45
+})
+
+// =============================================
+// Part 5: UserOpChoose for simple non-HKT operations
+// =============================================
+
+type Status = Active | Inactive | Pending
+
+instance UserOpChoose Status {
+    operator (<|>)(a: Status, b: Status) -> Status {
+        match a {
+            Active -> Active
+            _ -> b
+        }
+    }
+}
+
+testRun("UserOpChoose - simple type operator", fun() -> {
+    assertEquals(Active <|> Inactive, Active)
+    assertEquals(Inactive <|> Active, Active)
+    assertEquals(Inactive <|> Pending, Pending)
+})
+
+testRun("UserOpChoose - associativity", fun() -> {
+    left = (Inactive <|> Pending) <|> Active
+    right = Inactive <|> (Pending <|> Active)
+    assertEquals(left, right)
+})
+
+// =============================================
+// Part 7: User-defined nullary trait method
+// Note: User-defined nullary methods need explicit () call
+// Built-in mempty is special - analyzer knows it's a value
+// =============================================
+
+trait Init<T> {
+    fun init() -> T
+}
+
+instance Init Int {
+    fun init() -> Int { 0 }
+}
+
+instance Init String {
+    fun init() -> String { "" }
+}
+
+instance Init Bool {
+    fun init() -> Bool { false }
+}
+
+type Coord = { x: Int, y: Int }
+
+instance Init Coord {
+    fun init() -> Coord { { x: 0, y: 0 } }
+}
+
+testRun("User nullary trait - explicit call", fun() -> {
+    // User-defined nullary methods need explicit ()
+    n: Int = init()
+    assertEquals(n, 0)
+    
+    s: String = init()
+    assertEquals(s, "")
+    
+    b: Bool = init()
+    assertEquals(b, false)
+    
+    c: Coord = init()
+    assertEquals(c.x, 0)
+    assertEquals(c.y, 0)
+})
+
+testRun("User nullary trait - in expressions", fun() -> {
+    assertEquals((init() : Int), 0)
+    assertEquals((init() : String), "")
+    assertEquals((init() : Bool), false)
+})
+
+testRun("User nullary trait - with custom record type", fun() -> {
+    coords: List<Coord> = [(init() : Coord), { x: 1, y: 2 }]
+    assertEquals(len(coords), 2)
+    assertEquals(coords[0].x, 0)
+    assertEquals(coords[1].x, 1)
+})
+
+// =============================================
+// Part 8: Built-in mempty works without ()
+// =============================================
+
+testRun("Built-in mempty - no explicit call needed", fun() -> {
+    // mempty is special - analyzer knows it's a value, not () -> T
+    empty: List<Int> = mempty
+    assertEquals(empty, [])
+    
+    emptyOpt: Option<Int> = mempty
+    assertEquals(emptyOpt, Zero)
+})
+
+testRun("Built-in mempty - in expressions", fun() -> {
+    assertEquals((mempty : List<Int>), [])
+    assertEquals((mempty : Option<Int>), Zero)
+})
+
+print("All custom operator tests completed!")

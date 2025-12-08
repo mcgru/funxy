@@ -1,0 +1,44 @@
+// Test: Multiple trait inheritance
+// trait Print<T> : Show<T>, Cmp<T>
+
+// Base traits
+trait Show<T> {
+    fun show(val: T) -> String
+}
+
+trait Cmp<T> {
+    fun cmp(a: T, b: T) -> Bool
+}
+
+// Derived trait inheriting from both
+trait Print<T> : Show<T>, Cmp<T> {
+    fun format(val: T) -> String
+}
+
+// Implement Show for Int
+instance Show Int {
+    fun show(val: Int) -> String {
+        "Int"
+    }
+}
+
+// Implement Cmp for Int
+instance Cmp Int {
+    fun cmp(a: Int, b: Int) -> Bool {
+        a == b
+    }
+}
+
+// Implement Print for Int
+instance Print Int {
+    fun format(val: Int) -> String {
+        "Formatted: Int"
+    }
+}
+
+// Test usage
+print(show(42))
+print(cmp(1, 1))
+print(cmp(1, 2))
+print(format(100))
+

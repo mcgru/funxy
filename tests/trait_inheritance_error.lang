@@ -1,0 +1,20 @@
+// Test: Error when super trait is not implemented
+
+type Ordering = Lt | Eq | Gt
+
+trait Cmp<T> {
+    fun cmp(a: T, b: T) -> Bool
+}
+
+trait Ord<T> : Cmp<T> {
+    fun compare(a: T, b: T) -> Ordering
+}
+
+// Try to implement Ord WITHOUT implementing Cmp first - should fail
+instance Ord Int {
+    fun compare(a: Int, b: Int) -> Ordering {
+        Lt
+    }
+}
+
+print("should not reach here")

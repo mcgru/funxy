@@ -1,0 +1,265 @@
+import "lib/test" (*)
+import "lib/bytes" (*)
+
+// =============================================
+// Bytes Literals
+// =============================================
+
+testRun("Empty bytes literal", fun() -> {
+    b = @""
+    assertEquals(len(b), 0)
+})
+
+testRun("UTF-8 bytes literal", fun() -> {
+    b = @"hello"
+    assertEquals(len(b), 5)
+})
+
+testRun("Hex bytes literal", fun() -> {
+    b = @x"48656C6C6F"
+    assertEquals(len(b), 5)
+})
+
+testRun("Binary bytes literal", fun() -> {
+    b = @b"01001000"
+    assertEquals(len(b), 1)
+})
+
+testRun("UTF-8 and hex produce same bytes", fun() -> {
+    b1 = @"Hello"
+    b2 = @x"48656C6C6F"
+    assertEquals(b1, b2)
+})
+
+// =============================================
+// Bytes Creation Functions
+// =============================================
+
+testRun("bytesNew creates empty bytes", fun() -> {
+    b = bytesNew()
+    assertEquals(len(b), 0)
+})
+
+testRun("bytesFromString creates bytes from string", fun() -> {
+    b = bytesFromString("hello")
+    assertEquals(len(b), 5)
+    assertEquals(b, @"hello")
+})
+
+testRun("bytesFromList creates bytes from list of ints", fun() -> {
+    b = bytesFromList([72, 101, 108, 108, 111])
+    assertEquals(b, @"Hello")
+})
+
+testRun("bytesFromHex parses hex string", fun() -> {
+    match bytesFromHex("48656C6C6F") {
+        Ok(b) -> assertEquals(b, @"Hello")
+        Fail(e) -> assert(false)
+    }
+})
+
+testRun("bytesFromHex fails on invalid hex", fun() -> {
+    match bytesFromHex("ZZZ") {
+        Ok(_) -> assert(false)
+        Fail(_) -> assert(true)
+    }
+})
+
+testRun("bytesFromBin parses binary string", fun() -> {
+    match bytesFromBin("01001000") {
+        Ok(b) -> assertEquals(b, @"H")
+        Fail(e) -> assert(false)
+    }
+})
+
+// =============================================
+// Bytes Indexing
+// =============================================
+
+testRun("Bytes indexing returns Option<Int>", fun() -> {
+    b = @"Hello"
+    assertEquals(b[0], Some(72))
+    assertEquals(b[1], Some(101))
+    assertEquals(b[4], Some(111))
+})
+
+testRun("Bytes indexing out of bounds returns Zero", fun() -> {
+    b = @"Hi"
+    assertEquals(b[10], Zero)
+    assertEquals(b[-10], Zero)
+})
+
+testRun("Bytes negative indexing", fun() -> {
+    b = @"Hello"
+    assertEquals(b[-1], Some(111))  // 'o'
+    assertEquals(b[-2], Some(108))  // 'l'
+})
+
+// =============================================
+// Bytes Slicing
+// =============================================
+
+testRun("bytesSlice extracts substring", fun() -> {
+    b = @"Hello World"
+    assertEquals(bytesSlice(b, 0, 5), @"Hello")
+    assertEquals(bytesSlice(b, 6, 11), @"World")
+})
+
+testRun("bytesSlice with out of bounds", fun() -> {
+    b = @"Hi"
+    assertEquals(bytesSlice(b, 0, 100), @"Hi")
+    assertEquals(bytesSlice(b, 10, 20), @"")
+})
+
+// =============================================
+// Bytes Concatenation
+// =============================================
+
+testRun("bytesConcat joins two bytes", fun() -> {
+    b1 = @"Hello"
+    b2 = @" World"
+    assertEquals(bytesConcat(b1, b2), @"Hello World")
+})
+
+testRun("++ operator concatenates bytes", fun() -> {
+    b1 = @"foo"
+    b2 = @"bar"
+    assertEquals(b1 ++ b2, @"foobar")
+})
+
+testRun("Concatenation with empty bytes", fun() -> {
+    b = @"test"
+    empty = @""
+    assertEquals(b ++ empty, @"test")
+    assertEquals(empty ++ b, @"test")
+})
+
+// =============================================
+// Bytes Comparison
+// =============================================
+
+testRun("Bytes equality", fun() -> {
+    assert(@"hello" == @"hello")
+    assert(@"hello" != @"world")
+})
+
+testRun("Bytes ordering", fun() -> {
+    assert(@"abc" < @"abd")
+    assert(@"abc" <= @"abc")
+    assert(@"xyz" > @"abc")
+    assert(@"xyz" >= @"xyz")
+})
+
+testRun("Bytes ordering by length", fun() -> {
+    assert(@"a" < @"aa")
+    assert(@"abc" < @"abcd")
+})
+
+// =============================================
+// Bytes Conversion
+// =============================================
+
+testRun("bytesToHex converts to hex string", fun() -> {
+    b = @"Hello"
+    assertEquals(bytesToHex(b), "48656c6c6f")
+})
+
+testRun("bytesToBin converts to binary string", fun() -> {
+    b = @"H"
+    assertEquals(bytesToBin(b), "01001000")
+})
+
+testRun("bytesToList converts to list of ints", fun() -> {
+    b = @"Hi"
+    list = bytesToList(b)
+    assertEquals(list[0], 72)
+    assertEquals(list[1], 105)
+})
+
+testRun("bytesToString on valid UTF-8", fun() -> {
+    b = @"hello"
+    match bytesToString(b) {
+        Ok(s) -> assertEquals(s, "hello")
+        Fail(_) -> assert(false)
+    }
+})
+
+// =============================================
+// Bytes Search
+// =============================================
+
+testRun("bytesContains checks presence", fun() -> {
+    b = @"Hello World"
+    assert(bytesContains(b, @"World"))
+    assert(bytesContains(b, @"Hello"))
+    assert(!bytesContains(b, @"Foo"))
+})
+
+testRun("bytesIndexOf finds position", fun() -> {
+    b = @"Hello World"
+    assertEquals(bytesIndexOf(b, @"World"), Some(6))
+    assertEquals(bytesIndexOf(b, @"Foo"), Zero)
+})
+
+testRun("bytesStartsWith checks prefix", fun() -> {
+    b = @"Hello World"
+    assert(bytesStartsWith(b, @"Hello"))
+    assert(!bytesStartsWith(b, @"World"))
+})
+
+testRun("bytesEndsWith checks suffix", fun() -> {
+    b = @"Hello World"
+    assert(bytesEndsWith(b, @"World"))
+    assert(!bytesEndsWith(b, @"Hello"))
+})
+
+// =============================================
+// Bytes Split/Join
+// =============================================
+
+testRun("bytesSplit splits bytes", fun() -> {
+    b = @"a,b,c"
+    parts = bytesSplit(b, @",")
+    assertEquals(len(parts), 3)
+    assertEquals(parts[0], @"a")
+    assertEquals(parts[1], @"b")
+    assertEquals(parts[2], @"c")
+})
+
+testRun("bytesJoin joins list of bytes", fun() -> {
+    parts = [@"a", @"b", @"c"]
+    result = bytesJoin(parts, @",")
+    assertEquals(result, @"a,b,c")
+})
+
+// =============================================
+// Bytes Numeric Encoding
+// =============================================
+
+testRun("bytesEncodeInt encodes integer", fun() -> {
+    b = bytesEncodeInt(0x1234, 2)
+    assertEquals(len(b), 2)
+    // Big-endian by default: 0x12, 0x34
+    assertEquals(b[0], Some(0x12))
+    assertEquals(b[1], Some(0x34))
+})
+
+testRun("bytesDecodeInt decodes integer", fun() -> {
+    b = @x"1234"
+    n = bytesDecodeInt(b)
+    assertEquals(n, 0x1234)
+})
+
+testRun("bytesEncodeFloat encodes float32", fun() -> {
+    b = bytesEncodeFloat(3.14, 4)
+    assertEquals(len(b), 4)
+})
+
+testRun("bytesDecodeFloat decodes float32", fun() -> {
+    b = bytesEncodeFloat(3.14, 4)
+    f = bytesDecodeFloat(b, 4)
+    // Float comparison with tolerance
+    assert(f > 3.13)
+    assert(f < 3.15)
+})
+

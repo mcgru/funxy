@@ -1,0 +1,281 @@
+import "lib/test" (*)
+
+// =============================================
+// FP Laws Tests
+// Verifies that our FP traits satisfy their algebraic laws
+// =============================================
+
+// Helper functions
+fun double(x: Int) -> Int { x * 2 }
+fun addTen(x: Int) -> Int { x + 10 }
+
+// =============================================
+// Functor Laws
+// =============================================
+// 1. Identity: fmap(id, x) == x
+// 2. Composition: fmap(f . g, x) == fmap(f, fmap(g, x))
+
+testRun("Functor Identity - Option Some", fun() -> {
+    x = Some(42)
+    result = fmap(id, x)
+    assert(result == x)
+})
+
+testRun("Functor Identity - Option Zero", fun() -> {
+    x: Option<Int> = Zero
+    result = fmap(id, x)
+    assert(result == x)
+})
+
+testRun("Functor Identity - List", fun() -> {
+    x = [1, 2, 3]
+    result = fmap(id, x)
+    assert(result == x)
+})
+
+testRun("Functor Composition - Option Some", fun() -> {
+    x = Some(5)
+    // fmap(f . g, x) == fmap(f, fmap(g, x))
+    left = fmap(double ,, addTen, x)
+    right = fmap(double, fmap(addTen, x))
+    assert(left == right)
+})
+
+testRun("Functor Composition - Option Zero", fun() -> {
+    x: Option<Int> = Zero
+    left = fmap(double ,, addTen, x)
+    right = fmap(double, fmap(addTen, x))
+    assert(left == right)
+})
+
+testRun("Functor Composition - List", fun() -> {
+    x = [1, 2, 3]
+    left = fmap(double ,, addTen, x)
+    right = fmap(double, fmap(addTen, x))
+    assert(left == right)
+})
+
+// =============================================
+// Applicative Laws
+// =============================================
+// 1. Identity: pure(id) <*> v == v
+// 2. Homomorphism: pure(f) <*> pure(x) == pure(f(x))
+
+testRun("Applicative Identity - Option", fun() -> {
+    v = Some(42)
+    idFn: Option<(Int) -> Int> = pure(id)
+    result = idFn <*> v
+    assert(result == v)
+})
+
+testRun("Applicative Identity - List", fun() -> {
+    v = [1, 2, 3]
+    idFn: List<(Int) -> Int> = pure(id)
+    result = idFn <*> v
+    assert(result == v)
+})
+
+testRun("Applicative Homomorphism - Option", fun() -> {
+    f = double
+    x = 21
+    left: Option<Int> = (pure(f) : Option<(Int) -> Int>) <*> pure(x)
+    right: Option<Int> = pure(f(x))
+    assert(left == right)
+})
+
+testRun("Applicative Homomorphism - List", fun() -> {
+    f = double
+    x = 21
+    left: List<Int> = (pure(f) : List<(Int) -> Int>) <*> pure(x)
+    right: List<Int> = pure(f(x))
+    assert(left == right)
+})
+
+// =============================================
+// Monad Laws
+// =============================================
+// 1. Left Identity: pure(a) >>= f == f(a)
+// 2. Right Identity: m >>= pure == m
+// 3. Associativity: (m >>= f) >>= g == m >>= (\x -> f(x) >>= g)
+
+fun optDouble(x: Int) -> Option<Int> { Some(x * 2) }
+fun optAddTen(x: Int) -> Option<Int> { Some(x + 10) }
+fun listDouble(x: Int) -> List<Int> { [x * 2] }
+fun listReplicate(x: Int) -> List<Int> { [x, x] }
+fun resDouble(x: Int) -> Result<String, Int> { Ok(x * 2) }
+fun resAddTen(x: Int) -> Result<String, Int> { Ok(x + 10) }
+
+testRun("Monad Left Identity - Option", fun() -> {
+    a = 21
+    f = optDouble
+    left = (pure(a) : Option<Int>) >>= f
+    right = f(a)
+    assert(left == right)
+})
+
+testRun("Monad Left Identity - List", fun() -> {
+    a = 21
+    f = listDouble
+    left = (pure(a) : List<Int>) >>= f
+    right = f(a)
+    assert(left == right)
+})
+
+testRun("Monad Right Identity - Option Some", fun() -> {
+    m = Some(42)
+    // m >>= pure now works! >>= sets MonadContainer so pure knows to return Option
+    result = m >>= pure
+    assert(result == m)
+})
+
+testRun("Monad Right Identity - Option Zero", fun() -> {
+    m: Option<Int> = Zero
+    result = m >>= pure
+    assert(result == m)
+})
+
+testRun("Monad Right Identity - List", fun() -> {
+    m = [1, 2, 3]
+    result = m >>= pure
+    assert(result == m)
+})
+
+testRun("Monad Right Identity - Result Ok", fun() -> {
+    m: Result<String, Int> = Ok(42)
+    result = m >>= pure
+    assert(result == m)
+})
+
+testRun("Monad Right Identity - Result Fail", fun() -> {
+    m: Result<String, Int> = Fail("error")
+    result = m >>= pure
+    assert(result == m)
+})
+
+testRun("Monad Associativity - Option Some", fun() -> {
+    m = Some(5)
+    f = optDouble
+    g = optAddTen
+    // (m >>= f) >>= g == m >>= (\x -> f(x) >>= g)
+    left = (m >>= f) >>= g
+    right = m >>= fun(x) -> f(x) >>= g
+    assert(left == right)
+})
+
+testRun("Monad Associativity - Option Zero", fun() -> {
+    m: Option<Int> = Zero
+    f = optDouble
+    g = optAddTen
+    left = (m >>= f) >>= g
+    right = m >>= fun(x) -> f(x) >>= g
+    assert(left == right)
+})
+
+testRun("Monad Associativity - List", fun() -> {
+    m = [1, 2]
+    f = listDouble
+    g = listReplicate
+    left = (m >>= f) >>= g
+    right = m >>= fun(x) -> f(x) >>= g
+    assert(left == right)
+})
+
+testRun("Monad Associativity - Result Ok", fun() -> {
+    m: Result<String, Int> = Ok(5)
+    f = resDouble
+    g = resAddTen
+    left = (m >>= f) >>= g
+    right = m >>= fun(x) -> f(x) >>= g
+    assert(left == right)
+})
+
+testRun("Monad Associativity - Result Fail", fun() -> {
+    m: Result<String, Int> = Fail("error")
+    f = resDouble
+    g = resAddTen
+    left = (m >>= f) >>= g
+    right = m >>= fun(x) -> f(x) >>= g
+    assert(left == right)
+})
+
+// =============================================
+// Semigroup Law
+// =============================================
+// Associativity: (a <> b) <> c == a <> (b <> c)
+
+testRun("Semigroup Associativity - List", fun() -> {
+    a = [1, 2]
+    b = [3, 4]
+    c = [5, 6]
+    left = (a <> b) <> c
+    right = a <> (b <> c)
+    assert(left == right)
+})
+
+testRun("Semigroup Associativity - String", fun() -> {
+    a = "Hello"
+    b = " "
+    c = "World"
+    left = (a <> b) <> c
+    right = a <> (b <> c)
+    assert(left == right)
+})
+
+testRun("Semigroup Associativity - Option Some", fun() -> {
+    a = Some(1)
+    b = Some(2)
+    c = Some(3)
+    left = (a <> b) <> c
+    right = a <> (b <> c)
+    assert(left == right)
+})
+
+// =============================================
+// Monoid Laws
+// =============================================
+// 1. Left Identity: mempty <> x == x
+// 2. Right Identity: x <> mempty == x
+
+testRun("Monoid Left Identity - List", fun() -> {
+    x = [1, 2, 3]
+    empty: List<Int> = []
+    result = empty <> x
+    assert(result == x)
+})
+
+testRun("Monoid Right Identity - List", fun() -> {
+    x = [1, 2, 3]
+    empty: List<Int> = []
+    result = x <> empty
+    assert(result == x)
+})
+
+testRun("Monoid Left Identity - String", fun() -> {
+    x = "Hello"
+    empty = ""
+    result = empty <> x
+    assert(result == x)
+})
+
+testRun("Monoid Right Identity - String", fun() -> {
+    x = "Hello"
+    empty = ""
+    result = x <> empty
+    assert(result == x)
+})
+
+testRun("Monoid Left Identity - Option", fun() -> {
+    x = Some(42)
+    empty: Option<Int> = Zero
+    result = empty <> x
+    assert(result == x)
+})
+
+testRun("Monoid Right Identity - Option", fun() -> {
+    x = Some(42)
+    empty: Option<Int> = Zero
+    result = x <> empty
+    assert(result == x)
+})
+
+print("All FP laws tests defined")

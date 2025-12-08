@@ -1,0 +1,86 @@
+// Tests for the built-in Iter trait.
+// Iter is a built-in trait: trait Iter<C, T> { fun iter(collection: C) -> () -> Option<T> }
+// List<a> implements Iter by default.
+
+// Test 1: Iterate over list (built-in Iter implementation)
+acc = 0
+for x in [1, 2, 3] {
+    acc = acc + x
+}
+print(acc) // 6
+
+// Test 2: Custom Generator
+// A function that returns an iterator closure
+fun range(start: Int, end: Int) -> () -> Option<Int> {
+    curr = start
+    fun next() {
+        if curr < end {
+            val = curr
+            curr = curr + 1
+            Some(val)
+        } else {
+            Zero
+        }
+    }
+    next
+}
+
+// Wrapper struct for range
+type Range = { start: Int, end: Int }
+
+// Implement Iter for Range
+instance Iter Range {
+    fun iter(r: Range) -> () -> Option<Int> {
+        range(r.start, r.end)
+    }
+}
+
+sum_range = 0
+r: Range = { start: 0, end: 5 }
+for i in r {
+    sum_range = sum_range + i
+}
+print(sum_range) // 0+1+2+3+4 = 10
+
+// Test 3: Naked iterator
+// Implement Iter for any function that returns Option.
+// This allows using the iterator function directly in the for loop.
+instance Iter (() -> Option<a>) {
+    fun iter(fn: () -> Option<a>) -> () -> Option<a> {
+        fn
+    }
+}
+
+sum_naked = 0
+for i in range(0, 5) {
+    sum_naked = sum_naked + i
+}
+print(sum_naked) // 10
+
+// Test 4: Infinite generator with break
+fun infinite() -> () -> Option<Int> {
+    n = 0
+    fun next() {
+        n = n + 1
+        Some(n)
+    }
+    next
+}
+
+type Infinite = {} // Empty record type
+
+instance Iter Infinite {
+    fun iter(x: Infinite) -> () -> Option<Int> {
+        infinite()
+    }
+}
+
+count = 0
+inf: Infinite = {}
+for x in inf { // Infinite empty record LITERAL
+    count = count + 1
+    if x == 5 {
+        break
+    }
+}
+print(count) // 5

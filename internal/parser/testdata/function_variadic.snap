@@ -1,0 +1,17 @@
+--- AST Tree ---
+Program
+  FunctionStatement
+    Name: sum
+    Params:
+      nums: ...
+    Return: NamedType(Identifier(Int))
+    Body:
+Block
+        IntegerLiteral(0)
+
+
+
+--- Source Code ---
+fun sum(nums: ...) -> Int {
+    0
+}

@@ -1,0 +1,16 @@
+// Test importing a package with .funxy extension
+
+import "lib/test" (*)
+import "./funxylib" (double, greet, triple)
+
+testRun("Import .funxy package - double", fun() -> {
+    assertEquals(double(5), 10)
+})
+
+testRun("Import .funxy package - greet", fun() -> {
+    assertEquals(greet("World"), "Hello, World!")
+})
+
+testRun("Import .funxy package - triple from helpers", fun() -> {
+    assertEquals(triple(4), 12)
+})

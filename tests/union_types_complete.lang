@@ -1,0 +1,100 @@
+// Comprehensive tests for Union Types
+
+// === Basic Union Types ===
+x: Int | String = 42
+print(x)
+x = "hello"
+print(x)
+
+// === Nullable shorthand (T?) ===
+name: String? = "Alice"
+print(name)
+name = Nil
+print(name)
+
+// === Multiple types in union ===
+multi: Int | String | Bool = 123
+print(multi)
+multi = "world"
+print(multi)
+multi = true
+print(multi)
+
+// === Union as function parameter ===
+fun describe(val: Int | String) -> String {
+    match val {
+        n: Int -> "Integer: " ++ show(n)
+        s: String -> "String: " ++ s
+    }
+}
+print(describe(42))
+print(describe("test"))
+
+// === Union as return type ===
+fun maybeInt(b: Bool) -> Int | Nil {
+    if b { 100 } else { Nil }
+}
+r1 = maybeInt(true)
+print(r1)
+r2 = maybeInt(false)
+print(r2)
+
+// === Auto-inference from if branches ===
+fun autoInfer(b: Bool) {
+    result = if b { 42 } else { "forty-two" }
+    print(result)
+}
+autoInfer(true)
+autoInfer(false)
+
+// === Type pattern matching ===
+fun process(x: Int | String | Nil) -> String {
+    match x {
+        n: Int -> "Got int: " ++ show(n)
+        s: String -> "Got string: " ++ s
+        _: Nil -> "Got nil"
+    }
+}
+print(process(100))
+print(process("abc"))
+print(process(Nil))
+
+// === Nullable pattern matching ===
+fun optDouble(x: Int?) -> Int | Nil {
+    match x {
+        n: Int -> n * 2
+        _: Nil -> Nil
+    }
+}
+print(optDouble(21))
+print(optDouble(Nil))
+
+// === Union with nested types ===
+listOrNil: List<Int> | Nil = [1, 2, 3]
+print(listOrNil)
+listOrNil = Nil
+print(listOrNil)
+
+// === Match with multiple arms returning different types ===
+fun mixedReturn(x: Int) -> Int | String {
+    match x {
+        0 -> "zero"
+        _ -> x * 10
+    }
+}
+print(mixedReturn(0))
+print(mixedReturn(5))
+
+// === Runtime type check with typeOf ===
+fun typeCheck(x: Int | String) -> String {
+    if typeOf(x, Int) {
+        "It's an integer"
+    } else {
+        "It's a string"
+    }
+}
+print(typeCheck(42))
+print(typeCheck("hi"))
+
+print("All union type tests passed!")
+

@@ -1,0 +1,104 @@
+// Test: Operators as functions
+
+// Basic arithmetic operators
+add = (+)
+print(add(1, 2))   // 3
+
+sub = (-)
+print(sub(10, 3))  // 7
+
+mul = (*)
+print(mul(4, 5))   // 20
+
+div = (/)
+print(div(20, 4))  // 5
+
+mod = (%)
+print(mod(17, 5))  // 2
+
+pow = (**)
+print(pow(2, 10))  // 1024
+
+// Comparison operators
+eq = (==)
+print(eq(5, 5))    // true
+print(eq(5, 3))    // false
+
+neq = (!=)
+print(neq(5, 3))   // true
+
+lt = (<)
+print(lt(3, 5))    // true
+
+gt = (>)
+print(gt(5, 3))    // true
+
+lte = (<=)
+print(lte(5, 5))   // true
+
+gte = (>=)
+print(gte(5, 3))   // true
+
+// Bitwise operators
+band = (&)
+print(band(12, 10)) // 8
+
+bor = (|)
+print(bor(12, 10))  // 14
+
+bxor = (^)
+print(bxor(12, 10)) // 6
+
+lshift = (<<)
+print(lshift(1, 4)) // 16
+
+rshift = (>>)
+print(rshift(16, 2)) // 4
+
+// Logical operators
+land = (&&)
+print(land(true, true))   // true
+print(land(true, false))  // false
+
+lor = (||)
+print(lor(false, true))   // true
+print(lor(false, false))  // false
+
+// Concatenation
+concat = (++)
+print(concat("Hello, ", "World!"))  // Hello, World!
+print(concat([1, 2], [3, 4]))       // [1, 2, 3, 4]
+
+// Cons
+cons = (::)
+print(cons(0, [1, 2, 3]))  // [0, 1, 2, 3]
+
+// Using operators in higher-order functions
+fun fold<T, R>(f: (R, T) -> R, init: R, list: List<T>) -> R {
+    match list {
+        [] -> init
+        [head, tail...] -> fold(f, f(init, head), tail)
+    }
+}
+
+sum = fold((+), 0, [1, 2, 3, 4, 5])
+print(sum)  // 15
+
+product = fold((*), 1, [1, 2, 3, 4, 5])
+print(product)  // 120
+
+// Passing operator to map-like function
+fun zipWith<A, B, C>(f: (A, B) -> C, xs: List<A>, ys: List<B>) -> List<C> {
+    match (xs, ys) {
+        ([], _) -> []
+        (_, []) -> []
+        ([x, xs2...], [y, ys2...]) -> f(x, y) :: zipWith(f, xs2, ys2)
+    }
+}
+
+sums = zipWith((+), [1, 2, 3], [10, 20, 30])
+print(sums)  // [11, 22, 33]
+
+products = zipWith((*), [1, 2, 3], [10, 20, 30])
+print(products)  // [10, 40, 90]
+

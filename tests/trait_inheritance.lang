@@ -1,0 +1,41 @@
+// Trait inheritance test
+// trait Ord<T> : Cmp<T> { ... }
+
+type Ordering = Lt | Eq | Gt
+
+// Base trait
+trait Cmp<T> {
+    fun cmp(a: T, b: T) -> Bool
+}
+
+// Derived trait - requires Cmp
+trait Ord<T> : Cmp<T> {
+    fun compare(a: T, b: T) -> Ordering
+}
+
+// First implement Cmp for Int
+instance Cmp Int {
+    fun cmp(a: Int, b: Int) -> Bool {
+        a == b
+    }
+}
+
+// Then implement Ord for Int (requires Cmp Int)
+instance Ord Int {
+    fun compare(a: Int, b: Int) -> Ordering {
+        if a < b { Lt }
+        else if a > b { Gt }
+        else { Eq }
+    }
+}
+
+// Test usage
+print(cmp(1, 1))   // true
+print(cmp(1, 2))   // false
+
+result = compare(5, 3)
+match result {
+    Lt -> print("less")
+    Eq -> print("equal")
+    Gt -> print("greater")
+}

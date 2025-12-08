@@ -1,0 +1,19 @@
+// Test that constants (:-) are immutable
+
+// Normal constant usage
+pi :- 3.14159
+print(pi)
+
+// Multiple constants
+x :- 10
+y :- 20
+print(x + y)
+
+// Normal mutable variable
+a = "hello"
+print(a)
+a = "world"  // OK: can reassign mutable
+print(a)
+
+print("Constant immutability tests passed!")
+

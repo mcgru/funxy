@@ -1,0 +1,50 @@
+// Testing built-in ADTs
+
+// Result
+ok_val = Ok(10)
+err_val = Fail("failed")
+
+print(ok_val)
+print(err_val)
+
+// Pattern matching on Result
+res = match ok_val {
+  Ok(v) -> v
+  Fail(e) -> 0
+}
+print(res)
+
+res_err = match err_val {
+  Ok(v) -> "ok"
+  Fail(e) -> e
+}
+print(res_err)
+
+// Option t = Some t | Zero
+some_val = Some(100)
+zero_val = Zero
+
+print(some_val)
+print(zero_val)
+
+// Pattern matching on Option
+p1 = match some_val {
+  Some(x) -> x
+  Zero -> -2
+}
+print(p1)
+
+p3 = match zero_val {
+  Some(x) -> x
+  Zero -> -3
+}
+print(p3)
+
+// Type checks
+if typeOf(ok_val, Result) {
+  print(1)
+}
+
+if typeOf(some_val, Option) {
+  print(2)
+}

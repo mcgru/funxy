@@ -1,0 +1,74 @@
+import "lib/test" (*)
+import "./testlib"
+
+// =============================================
+// PLAIN IMPORTS: import "path" (no alias)
+// Uses package name as namespace: testlib.Symbol
+// =============================================
+
+testRun("Plain: access type via package name", fun() -> {
+    p: testlib.Point = { x: 1, y: 2 }
+    assert(p.x == 1)
+    assert(p.y == 2)
+})
+
+testRun("Plain: access function via package name", fun() -> {
+    p1: testlib.Point = { x: 1, y: 2 }
+    p2: testlib.Point = { x: 3, y: 4 }
+    result = testlib.add(p1, p2)
+    assert(result.x == 4)
+    assert(result.y == 6)
+})
+
+testRun("Plain: access ADT constructor via package name", fun() -> {
+    c = testlib.Radius(5.0)
+    assertEquals(c, testlib.Radius(5.0))
+})
+
+testRun("Plain: trait instance for type alias (Semigroup)", fun() -> {
+    p1: testlib.Point = { x: 1, y: 2 }
+    p2: testlib.Point = { x: 3, y: 4 }
+    result = p1 <> p2
+    assert(result.x == 4)
+    assert(result.y == 6)
+})
+
+testRun("Plain: trait instance for ADT (Semigroup)", fun() -> {
+    c1 = testlib.Radius(5.0)
+    c2 = testlib.Radius(3.0)
+    result = c1 <> c2
+    assertEquals(result, testlib.Radius(8.0))
+})
+
+testRun("Plain: extension method for ADT (area)", fun() -> {
+    c = testlib.Radius(5.0)
+    a = c.area()
+    assert(a > 78.0)
+    assert(a < 79.0)
+})
+
+testRun("Plain: extension method for ADT (diameter)", fun() -> {
+    c = testlib.Radius(5.0)
+    d = c.diameter()
+    assert(d == 10.0)
+})
+
+testRun("Plain: function using imported lib (distance)", fun() -> {
+    p: testlib.Point = { x: 3, y: 4 }
+    d = testlib.distance(p)
+    assert(d == 5.0)
+})
+
+testRun("Plain: field access on type alias", fun() -> {
+    p: testlib.Point = { x: 100, y: 200 }
+    assert(p.x == 100)
+    assert(p.y == 200)
+})
+
+testRun("Plain: trait + extension chain for ADT", fun() -> {
+    c1 = testlib.Radius(2.0)
+    c2 = testlib.Radius(3.0)
+    combined = c1 <> c2
+    d = combined.diameter()
+    assert(d == 10.0)
+})

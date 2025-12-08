@@ -1,0 +1,64 @@
+// Test: Pipe operator |>
+// x |> f is equivalent to f(x)
+
+// Basic usage
+fun double(x: Int) -> Int { x * 2 }
+fun inc(x: Int) -> Int { x + 1 }
+fun square(x: Int) -> Int { x * x }
+
+result1 = 5 |> double
+print(result1)  // 10
+
+// Chaining (left-associative)
+// 3 |> inc |> double |> square = square(double(inc(3))) = square(double(4)) = square(8) = 64
+result2 = 3 |> inc |> double |> square
+print(result2)  // 64
+
+// With lambdas
+result3 = 10 |> fun(x) { x - 3 }
+print(result3)  // 7
+
+// Mixed with other operators (|> has lowest precedence)
+// 2 + 3 |> double means (2 + 3) |> double = 5 |> double = 10
+result4 = 2 + 3 |> double
+print(result4)  // 10
+
+// Pipe into print (variadic functions work too)
+"Hello" |> print  // Hello
+
+// List operations
+fun head(xs: List<Int>) -> Int {
+    match xs {
+        [x, rest...] -> x
+        [] -> 0
+    }
+}
+
+fun sum(xs: List<Int>) -> Int {
+    match xs {
+        [] -> 0
+        [x, rest...] -> x + sum(rest)
+    }
+}
+
+list = [1, 2, 3, 4, 5]
+firstElem = list |> head
+print(firstElem)  // 1
+
+total = list |> sum
+print(total)  // 15
+
+// Multiple pipes with list
+fun reverse(xs: List<Int>) -> List<Int> {
+    fun go(acc, remaining) {
+        match remaining {
+            [] -> acc
+            [x, rest...] -> go(x :: acc, rest)
+        }
+    }
+    go([], xs)
+}
+
+result5 = [1, 2, 3] |> reverse |> head
+print(result5)  // 3
+

@@ -1,0 +1,125 @@
+import "lib/json" (jsonEncode, jsonDecode, jsonParse, jsonFromValue, jsonGet, jsonKeys)
+
+// === Encode Tests ===
+
+// Basic types
+print(jsonEncode(42))
+print(jsonEncode(3.14))
+print(jsonEncode(true))
+print(jsonEncode(false))
+print(jsonEncode("hello"))
+print(jsonEncode(Nil))
+
+// List
+print(jsonEncode([1, 2, 3]))
+print(jsonEncode([]))
+
+// Nested list
+print(jsonEncode([[1, 2], [3, 4]]))
+
+// Record
+user = { name: "Alice", age: 30 }
+print(jsonEncode(user))
+
+// Nested record
+data = { user: { name: "Bob" }, active: true }
+print(jsonEncode(data))
+
+// Tuple (encoded as array)
+print(jsonEncode((1, "two", true)))
+
+// Option
+print(jsonEncode(Some(42)))
+print(jsonEncode(Zero))
+
+// === Decode Tests ===
+
+// Decode number
+match jsonDecode("42") {
+    Ok(n) -> print(n)
+    Fail(e) -> print("Error: " ++ e)
+}
+
+// Decode float
+match jsonDecode("3.14") {
+    Ok(n) -> print(n)
+    Fail(e) -> print("Error: " ++ e)
+}
+
+// Decode boolean
+match jsonDecode("true") {
+    Ok(b) -> print(b)
+    Fail(e) -> print("Error: " ++ e)
+}
+
+// Decode null
+match jsonDecode("null") {
+    Ok(n) -> print(n)
+    Fail(e) -> print("Error: " ++ e)
+}
+
+// Decode array
+match jsonDecode("[1, 2, 3]") {
+    Ok(arr) -> print(arr)
+    Fail(e) -> print("Error: " ++ e)
+}
+
+// Invalid JSON
+match jsonDecode("not json") {
+    Ok(_) -> print("Should fail!")
+    Fail(e) -> print("Expected error")
+}
+
+// === Json ADT Tests ===
+
+// jsonParse array
+match jsonParse("[1, 2, 3]") {
+    Ok(JArr(items)) -> print("Array with " ++ show(len(items)) ++ " items")
+    Ok(_) -> print("Not an array")
+    Fail(e) -> print("Error")
+}
+
+// jsonParse boolean
+match jsonParse("true") {
+    Ok(JBool(b)) -> print("Bool: " ++ show(b))
+    Ok(_) -> print("Not a bool")
+    Fail(e) -> print("Error")
+}
+
+// jsonParse number
+match jsonParse("42") {
+    Ok(JNum(n)) -> print("Num: " ++ show(n))
+    Ok(_) -> print("Not a number")
+    Fail(e) -> print("Error")
+}
+
+// jsonParse null
+match jsonParse("null") {
+    Ok(JNull) -> print("Null")
+    Ok(_) -> print("Not null")
+    Fail(e) -> print("Error")
+}
+
+// jsonFromValue
+json = jsonFromValue({ x: 1, y: 2 })
+match json {
+    JObj(_) -> print("jsonFromValue created JObj")
+    _ -> print("Not JObj")
+}
+
+// jsonGet and jsonKeys
+record = { a: 1, b: 2 }
+jsonStr = jsonEncode(record)
+match jsonParse(jsonStr) {
+    Ok(obj) -> {
+        match jsonGet(obj, "a") {
+            Some(JNum(n)) -> print("a = " ++ show(n))
+            _ -> print("a not found")
+        }
+        keys = jsonKeys(obj)
+        print("Keys count: " ++ show(len(keys)))
+    }
+    Fail(_) -> print("Error")
+}
+
+print("All JSON tests passed!")

@@ -1,0 +1,20 @@
+trait Show<T> {
+  fun show(val: T) -> String
+}
+
+instance Show (List<Int>) {
+  fun show(val: List<Int>) -> String {
+    "List of Ints"
+  }
+}
+
+l = [1, 2]
+print(show(l))
+
+instance Show (Int, Int) {
+  fun show(val: (Int, Int)) -> String {
+    "Tuple of Ints"
+  }
+}
+t = (1, 2)
+print(show(t))

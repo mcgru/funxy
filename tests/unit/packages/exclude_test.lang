@@ -1,0 +1,80 @@
+import "lib/test" (*)
+import "./testlib" !(area)
+
+// =============================================
+// EXCLUDE IMPORTS: import "path" !(symbols)
+// Tests: all except excluded symbols are available
+// Note: 'area' is excluded from this import
+// =============================================
+
+testRun("Exclude: access type directly", fun() -> {
+    p: Point = { x: 5, y: 6 }
+    assert(p.x == 5)
+    assert(p.y == 6)
+})
+
+testRun("Exclude: access function directly", fun() -> {
+    p1: Point = { x: 1, y: 1 }
+    p2: Point = { x: 2, y: 2 }
+    result = add(p1, p2)
+    assert(result.x == 3)
+    assert(result.y == 3)
+})
+
+testRun("Exclude: access ADT constructor", fun() -> {
+    c = Radius(4.0)
+    assertEquals(c, Radius(4.0))
+})
+
+testRun("Exclude: trait instance for type alias (Semigroup)", fun() -> {
+    p1: Point = { x: 1, y: 1 }
+    p2: Point = { x: 2, y: 2 }
+    result = p1 <> p2
+    assert(result.x == 3)
+    assert(result.y == 3)
+})
+
+testRun("Exclude: trait instance for ADT (Semigroup)", fun() -> {
+    c1 = Radius(5.0)
+    c2 = Radius(5.0)
+    result = c1 <> c2
+    assertEquals(result, Radius(10.0))
+})
+
+testRun("Exclude: extension method for type alias (scale)", fun() -> {
+    p: Point = { x: 4, y: 4 }
+    scaled = p.scale(2)
+    assert(scaled.x == 8)
+    assert(scaled.y == 8)
+})
+
+testRun("Exclude: extension method for type alias (magnitude)", fun() -> {
+    p: Point = { x: 6, y: 8 }
+    mag = p.magnitude()
+    assert(mag == 10.0)
+})
+
+testRun("Exclude: extension method for ADT (diameter)", fun() -> {
+    // Note: area is excluded, but diameter should still work
+    c = Radius(6.0)
+    d = c.diameter()
+    assert(d == 12.0)
+})
+
+testRun("Exclude: function using lib import (distance)", fun() -> {
+    p: Point = { x: 8, y: 15 }
+    d = distance(p)
+    assert(d == 17.0)
+})
+
+testRun("Exclude: pattern matching on ADT", fun() -> {
+    c = Radius(3.5)
+    r = match c {
+        Radius(x) -> x
+        _ -> 0.0
+    }
+    assert(r == 3.5)
+})
+
+// NOTE: 'area' function is excluded and should not be available.
+// We cannot test this at runtime since it would be a compile-time error.

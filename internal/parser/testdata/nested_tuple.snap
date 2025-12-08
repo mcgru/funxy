@@ -1,0 +1,15 @@
+--- AST Tree ---
+Program
+  Assign
+    Left: Identifier(x)
+    Value: Tuple
+      Tuple
+        IntegerLiteral(1)
+        IntegerLiteral(2)
+
+      IntegerLiteral(3)
+
+
+
+--- Source Code ---
+x = ((1, 2), 3)

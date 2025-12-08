@@ -1,0 +1,65 @@
+// Comprehensive test for all built-in trait implementations
+
+print("=== Equal ===")
+// Primitives
+print(1 == 1)
+print(3.14 == 3.14)
+print(true == true)
+print('a' == 'a')
+print("hello" == "hello")
+// Containers
+print([1, 2, 3] == [1, 2, 3])
+print(Some(42) == Some(42))
+print(Ok(1) == Ok(1))
+print((1, 2) == (1, 2))
+
+print("=== Order ===")
+// Primitives
+print(1 < 2)
+print(1.0 < 2.0)
+print(false < true)
+print('a' < 'b')
+print("abc" < "abd")
+// Containers - direct comparisons work with constructors
+print([1, 2] < [1, 3])
+print([] < [1])
+print(Zero < Some(1))
+print(Some(1) < Some(2))
+print((1, 2) < (1, 3))
+print((1, 2) < (2, 0))
+
+print("=== Default ===")
+print(default(Int))
+print(default(Float))
+print(default(Bool))
+print(default(Char) == '\0')
+print(default(String))
+type OptInt = Option<Int>
+print(default(OptInt))
+
+print("=== Semigroup (<>) ===")
+print([1, 2] <> [3, 4])
+print("hello" <> " " <> "world")
+print(Some(5) <> Some(10))
+zero = Zero: Option<Int>
+print(zero <> Some(42))
+
+print("=== Monoid (mempty via Semigroup identity) ===")
+print([] <> [1, 2, 3])
+
+print("=== Functor (fmap) ===")
+print(fmap(fun(x) -> x * 2, [1, 2, 3]))
+print(fmap(fun(x) -> x * 2, Some(5)))
+r = Ok(5): Result<String, Int>
+print(fmap(fun(x) -> x * 2, r))
+
+print("=== Applicative (<*>) ===")
+print(Some(fun(x) -> x + 1) <*> Some(10))
+print([fun(x) -> x * 2] <*> [1, 2, 3])
+
+print("=== Monad (>>=) ===")
+print(Some(5) >>= fun(x) -> Some(x * 2))
+print([1, 2] >>= fun(x) -> [x, x * 10])
+
+print("=== All trait tests passed! ===")
+

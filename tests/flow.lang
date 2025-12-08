@@ -1,0 +1,66 @@
+// 1. Variables and Assignment
+x = 10
+print(x) // 10
+x = x + 5
+print(x) // 15
+
+// 2. Scoping
+{
+    y = 20
+    print(y) // 20
+    x = 99 // Updates outer x
+}
+// print(y) // Error: undefined
+print(x) // 99
+
+// 3. If Statement
+if x > 50 {
+    print(1) // 1
+} else {
+    print(0)
+}
+
+// 4. If Expression
+res = if x > 100 { 100 } else { 200 }
+print(res) // 200
+
+// 5. If Expression inline
+print(if true { 123 } else { 456 }) // 123
+
+// 6. Nested If Expression
+val = 5
+sign = if val > 0 { 
+    1 
+} else { 
+    if val < 0 { -1 } else { 0 } 
+}
+print(sign) // 1
+
+// 7. Variables with different types
+f = 1.5
+print(f + 0.5) // 2
+
+b = true
+if b {
+    print("True")
+}
+
+// 8. Else If Statement
+val2 = 10
+if val2 > 20 {
+    print("GT 20")
+} else if val2 > 5 {
+    print("GT 5")
+} else {
+    print("LE 5")
+}
+
+// 9. Else If Expression
+res2 = if val2 > 20 {
+    30
+} else if val2 > 5 {
+    15
+} else {
+    0
+}
+print(res2) // 15

@@ -1,0 +1,124 @@
+import "lib/bytes" (*)
+
+// Test Bytes literals
+print("=== Bytes Literals ===")
+b1 = @"hello"
+b2 = @x"48656C6C6F"
+b3 = @b"01001000"
+print(b1)
+print(b2)
+print(b3)
+print(len(b1))
+print(len(b2))
+print(len(b3))
+
+// Test creation functions
+print("=== Creation ===")
+empty = bytesNew()
+print(empty)
+print(len(empty))
+
+fromStr = bytesFromString("world")
+print(fromStr)
+
+fromList = bytesFromList([65, 66, 67])
+print(fromList)
+
+// Test hex parsing
+print("=== Hex Parsing ===")
+match bytesFromHex("DEADBEEF") {
+    Ok(b) -> print(b)
+    Fail(e) -> print(e)
+}
+
+// Test indexing
+print("=== Indexing ===")
+b = @"Hello"
+print(b[0])
+print(b[4])
+print(b[100])
+print(b[-1])
+
+// Test slicing
+print("=== Slicing ===")
+full = @"Hello World"
+print(bytesSlice(full, 0, 5))
+print(bytesSlice(full, 6, 11))
+
+// Test concatenation
+print("=== Concatenation ===")
+a = @"foo"
+c = @"bar"
+print(a ++ c)
+print(bytesConcat(a, c))
+
+// Test comparison
+print("=== Comparison ===")
+print(@"abc" == @"abc")
+print(@"abc" != @"xyz")
+print(@"abc" < @"abd")
+print(@"xyz" > @"abc")
+
+// Test conversion
+print("=== Conversion ===")
+print(bytesToHex(@"Hi"))
+print(bytesToBin(@"A"))
+print(bytesToList(@"AB"))
+
+match bytesToString(@"hello") {
+    Ok(s) -> print(s)
+    Fail(_) -> print("Failed")
+}
+
+// Test search
+print("=== Search ===")
+haystack = @"Hello World"
+print(bytesContains(haystack, @"World"))
+print(bytesContains(haystack, @"Foo"))
+print(bytesIndexOf(haystack, @"World"))
+print(bytesIndexOf(haystack, @"Foo"))
+print(bytesStartsWith(haystack, @"Hello"))
+print(bytesEndsWith(haystack, @"World"))
+
+// Test split/join
+print("=== Split/Join ===")
+csv = @"a,b,c"
+parts = bytesSplit(csv, @",")
+print(len(parts))
+print(parts[0])
+print(parts[1])
+print(parts[2])
+print(bytesJoin(parts, @"-"))
+
+// Test numeric encoding
+print("=== Numeric Encoding ===")
+// Default endianness (big)
+encoded = bytesEncodeInt(0x1234, 2)
+print(len(encoded))
+print(bytesToHex(encoded))
+decoded = bytesDecodeInt(encoded)
+print(decoded)
+
+// Explicit big endian
+encodedBig = bytesEncodeInt(0x1234, 2, "big")
+print(bytesToHex(encodedBig))
+
+// Little endian
+encodedLittle = bytesEncodeInt(0x1234, 2, "little")
+print(bytesToHex(encodedLittle))
+
+// Native endianness (system-dependent, but consistent)
+encodedNative = bytesEncodeInt(256, 2, "native")
+decodedNative = bytesDecodeInt(encodedNative, "native")
+print(decodedNative)
+
+// Signed values
+signedBytes = bytesEncodeInt(-1, 2, "big-signed")
+signedVal = bytesDecodeInt(signedBytes, "big-signed")
+print(signedVal)
+
+// Test float encoding
+floatBytes = bytesEncodeFloat(3.14, 4)
+print(len(floatBytes))
+floatDecoded = bytesDecodeFloat(floatBytes, 4)
+print(floatDecoded)

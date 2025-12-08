@@ -1,0 +1,9 @@
+package mixedlib (*)
+
+// This is the main package file with .lang extension
+// Files with other extensions should be ignored
+
+fun fromLang() -> String {
+    "from lang"
+}
+

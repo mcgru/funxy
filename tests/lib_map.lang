@@ -1,0 +1,156 @@
+import "lib/map" (*)
+import "lib/list" (length, contains)
+
+// =============================================
+// Empty map
+// =============================================
+empty = %{}
+print(mapSize(empty) == 0)
+print(len(empty) == 0)
+
+// =============================================
+// Map literal creation
+// =============================================
+m = %{ "a" => 1, "b" => 2, "c" => 3 }
+print(mapSize(m) == 3)
+print(len(m) == 3)
+
+// =============================================
+// Multiline map literal
+// =============================================
+multiline = %{
+    "x" => 10,
+    "y" => 20,
+    "z" => 30,
+}
+print(mapSize(multiline) == 3)
+
+// =============================================
+// mapGet: (Map<K, V>, K) -> Option<V>
+// =============================================
+print(mapGet(m, "a") == Some(1))
+print(mapGet(m, "b") == Some(2))
+print(mapGet(m, "z") == Zero)
+print(mapGet(empty, "x") == Zero)
+
+// =============================================
+// mapGetOr: (Map<K, V>, K, V) -> V
+// =============================================
+print(mapGetOr(m, "a", 0) == 1)
+print(mapGetOr(m, "z", 99) == 99)
+print(mapGetOr(empty, "key", -1) == -1)
+
+// =============================================
+// mapContains: (Map<K, V>, K) -> Bool
+// =============================================
+print(mapContains(m, "a") == true)
+print(mapContains(m, "b") == true)
+print(mapContains(m, "z") == false)
+print(mapContains(empty, "x") == false)
+
+// =============================================
+// mapPut: (Map<K, V>, K, V) -> Map<K, V>
+// =============================================
+m2 = mapPut(m, "d", 4)
+print(mapSize(m2) == 4)
+print(mapGet(m2, "d") == Some(4))
+// Original unchanged (immutable)
+print(mapSize(m) == 3)
+print(mapGet(m, "d") == Zero)
+
+// Update existing key
+m3 = mapPut(m, "a", 100)
+print(mapGet(m3, "a") == Some(100))
+print(mapGet(m, "a") == Some(1))
+
+// =============================================
+// mapRemove: (Map<K, V>, K) -> Map<K, V>
+// =============================================
+m4 = mapRemove(m, "b")
+print(mapSize(m4) == 2)
+print(mapGet(m4, "b") == Zero)
+// Original unchanged
+print(mapSize(m) == 3)
+print(mapGet(m, "b") == Some(2))
+
+// Remove non-existent key returns same map content
+m5 = mapRemove(m, "nonexistent")
+print(mapSize(m5) == 3)
+
+// =============================================
+// mapKeys: (Map<K, V>) -> List<K>
+// =============================================
+keys = mapKeys(m)
+print(length(keys) == 3)
+print(contains(keys, "a"))
+print(contains(keys, "b"))
+print(contains(keys, "c"))
+
+// =============================================
+// mapValues: (Map<K, V>) -> List<V>
+// =============================================
+vals = mapValues(m)
+print(length(vals) == 3)
+print(contains(vals, 1))
+print(contains(vals, 2))
+print(contains(vals, 3))
+
+// =============================================
+// mapItems: (Map<K, V>) -> List<(K, V)>
+// =============================================
+items = mapItems(m)
+print(length(items) == 3)
+print(contains(items, ("a", 1)))
+print(contains(items, ("b", 2)))
+print(contains(items, ("c", 3)))
+
+// =============================================
+// mapMerge: (Map<K, V>, Map<K, V>) -> Map<K, V>
+// =============================================
+m6 = %{ "c" => 30, "d" => 40 }
+merged = mapMerge(m, m6)
+print(mapSize(merged) == 4)
+// Second map overwrites first on conflict
+print(mapGet(merged, "c") == Some(30))
+print(mapGet(merged, "d") == Some(40))
+print(mapGet(merged, "a") == Some(1))
+
+// =============================================
+// Index access: m[key] -> Option<V>
+// =============================================
+print(m["a"] == Some(1))
+print(m["z"] == Zero)
+print(empty["x"] == Zero)
+
+// =============================================
+// Maps with different key types
+// =============================================
+intKeyMap = %{ 1 => "one", 2 => "two", 3 => "three" }
+print(mapGet(intKeyMap, 1) == Some("one"))
+print(mapGet(intKeyMap, 2) == Some("two"))
+print(intKeyMap[3] == Some("three"))
+print(intKeyMap[4] == Zero)
+
+// =============================================
+// Chained operations
+// =============================================
+base: Map<String, Int> = %{}
+step1 = mapPut(base, "x", 1)
+step2 = mapPut(step1, "y", 2)
+result = mapPut(step2, "z", 3)
+print(mapSize(result) == 3)
+
+// =============================================
+// Match on Option from mapGet
+// =============================================
+fun describe(m: Map<String, Int>, key: String) -> String {
+    match mapGet(m, key) {
+        Some(v) -> "found"
+        Zero -> "not found"
+    }
+}
+print(describe(m, "a") == "found")
+print(describe(m, "z") == "not found")
+
+print("All lib/map tests passed!")
+

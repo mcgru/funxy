@@ -1,0 +1,282 @@
+import "lib/path" (*)
+import "lib/test" (*)
+
+// ============================================================================
+// pathJoin
+// ============================================================================
+
+testRun("pathJoin multiple parts", fun() -> {
+    assertEquals(pathJoin(["a", "b", "c"]), "a/b/c")
+})
+
+testRun("pathJoin empty", fun() -> {
+    assertEquals(pathJoin([]), "")
+})
+
+testRun("pathJoin single", fun() -> {
+    assertEquals(pathJoin(["file.txt"]), "file.txt")
+})
+
+// ============================================================================
+// pathDir
+// ============================================================================
+
+testRun("pathDir with file", fun() -> {
+    assertEquals(pathDir("/home/user/file.txt"), "/home/user")
+})
+
+testRun("pathDir simple file", fun() -> {
+    assertEquals(pathDir("file.txt"), ".")
+})
+
+testRun("pathDir root", fun() -> {
+    assertEquals(pathDir("/"), "/")
+})
+
+// ============================================================================
+// pathBase
+// ============================================================================
+
+testRun("pathBase full path", fun() -> {
+    assertEquals(pathBase("/home/user/file.txt"), "file.txt")
+})
+
+testRun("pathBase simple", fun() -> {
+    assertEquals(pathBase("file.txt"), "file.txt")
+})
+
+testRun("pathBase trailing slash", fun() -> {
+    assertEquals(pathBase("/home/user/"), "user")
+})
+
+// ============================================================================
+// pathExt
+// ============================================================================
+
+testRun("pathExt txt", fun() -> {
+    assertEquals(pathExt("file.txt"), ".txt")
+})
+
+testRun("pathExt double", fun() -> {
+    assertEquals(pathExt("file.tar.gz"), ".gz")
+})
+
+testRun("pathExt none", fun() -> {
+    assertEquals(pathExt("file"), "")
+})
+
+testRun("pathExt dotfile", fun() -> {
+    // Go considers .gitignore as having extension ".gitignore"
+    assertEquals(pathExt(".gitignore"), ".gitignore")
+})
+
+// ============================================================================
+// pathStem
+// ============================================================================
+
+testRun("pathStem simple", fun() -> {
+    assertEquals(pathStem("file.txt"), "file")
+})
+
+testRun("pathStem double ext", fun() -> {
+    assertEquals(pathStem("file.tar.gz"), "file.tar")
+})
+
+testRun("pathStem no ext", fun() -> {
+    assertEquals(pathStem("file"), "file")
+})
+
+// ============================================================================
+// pathWithExt
+// ============================================================================
+
+testRun("pathWithExt replace", fun() -> {
+    assertEquals(pathWithExt("/home/file.txt", ".md"), "/home/file.md")
+})
+
+testRun("pathWithExt add", fun() -> {
+    assertEquals(pathWithExt("/home/file", ".txt"), "/home/file.txt")
+})
+
+testRun("pathWithExt without dot", fun() -> {
+    assertEquals(pathWithExt("/home/file.txt", "md"), "/home/file.md")
+})
+
+// ============================================================================
+// pathWithBase
+// ============================================================================
+
+testRun("pathWithBase replace", fun() -> {
+    assertEquals(pathWithBase("/home/old.txt", "new.txt"), "/home/new.txt")
+})
+
+// ============================================================================
+// pathIsAbs / pathIsRel
+// ============================================================================
+
+testRun("pathIsAbs absolute", fun() -> {
+    assert(pathIsAbs("/home/user"))
+})
+
+testRun("pathIsAbs relative", fun() -> {
+    assert(pathIsAbs("./file") == false)
+})
+
+testRun("pathIsRel relative", fun() -> {
+    assert(pathIsRel("file.txt"))
+})
+
+testRun("pathIsRel absolute", fun() -> {
+    assert(pathIsRel("/home") == false)
+})
+
+// ============================================================================
+// pathClean
+// ============================================================================
+
+testRun("pathClean dotdot", fun() -> {
+    assertEquals(pathClean("/home/user/../admin"), "/home/admin")
+})
+
+testRun("pathClean dot", fun() -> {
+    assertEquals(pathClean("/home/./user"), "/home/user")
+})
+
+testRun("pathClean multiple slashes", fun() -> {
+    assertEquals(pathClean("//home//user"), "/home/user")
+})
+
+// ============================================================================
+// pathAbs
+// ============================================================================
+
+testRun("pathAbs result", fun() -> {
+    match pathAbs("./file.txt") {
+        Ok(abs) -> assert(pathIsAbs(abs))
+        Fail(_) -> assert(false)
+    }
+})
+
+// ============================================================================
+// pathRel
+// ============================================================================
+
+testRun("pathRel child", fun() -> {
+    match pathRel("/home/user", "/home/user/docs/file.txt") {
+        Ok(rel) -> assertEquals(rel, "docs/file.txt")
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("pathRel sibling", fun() -> {
+    match pathRel("/home/user", "/home/admin/file.txt") {
+        Ok(rel) -> assertEquals(rel, "../admin/file.txt")
+        Fail(_) -> assert(false)
+    }
+})
+
+// ============================================================================
+// pathMatch
+// ============================================================================
+
+testRun("pathMatch glob star", fun() -> {
+    match pathMatch("*.txt", "file.txt") {
+        Ok(matched) -> assert(matched)
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("pathMatch no match", fun() -> {
+    match pathMatch("*.txt", "file.md") {
+        Ok(matched) -> assert(matched == false)
+        Fail(_) -> assert(false)
+    }
+})
+
+testRun("pathMatch question", fun() -> {
+    match pathMatch("?ile.txt", "file.txt") {
+        Ok(matched) -> assert(matched)
+        Fail(_) -> assert(false)
+    }
+})
+
+// ============================================================================
+// pathSplit
+// ============================================================================
+
+testRun("pathSplit absolute", fun() -> {
+    parts = pathSplit("/home/user/file.txt")
+    assertEquals(len(parts), 4)
+})
+
+testRun("pathSplit relative", fun() -> {
+    parts = pathSplit("a/b/c")
+    assertEquals(len(parts), 3)
+})
+
+testRun("pathSplit single", fun() -> {
+    parts = pathSplit("file.txt")
+    assertEquals(len(parts), 1)
+})
+
+// ============================================================================
+// pathSep
+// ============================================================================
+
+testRun("pathSep valid", fun() -> {
+    sep = pathSep()
+    assert(sep == "/" || sep == "\\")
+})
+
+// ============================================================================
+// pathExtPosix (POSIX-style)
+// ============================================================================
+
+testRun("pathExtPosix dotfile", fun() -> {
+    assertEquals(pathExtPosix(".gitignore"), "")
+})
+
+testRun("pathExtPosix dotfile with ext", fun() -> {
+    assertEquals(pathExtPosix(".config.json"), ".json")
+})
+
+testRun("pathExtPosix regular", fun() -> {
+    assertEquals(pathExtPosix("file.txt"), ".txt")
+})
+
+// ============================================================================
+// pathStemPosix (POSIX-style)
+// ============================================================================
+
+testRun("pathStemPosix dotfile", fun() -> {
+    assertEquals(pathStemPosix(".gitignore"), ".gitignore")
+})
+
+testRun("pathStemPosix dotfile with ext", fun() -> {
+    assertEquals(pathStemPosix(".config.json"), ".config")
+})
+
+testRun("pathStemPosix regular", fun() -> {
+    assertEquals(pathStemPosix("file.txt"), "file")
+})
+
+// ============================================================================
+// pathIsHidden
+// ============================================================================
+
+testRun("pathIsHidden dotfile", fun() -> {
+    assert(pathIsHidden(".gitignore"))
+})
+
+testRun("pathIsHidden regular", fun() -> {
+    assert(pathIsHidden("file.txt") == false)
+})
+
+testRun("pathIsHidden dot", fun() -> {
+    assert(pathIsHidden(".") == false)
+})
+
+testRun("pathIsHidden dotdot", fun() -> {
+    assert(pathIsHidden("..") == false)
+})
+

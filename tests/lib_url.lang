@@ -1,0 +1,211 @@
+import "lib/url" (*)
+
+// =============================================
+// URL Parsing
+// =============================================
+
+match urlParse("https://example.com/path") {
+    Ok(url) -> {
+        print(urlScheme(url) == "https")
+        print(urlHost(url) == "example.com")
+        print(urlPath(url) == "/path")
+    }
+    Fail(_) -> print(false)
+}
+
+// Full URL with all components
+match urlParse("https://user:pass@example.com:8080/api/users?id=1&name=test#section") {
+    Ok(url) -> {
+        print(urlScheme(url) == "https")
+        print(urlUserinfo(url) == "user:pass")
+        print(urlHost(url) == "example.com")
+        match urlPort(url) {
+            Some(p) -> print(p == 8080)
+            Zero -> print(false)
+        }
+        print(urlPath(url) == "/api/users")
+        print(urlQuery(url) == "id=1&name=test")
+        print(urlFragment(url) == "section")
+    }
+    Fail(_) -> print(false)
+}
+
+// =============================================
+// Query Parameters
+// =============================================
+
+match urlParse("https://example.com?tag=a&tag=b&name=test") {
+    Ok(url) -> {
+        // Single param
+        match urlQueryParam(url, "name") {
+            Some(v) -> print(v == "test")
+            Zero -> print(false)
+        }
+        
+        // First value of multi-value
+        match urlQueryParam(url, "tag") {
+            Some(v) -> print(v == "a")
+            Zero -> print(false)
+        }
+        
+        // All values
+        tags = urlQueryParamAll(url, "tag")
+        print(len(tags) == 2)
+        
+        // Missing param
+        match urlQueryParam(url, "missing") {
+            Some(_) -> print(false)
+            Zero -> print(true)
+        }
+        
+        // Query params as map
+        params = urlQueryParams(url)
+        print(len(params) == 2)  // "tag" and "name"
+    }
+    Fail(_) -> print(false)
+}
+
+// =============================================
+// URL Modifiers
+// =============================================
+
+match urlParse("https://example.com/old") {
+    Ok(url) -> {
+        // Modify scheme
+        url1 = urlWithScheme(url, "http")
+        print(urlScheme(url1) == "http")
+        
+        // Modify host
+        url2 = urlWithHost(url, "new.com")
+        print(urlHost(url2) == "new.com")
+        
+        // Modify port
+        url3 = urlWithPort(url, 9000)
+        match urlPort(url3) {
+            Some(p) -> print(p == 9000)
+            Zero -> print(false)
+        }
+        
+        // Modify path
+        url4 = urlWithPath(url, "/new/path")
+        print(urlPath(url4) == "/new/path")
+        
+        // Modify query
+        url5 = urlWithQuery(url, "key=value")
+        print(urlQuery(url5) == "key=value")
+        
+        // Modify fragment
+        url6 = urlWithFragment(url, "anchor")
+        print(urlFragment(url6) == "anchor")
+        
+        // Modify userinfo
+        url7 = urlWithUserinfo(url, "admin:secret")
+        print(urlUserinfo(url7) == "admin:secret")
+        
+        // Add query param
+        url8 = urlAddQueryParam(url, "page", "1")
+        print(urlQuery(url8) == "page=1")
+        
+        // Chain modifications
+        url9 = urlAddQueryParam(urlWithPath(url, "/api"), "v", "2")
+        print(urlPath(url9) == "/api")
+    }
+    Fail(_) -> print(false)
+}
+
+// =============================================
+// URL Join
+// =============================================
+
+match urlParse("https://example.com/base/") {
+    Ok(base) -> {
+        match urlJoin(base, "relative") {
+            Ok(joined) -> print(urlPath(joined) == "/base/relative")
+            Fail(_) -> print(false)
+        }
+        
+        match urlJoin(base, "/absolute") {
+            Ok(joined) -> print(urlPath(joined) == "/absolute")
+            Fail(_) -> print(false)
+        }
+    }
+    Fail(_) -> print(false)
+}
+
+// =============================================
+// URL to String
+// =============================================
+
+match urlParse("https://example.com:8080/path?q=1#frag") {
+    Ok(url) -> {
+        str = urlToString(url)
+        print(str == "https://example.com:8080/path?q=1#frag")
+    }
+    Fail(_) -> print(false)
+}
+
+// =============================================
+// URL Encoding/Decoding
+// =============================================
+
+// Encode
+encoded = urlEncode("hello world?foo=bar&x=1")
+print(encoded == "hello+world%3Ffoo%3Dbar%26x%3D1")
+
+// Decode
+match urlDecode(encoded) {
+    Ok(decoded) -> print(decoded == "hello world?foo=bar&x=1")
+    Fail(_) -> print(false)
+}
+
+// Round-trip
+match urlDecode(urlEncode("test value & special chars!")) {
+    Ok(decoded) -> print(decoded == "test value & special chars!")
+    Fail(_) -> print(false)
+}
+
+// Empty string
+print(urlEncode("") == "")
+match urlDecode("") {
+    Ok(d) -> print(d == "")
+    Fail(_) -> print(false)
+}
+
+// Special characters
+print(urlEncode("a+b=c") == "a%2Bb%3Dc")
+
+// =============================================
+// Edge Cases
+// =============================================
+
+// URL without port
+match urlParse("https://example.com/path") {
+    Ok(url) -> {
+        match urlPort(url) {
+            Some(_) -> print(false)
+            Zero -> print(true)
+        }
+    }
+    Fail(_) -> print(false)
+}
+
+// URL without path
+match urlParse("https://example.com") {
+    Ok(url) -> print(urlPath(url) == "")
+    Fail(_) -> print(false)
+}
+
+// URL without query
+match urlParse("https://example.com/path") {
+    Ok(url) -> print(urlQuery(url) == "")
+    Fail(_) -> print(false)
+}
+
+// URL without fragment
+match urlParse("https://example.com/path") {
+    Ok(url) -> print(urlFragment(url) == "")
+    Fail(_) -> print(false)
+}
+
+print("lib/url tests passed!")
+

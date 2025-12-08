@@ -1,0 +1,17 @@
+--- AST Tree ---
+Program
+  FunctionStatement
+    Name: process
+    Params:
+      id: NamedType(Identifier(Int))
+      args: ...
+    Body:
+Block
+        IntegerLiteral(0)
+
+
+
+--- Source Code ---
+fun process(id: Int, args: ...) {
+    0
+}

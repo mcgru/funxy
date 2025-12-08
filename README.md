@@ -1,0 +1,273 @@
+# Funxy
+
+A hybrid programming language with static typing, pattern matching, and built-in binary data support.
+
+## Installation
+
+### Download Binary
+
+Download from [Releases](https://github.com/funvibe/funxy/releases):
+- macOS: `funxy-darwin-amd64` or `funxy-darwin-arm64`
+- Linux: `funxy-linux-amd64` or `funxy-linux-arm64`
+- Windows: `funxy-windows-amd64.exe`
+
+```bash
+mv funxy-darwin-arm64 funxy
+./funxy hello.lang
+```
+
+### Build from Source
+
+```bash
+git clone https://github.com/funvibe/funxy
+cd funxy
+make build
+./funxy hello.lang
+```
+
+Requires Go 1.25+
+
+## Quick Start
+
+```bash
+# Run a program
+./funxy hello.lang
+
+# Run from stdin
+echo 'print("Hello!")' | ./funxy
+
+# Web playground
+./funxy playground/playground.lang
+# Open http://localhost:8080
+
+# Show help
+./funxy -help
+./funxy -help lib/http
+```
+
+## Hello World
+
+```rust
+print("Hello, Funxy!")
+```
+
+Save as `hello.lang` and run: `./funxy hello.lang`
+
+## Key Features
+
+### Static Typing with Inference
+
+```rust
+import "lib/list" (map)
+
+numbers = [1, 2, 3]              // Type inferred: List<Int>
+doubled = map(fun(x) { x * 2 }, numbers)
+print(doubled)  // [2, 4, 6]
+
+// Explicit types when needed
+fun add(a: Int, b: Int) -> Int { a + b }
+```
+
+### Pattern Matching
+
+```rust
+fun describe(n) {
+    match n {
+        0 -> "zero"
+        n if n < 0 -> "negative"
+        _ -> "positive"
+    }
+}
+
+// Record destructuring
+user = { name: "admin", role: "superuser" }
+match user {
+    { name: "admin", role: r } -> print("Admin: ${r}")
+    _ -> print("Guest")
+}
+```
+
+### String Patterns for Routing
+
+```rust
+fun route(method, path) {
+    match (method, path) {
+        ("GET", "/users/{id}") -> "User: ${id}"
+        ("GET", "/files/{path...}") -> "File: ${path}"
+        _ -> "Not found"
+    }
+}
+
+print(route("GET", "/users/42"))           // User: 42
+print(route("GET", "/files/css/main.css")) // File: css/main.css
+```
+
+### Pipes
+
+```rust
+import "lib/list" (filter, map, foldl)
+
+result = [1, 2, 3, 4, 5]
+    |> filter(fun(x) { x % 2 == 0 })
+    |> map(fun(x) { x * x })
+    |> foldl(fun(acc, x) { acc + x }, 0)
+// 20
+```
+
+### Algebraic Data Types
+
+```rust
+type Shape = Circle Float | Rectangle Float Float
+
+fun area(s: Shape) -> Float {
+    match s {
+        Circle r -> 3.14 * r * r
+        Rectangle w h -> w * h
+    }
+}
+
+print(area(Circle(5.0)))        // 78.5
+print(area(Rectangle(3.0, 4.0))) // 12.0
+```
+
+### Tail Call Optimization
+
+```rust
+fun countdown(n, acc) {
+    if n == 0 { acc }
+    else { countdown(n - 1, acc + 1) }
+}
+
+print(countdown(1000000, 0))  // Works, no stack overflow
+```
+
+### Cyclic Dependencies
+
+Modules can import each other — the analyzer resolves cycles automatically:
+
+```
+// a/a.lang
+package a (getB)
+import "../b" as b
+fun getB() -> b.BType { b.makeB() }
+
+// b/b.lang  
+package b (BType, makeB)
+import "../a" as a
+type BType = { val: Int }
+fun makeB() -> BType { { val: 1 } }
+```
+
+## Standard Library
+
+| Module | Description |
+|--------|-------------|
+| `lib/list` | map, filter, foldl, sort, zip, range |
+| `lib/string` | split, trim, replace, contains |
+| `lib/map` | Key-value operations |
+| `lib/json` | jsonEncode, jsonDecode |
+| `lib/http` | HTTP client and server |
+| `lib/ws` | WebSocket client and server |
+| `lib/sql` | SQLite (built-in, no drivers needed) |
+| `lib/bits` | Bit-level parsing ([funbit](https://github.com/funvibe/funbit)) |
+| `lib/bytes` | Byte manipulation |
+| `lib/task` | async/await |
+| `lib/crypto` | sha256, md5, base64, hmac |
+| `lib/regex` | Regular expressions |
+| `lib/io` | Files and directories |
+| `lib/sys` | Args, env, exec |
+| `lib/date` | Date and time |
+| `lib/uuid` | UUID generation |
+| `lib/math` | Math functions |
+| `lib/bignum` | BigInt, Rational |
+| `lib/test` | Unit testing |
+| `lib/log` | Structured logging |
+
+Run `./funxy -help lib/<name>` for documentation.
+
+## Documentation
+
+- [tutorial](docs/tutorial) — Step-by-step tutorials
+- [funbook](docs/funbook) — HOW-TO's
+- [playground](playground) — Run code in a browser
+
+## Editor Support
+
+- [VS Code/Cursor extension](editors/vscode/)
+- [Sublime Text syntax](editors/sublime/)
+
+## File Extensions
+
+Supported: `.lang`, `.funxy`, `.fx`
+
+All files in a package must use the same extension (determined by the main file).
+
+## Examples
+
+### JSON API
+
+```rust
+import "lib/json" (jsonEncode)
+
+users = [
+    { id: 1, name: "Alice" },
+    { id: 2, name: "Bob" }
+]
+
+fun handler(method, path) {
+    match (method, path) {
+        ("GET", "/api/users") -> {
+            status: 200,
+            body: jsonEncode(users)
+        }
+        ("GET", "/api/users/{id}") -> {
+            status: 200,
+            body: jsonEncode({ userId: id })
+        }
+        _ -> { status: 404, body: "Not found" }
+    }
+}
+```
+
+### QuickSort
+
+```rust
+import "lib/list" (filter)
+
+fun qsort(xs) {
+    match xs {
+        [] -> []
+        [pivot, rest...] -> {
+            less = filter(fun(x) { x < pivot }, rest)
+            greater = filter(fun(x) { x >= pivot }, rest)
+            qsort(less) ++ [pivot] ++ qsort(greater)
+        }
+    }
+}
+
+print(qsort([3, 1, 4, 1, 5, 9, 2, 6]))  // [1, 1, 2, 3, 4, 5, 6, 9]
+```
+
+### Binary Parsing
+
+```rust
+import "lib/bits" (bitsExtract, bitsInt)
+
+// TCP flags: 6 bits
+packet = #b"010010"  // SYN + ACK
+
+specs = [
+    bitsInt("urg", 1), bitsInt("ack", 1),
+    bitsInt("psh", 1), bitsInt("rst", 1),
+    bitsInt("syn", 1), bitsInt("fin", 1)
+]
+
+match bitsExtract(packet, specs) {
+    Ok(flags) -> print(flags)  // %{"ack" => 1, "syn" => 1, ...}
+    Fail(e) -> print(e)
+}
+```
+
+## License
+
+See [LICENSE.md](LICENSE.md)

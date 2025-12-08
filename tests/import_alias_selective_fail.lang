@@ -1,0 +1,4 @@
+import "lib/list" as ll (head)
+
+print(ll.head([1, 2, 3]))
+

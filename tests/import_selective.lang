@@ -1,0 +1,4 @@
+import "./import_test_lib" (foo, bar)
+print(foo)
+print(bar)
+print("Selective import (a, b) works!")

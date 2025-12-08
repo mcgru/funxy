@@ -1,0 +1,89 @@
+import "lib/test" (*)
+import "./testlib" (Point, add, Circle, Radius, distance)
+
+// =============================================
+// SELECTIVE IMPORTS: import "path" (symbols)
+// Tests: types, functions, ADTs, trait instances, extension methods
+// =============================================
+
+testRun("Selective: access type directly", fun() -> {
+    p: Point = { x: 10, y: 20 }
+    assert(p.x == 10)
+    assert(p.y == 20)
+})
+
+testRun("Selective: access function directly", fun() -> {
+    p1: Point = { x: 1, y: 1 }
+    p2: Point = { x: 2, y: 2 }
+    result = add(p1, p2)
+    assert(result.x == 3)
+    assert(result.y == 3)
+})
+
+testRun("Selective: access ADT constructor directly", fun() -> {
+    c = Radius(7.0)
+    assertEquals(c, Radius(7.0))
+})
+
+testRun("Selective: trait instance for type alias (Semigroup)", fun() -> {
+    p1: Point = { x: 5, y: 5 }
+    p2: Point = { x: 5, y: 5 }
+    result = p1 <> p2
+    assert(result.x == 10)
+    assert(result.y == 10)
+})
+
+testRun("Selective: trait instance for ADT (Semigroup)", fun() -> {
+    c1 = Radius(2.0)
+    c2 = Radius(3.0)
+    result = c1 <> c2
+    assertEquals(result, Radius(5.0))
+})
+
+testRun("Selective: extension method for type alias (scale)", fun() -> {
+    p: Point = { x: 3, y: 3 }
+    scaled = p.scale(3)
+    assert(scaled.x == 9)
+    assert(scaled.y == 9)
+})
+
+testRun("Selective: extension method for type alias (magnitude)", fun() -> {
+    p: Point = { x: 3, y: 4 }
+    mag = p.magnitude()
+    assert(mag == 5.0)
+})
+
+testRun("Selective: extension method for ADT (diameter)", fun() -> {
+    c = Radius(10.0)
+    d = c.diameter()
+    assert(d == 20.0)
+})
+
+testRun("Selective: extension method for ADT (area)", fun() -> {
+    c = Radius(1.0)
+    a = c.area()
+    // pi * 1 ≈ 3.14159
+    assert(a > 3.14)
+    assert(a < 3.15)
+})
+
+testRun("Selective: function using lib import (distance with sqrt)", fun() -> {
+    p: Point = { x: 3, y: 4 }
+    d = distance(p)
+    assert(d == 5.0)
+})
+
+testRun("Selective: pattern matching on ADT", fun() -> {
+    c = Radius(2.5)
+    r = match c {
+        Radius(x) -> x * 2.0
+        _ -> 0.0
+    }
+    assert(r == 5.0)
+})
+
+testRun("Selective: type alias with record literal", fun() -> {
+    p: Point = { x: 42, y: 0 }
+    assertEquals(p.x, 42)
+    assertEquals(p.y, 0)
+})

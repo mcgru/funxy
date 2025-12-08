@@ -1,0 +1,99 @@
+// Test Loops
+
+// 1. While loop
+i = 0
+res1 = for i < 3 {
+    i = i + 1
+    i // Returns Int -> Loop returns last value (3)
+}
+print(res1) // 3
+
+// 2. While loop with break
+j = 0
+res2 = for j < 10 {
+    if j == 2 {
+        break Some(j)
+    }
+    j = j + 1
+    Some(0) // Must match break type if we care about types (in dynamic mode it's fine)
+}
+print(res2) // Some(2)
+
+// 3. While loop with continue
+k = 0
+acc = 0
+res3 = for k < 5 {
+    k = k + 1
+    if k == 2 {
+        continue
+    }
+    acc = acc + k
+}
+print(acc) // 1 + 3 + 4 + 5 = 13
+
+// 4. For-in loop
+list = [1, 2, 3, 4]
+sum = 0
+res4 = for x in list {
+    sum = sum + x
+}
+print(sum) // 10
+
+// 5. For-in loop with break value
+res5 = for x in list {
+    if x == 3 {
+        break Some(x)
+    }
+    Some(0)
+}
+print(res5) // Some(3)
+
+// 6. For-in loop with implicit Nil break
+res6 = for x in list {
+    if x == 2 {
+        break
+    }
+}
+print(res6) // Nil
+
+// 7. Loop returning Option from last expression
+// The last iteration returns Some(val)
+res7 = for x in [1, 2, 3] {
+    Some(x)
+}
+print(res7) // Some(3)
+
+// 8. Nested loops
+outer_res = for i in [1, 2] {
+    for j in [10, 20] {
+        if i == 2 {
+            break Some(99) // Break inner loop
+        }
+        Some(0)
+    }
+}
+// Inner loop returns Some(99) when i=2.
+// Outer loop body ends with inner loop result.
+// Last iteration (i=2) returns Some(99).
+print(outer_res) // Some(99)
+
+// Test returning from inner loop to affect outer variable
+found = 0
+for i in [1, 2, 3] {
+    for j in [1, 2, 3] {
+        if i * j == 6 {
+            found = i * j
+            break // Break inner
+        }
+    }
+    if found > 0 {
+        break // Break outer
+    }
+}
+print(found) // 6
+
+i = 0
+for i < 2 {
+    print(i)
+    i = i + 1
+}

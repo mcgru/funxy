@@ -1,0 +1,4 @@
+print("before panic")
+panic("crash boom bang")
+print("after panic")
+

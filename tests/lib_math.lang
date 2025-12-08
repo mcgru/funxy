@@ -1,0 +1,163 @@
+import "lib/math" (*)
+
+// =============================================================================
+// lib/math - Mathematical Functions Tests
+// =============================================================================
+
+print("=== Basic Operations ===")
+
+// abs: (Float) -> Float
+print(abs(-5.5))       // 5.5
+print(abs(3.14))       // 3.14
+print(abs(0.0))        // 0
+
+// absInt: (Int) -> Int
+print(absInt(-10))     // 10
+print(absInt(42))      // 42
+
+// sign: (Float) -> Int
+print(sign(-3.14))     // -1
+print(sign(0.0))       // 0
+print(sign(42.0))      // 1
+
+// min, max: (Float, Float) -> Float
+print(min(3.0, 7.0))   // 3
+print(max(3.0, 7.0))   // 7
+print(min(-1.0, -5.0)) // -5
+print(max(-1.0, -5.0)) // -1
+
+// minInt, maxInt: (Int, Int) -> Int
+print(minInt(3, 7))    // 3
+print(maxInt(3, 7))    // 7
+
+// clamp: (Float, Float, Float) -> Float
+print(clamp(5.0, 0.0, 10.0))   // 5 (within range)
+print(clamp(-5.0, 0.0, 10.0))  // 0 (below min)
+print(clamp(15.0, 0.0, 10.0))  // 10 (above max)
+
+print("=== Rounding ===")
+
+// floor: (Float) -> Int
+print(floor(3.7))      // 3
+print(floor(-3.7))     // -4
+print(floor(5.0))      // 5
+
+// ceil: (Float) -> Int
+print(ceil(3.2))       // 4
+print(ceil(-3.2))      // -3
+print(ceil(5.0))       // 5
+
+// round: (Float) -> Int
+print(round(3.4))      // 3
+print(round(3.5))      // 4
+print(round(-3.5))     // -4
+
+// trunc: (Float) -> Int
+print(trunc(3.7))      // 3
+print(trunc(-3.7))     // -3
+
+print("=== Powers and Roots ===")
+
+// sqrt: (Float) -> Float
+print(sqrt(16.0))      // 4
+print(sqrt(2.0))       // ~1.414
+
+// cbrt: (Float) -> Float
+print(cbrt(27.0))      // 3
+print(cbrt(-8.0))      // -2
+
+// pow: (Float, Float) -> Float
+print(pow(2.0, 10.0))  // 1024
+print(pow(3.0, 3.0))   // 27
+print(pow(4.0, 0.5))   // 2 (square root)
+
+// exp: (Float) -> Float
+print(exp(0.0))        // 1
+print(exp(1.0))        // e (~2.718)
+
+print("=== Logarithms ===")
+
+// log: (Float) -> Float (natural logarithm)
+print(log(1.0))        // 0
+print(log(e()))        // 1
+
+// log10: (Float) -> Float
+print(log10(1.0))      // 0
+print(log10(100.0))    // 2
+print(log10(1000.0))   // 3
+
+// log2: (Float) -> Float
+print(log2(1.0))       // 0
+print(log2(8.0))       // 3
+print(log2(1024.0))    // 10
+
+print("=== Constants ===")
+
+// pi: () -> Float
+print(pi())            // 3.141592653589793
+
+// e: () -> Float
+print(e())             // 2.718281828459045
+
+print("=== Trigonometry ===")
+
+// Basic trig functions use radians
+print(sin(0.0))        // 0
+print(cos(0.0))        // 1
+print(tan(0.0))        // 0
+
+// sin(pi/2) = 1
+print(sin(pi() / 2.0)) // ~1
+
+// cos(pi) = -1
+print(cos(pi()))       // -1
+
+print("=== Inverse Trig ===")
+
+// asin, acos, atan
+print(asin(0.0))       // 0
+print(acos(1.0))       // 0
+print(atan(0.0))       // 0
+
+// atan2: (y, x) -> angle
+print(atan2(1.0, 1.0)) // pi/4 (~0.785)
+
+print("=== Hyperbolic ===")
+
+print(sinh(0.0))       // 0
+print(cosh(0.0))       // 1
+print(tanh(0.0))       // 0
+
+print("=== Conversion (intToFloat/floatToInt in prelude) ===")
+
+// intToFloat: (Int) -> Float - now in prelude, not lib/math
+print(intToFloat(42))     // 42
+
+// floatToInt: (Float) -> Int (truncates) - now in prelude, not lib/math
+print(floatToInt(3.99))     // 3
+print(floatToInt(-3.99))    // -3
+
+print("=== Practical Examples ===")
+
+// Distance formula
+fun distance(x1: Float, y1: Float, x2: Float, y2: Float) -> Float {
+    dx = x2 - x1
+    dy = y2 - y1
+    sqrt(dx * dx + dy * dy)
+}
+print(distance(0.0, 0.0, 3.0, 4.0))  // 5
+
+// Degrees to radians
+fun degToRad(deg: Float) -> Float {
+    deg * pi() / 180.0
+}
+print(sin(degToRad(90.0)))  // ~1
+
+// Circle area
+fun circleArea(r: Float) -> Float {
+    pi() * r * r
+}
+print(circleArea(1.0))  // pi
+
+print("=== lib/math tests passed! ===")
+

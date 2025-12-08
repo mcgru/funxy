@@ -1,0 +1,61 @@
+// Basic integer compound assignment
+x = 10
+x += 5
+print(x)
+
+x -= 3
+print(x)
+
+x *= 2
+print(x)
+
+x /= 4
+print(x)
+
+x %= 4
+print(x)
+
+x **= 3
+print(x)
+
+// Float compound assignment
+f = 2.5
+f += 1.5
+print(f)
+
+f *= 2.0
+print(f)
+
+// BigInt compound assignment
+b = 100n
+b += 50n
+print(b)
+
+b *= 2n
+print(b)
+
+// Rational compound assignment
+r = 1r
+r += 1r / 2r
+print(r)
+
+r *= 2r
+print(r)
+
+r -= 1r / 4r
+print(r)
+
+r /= 3r
+print(r)
+
+// Member expression compound assignment
+type Counter = { value: Int }
+
+c: Counter = { value: 0 }
+c.value += 10
+print(c.value)
+
+c.value *= 5
+print(c.value)
+
+print(getType(c))

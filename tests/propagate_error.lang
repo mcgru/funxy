@@ -1,0 +1,41 @@
+// Test error propagation operator ?
+
+fun safe_div(x: Int, y: Int) -> Result<String, Int> {
+  if y == 0 {
+    Fail("division by zero")
+  } else {
+    Ok(x / y)
+  }
+}
+
+fun complex_calc(x: Int, y: Int) -> Result<String, Int> {
+  // This should return Fail immediately if safe_div fails
+  res = safe_div(x, y)?
+  Ok(res + 10)
+}
+
+// Test Ok path
+res1 = complex_calc(10, 2) // 5 + 10 = 15
+print(res1) // Ok(15)
+
+// Test Fail path
+res2 = complex_calc(10, 0) // Fail("division by zero")
+print(res2) // Fail("division by zero")
+
+// Test Option propagation
+// Option t = Some t | Zero
+fun maybe_val(x: Int) -> Option<Int> {
+  if x > 0 {
+    Some(x)
+  } else {
+    Zero
+  }
+}
+
+fun option_chain(x: Int) -> Option<Int> {
+  v = maybe_val(x)?
+  Some(v * 2)
+}
+
+print(option_chain(5)) // Some(10)
+print(option_chain(-1)) // Zero

@@ -1,0 +1,189 @@
+// Test: User-defined instances for built-in traits
+
+// ============================================
+// 1. Equal trait - custom equality
+// ============================================
+type UserId = MkUserId Int
+
+instance Equal UserId {
+    operator (==)(a: UserId, b: UserId) -> Bool {
+        match (a, b) {
+            (MkUserId x, MkUserId y) -> x == y
+        }
+    }
+    
+    operator (!=)(a: UserId, b: UserId) -> Bool {
+        match (a, b) {
+            (MkUserId x, MkUserId y) -> x != y
+        }
+    }
+}
+
+id1 = MkUserId(42)
+id2 = MkUserId(42)
+id3 = MkUserId(100)
+
+print(id1 == id2)  // true
+print(id1 == id3)  // false
+print(id1 != id3)  // true
+
+// ============================================
+// 2. Order trait - custom ordering
+// ============================================
+type Priority = MkPriority Int
+
+instance Equal Priority {
+    operator (==)(a: Priority, b: Priority) -> Bool {
+        match (a, b) { (MkPriority x, MkPriority y) -> x == y }
+    }
+    operator (!=)(a: Priority, b: Priority) -> Bool {
+        match (a, b) { (MkPriority x, MkPriority y) -> x != y }
+    }
+}
+
+instance Order Priority {
+    operator (<)(a: Priority, b: Priority) -> Bool {
+        match (a, b) { (MkPriority x, MkPriority y) -> x < y }
+    }
+    operator (>)(a: Priority, b: Priority) -> Bool {
+        match (a, b) { (MkPriority x, MkPriority y) -> x > y }
+    }
+    operator (<=)(a: Priority, b: Priority) -> Bool {
+        match (a, b) { (MkPriority x, MkPriority y) -> x <= y }
+    }
+    operator (>=)(a: Priority, b: Priority) -> Bool {
+        match (a, b) { (MkPriority x, MkPriority y) -> x >= y }
+    }
+}
+
+low = MkPriority(1)
+high = MkPriority(10)
+
+print(low < high)   // true
+print(high > low)   // true
+print(low <= low)   // true
+print(high >= low)  // true
+
+// ============================================
+// 3. Numeric trait - custom arithmetic
+// ============================================
+type Vec2 = MkVec2 Int Int
+
+instance Numeric Vec2 {
+    operator (+)(a: Vec2, b: Vec2) -> Vec2 {
+        match (a, b) {
+            (MkVec2 x1 y1, MkVec2 x2 y2) -> MkVec2(x1 + x2, y1 + y2)
+        }
+    }
+    operator (-)(a: Vec2, b: Vec2) -> Vec2 {
+        match (a, b) {
+            (MkVec2 x1 y1, MkVec2 x2 y2) -> MkVec2(x1 - x2, y1 - y2)
+        }
+    }
+    operator (*)(a: Vec2, b: Vec2) -> Vec2 {
+        match (a, b) {
+            (MkVec2 x1 y1, MkVec2 x2 y2) -> MkVec2(x1 * x2, y1 * y2)
+        }
+    }
+    operator (/)(a: Vec2, b: Vec2) -> Vec2 {
+        match (a, b) {
+            (MkVec2 x1 y1, MkVec2 x2 y2) -> MkVec2(x1 / x2, y1 / y2)
+        }
+    }
+}
+
+fun showVec(v: Vec2) -> String {
+    match v {
+        MkVec2 x y -> "(" ++ show(x) ++ ", " ++ show(y) ++ ")"
+    }
+}
+
+v1 = MkVec2(3, 4)
+v2 = MkVec2(1, 2)
+
+print(showVec(v1 + v2))  // (4, 6)
+print(showVec(v1 - v2))  // (2, 2)
+print(showVec(v1 * v2))  // (3, 8)
+
+// ============================================
+// 4. Default trait - custom default value
+// ============================================
+type Config = MkConfig String Int
+
+instance Default Config {
+    fun getDefault(dummy: Config) -> Config {
+        MkConfig("default", 0)
+    }
+}
+
+fun showConfig(c: Config) -> String {
+    match c {
+        MkConfig name value -> name ++ ":" ++ show(value)
+    }
+}
+
+cfg: Config = default(Config)
+print(showConfig(cfg))  // default:0
+
+// ============================================
+// 5. Combining traits - type with all traits
+// ============================================
+type Score = MkScore Int
+
+instance Equal Score {
+    operator (==)(a: Score, b: Score) -> Bool {
+        match (a, b) { (MkScore x, MkScore y) -> x == y }
+    }
+    operator (!=)(a: Score, b: Score) -> Bool {
+        match (a, b) { (MkScore x, MkScore y) -> x != y }
+    }
+}
+
+instance Order Score {
+    operator (<)(a: Score, b: Score) -> Bool {
+        match (a, b) { (MkScore x, MkScore y) -> x < y }
+    }
+    operator (>)(a: Score, b: Score) -> Bool {
+        match (a, b) { (MkScore x, MkScore y) -> x > y }
+    }
+    operator (<=)(a: Score, b: Score) -> Bool {
+        match (a, b) { (MkScore x, MkScore y) -> x <= y }
+    }
+    operator (>=)(a: Score, b: Score) -> Bool {
+        match (a, b) { (MkScore x, MkScore y) -> x >= y }
+    }
+}
+
+instance Numeric Score {
+    operator (+)(a: Score, b: Score) -> Score {
+        match (a, b) { (MkScore x, MkScore y) -> MkScore(x + y) }
+    }
+    operator (-)(a: Score, b: Score) -> Score {
+        match (a, b) { (MkScore x, MkScore y) -> MkScore(x - y) }
+    }
+    operator (*)(a: Score, b: Score) -> Score {
+        match (a, b) { (MkScore x, MkScore y) -> MkScore(x * y) }
+    }
+    operator (/)(a: Score, b: Score) -> Score {
+        match (a, b) { (MkScore x, MkScore y) -> MkScore(x / y) }
+    }
+}
+
+instance Default Score {
+    fun getDefault(dummy: Score) -> Score {
+        MkScore(0)
+    }
+}
+
+fun getScore(s: Score) -> Int {
+    match s { MkScore x -> x }
+}
+
+s1 = MkScore(100)
+s2 = MkScore(50)
+s3: Score = default(Score)
+
+print(getScore(s1 + s2))  // 150
+print(s1 > s2)            // true
+print(s1 == s1)           // true
+print(getScore(s3))       // 0

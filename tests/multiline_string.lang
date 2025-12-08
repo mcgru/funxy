@@ -1,0 +1,20 @@
+// Test multi-line strings with backticks
+text = `Hello
+World
+This is a
+multi-line string`
+
+print(text)
+print(text[6])
+
+// Test with embedded quotes
+json = `{"name": "test", "value": 42}`
+print(json)
+
+// Single line backtick string
+single = `just one line`
+print(single)
+
+// Empty backtick string  
+empty = ``
+print(empty)

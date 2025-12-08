@@ -1,0 +1,171 @@
+import "lib/http" (*)
+import "lib/time" (sleepMs)
+
+// =============================================
+// Test HTTP with local server using httpServeAsync
+// =============================================
+
+// Handler for test server
+fun testHandler(req) -> { status: Int, body: String, headers: List<(String, String)> } {
+    match (req.method, req.path) {
+        ("GET", "/get") -> { status: 200, body: "GET response", headers: [] }
+        ("GET", "/echo") -> {
+            // Parse query string to get message
+            query = req.query
+            // Simple parsing: "message=hello" -> "hello"
+            if query == "message=hello" {
+                { status: 200, body: "hello", headers: [] }
+            } else {
+                { status: 200, body: query, headers: [] }
+            }
+        }
+        ("POST", "/post") -> { status: 200, body: "received: " ++ req.body, headers: [] }
+        ("POST", "/json") -> { status: 200, body: "json ok", headers: [("Content-Type", "application/json")] }
+        ("PUT", "/put") -> { status: 200, body: "put: " ++ req.body, headers: [] }
+        ("DELETE", "/delete/123") -> { status: 200, body: "deleted: 123", headers: [] }
+        ("GET", "/headers") -> { status: 200, body: "headers received", headers: [] }
+        ("GET", "/not-found") -> { status: 404, body: "Not Found", headers: [] }
+        ("GET", "/error") -> { status: 500, body: "Internal Server Error", headers: [] }
+        _ -> { status: 404, body: "Unknown path", headers: [] }
+    }
+}
+
+// Start server on a unique port to avoid conflicts
+port = 18081
+baseUrl = "http://localhost:" ++ show(port)
+
+// Start async server
+serverId = httpServeAsync(port, testHandler)
+print("Server started with ID: " ++ show(serverId))
+
+// Give server a moment to start
+sleepMs(50)
+
+// =============================================
+// httpGet: (String) -> Result<String, HttpResponse>
+// =============================================
+result = httpGet(baseUrl ++ "/get")
+match result {
+    Ok(resp) -> {
+        print(resp.status == 200)
+        print(resp.body == "GET response")
+    }
+    Fail(err) -> print("GET failed: " ++ err)
+}
+
+// Test GET with query params
+result2 = httpGet(baseUrl ++ "/echo?message=hello")
+match result2 {
+    Ok(resp) -> {
+        print(resp.status == 200)
+        print(resp.body == "hello")
+    }
+    Fail(err) -> print("GET echo failed: " ++ err)
+}
+
+// =============================================
+// httpPost: (String, String) -> Result<String, HttpResponse>
+// =============================================
+postResult = httpPost(baseUrl ++ "/post", "hello world")
+match postResult {
+    Ok(resp) -> {
+        print(resp.status == 200)
+        print(resp.body == "received: hello world")
+    }
+    Fail(err) -> print("POST failed: " ++ err)
+}
+
+// =============================================
+// httpPostJson: (String, A) -> Result<String, HttpResponse>
+// =============================================
+data = { name: "test", value: 42 }
+jsonResult = httpPostJson(baseUrl ++ "/json", data)
+match jsonResult {
+    Ok(resp) -> {
+        print(resp.status == 200)
+        print(resp.body == "json ok")
+    }
+    Fail(err) -> print("POST JSON failed: " ++ err)
+}
+
+// =============================================
+// httpPut: (String, String) -> Result<String, HttpResponse>
+// =============================================
+putResult = httpPut(baseUrl ++ "/put", "updated data")
+match putResult {
+    Ok(resp) -> {
+        print(resp.status == 200)
+        print(resp.body == "put: updated data")
+    }
+    Fail(err) -> print("PUT failed: " ++ err)
+}
+
+// =============================================
+// httpDelete: (String) -> Result<String, HttpResponse>
+// =============================================
+deleteResult = httpDelete(baseUrl ++ "/delete/123")
+match deleteResult {
+    Ok(resp) -> {
+        print(resp.status == 200)
+        print(resp.body == "deleted: 123")
+    }
+    Fail(err) -> print("DELETE failed: " ++ err)
+}
+
+// =============================================
+// httpRequest with headers
+// =============================================
+headers = [("X-Custom-Header", "test-value"), ("Accept", "application/json")]
+reqResult = httpRequest("GET", baseUrl ++ "/headers", headers, "", 0)
+match reqResult {
+    Ok(resp) -> {
+        print(resp.status == 200)
+        print(resp.body == "headers received")
+    }
+    Fail(err) -> print("REQUEST with headers failed: " ++ err)
+}
+
+// =============================================
+// httpRequest with body
+// =============================================
+reqResult2 = httpRequest("POST", baseUrl ++ "/post", [], "custom body", 0)
+match reqResult2 {
+    Ok(resp) -> {
+        print(resp.status == 200)
+        print(resp.body == "received: custom body")
+    }
+    Fail(err) -> print("REQUEST with body failed: " ++ err)
+}
+
+// =============================================
+// httpRequest with default params (body and timeout)
+// =============================================
+reqResult3 = httpRequest("GET", baseUrl ++ "/get", [])
+match reqResult3 {
+    Ok(resp) -> print(resp.status == 200)
+    Fail(err) -> print("REQUEST defaults failed: " ++ err)
+}
+
+// =============================================
+// Error handling - 404
+// =============================================
+notFoundResult = httpGet(baseUrl ++ "/not-found")
+match notFoundResult {
+    Ok(resp) -> print(resp.status == 404)
+    Fail(err) -> print("404 test failed: " ++ err)
+}
+
+// =============================================
+// Error handling - 500
+// =============================================
+errorResult = httpGet(baseUrl ++ "/error")
+match errorResult {
+    Ok(resp) -> print(resp.status == 500)
+    Fail(err) -> print("500 test failed: " ++ err)
+}
+
+// Stop server
+httpServerStop(serverId)
+print("Server stopped")
+
+print("lib/http tests passed!")

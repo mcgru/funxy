@@ -1,0 +1,256 @@
+// ============================================
+// getType comprehensive tests
+// ============================================
+
+// --- 1. Primitive Types ---
+
+print("=== Primitives ===")
+
+// Int
+i = 42
+print(getType(i))
+
+// Float
+f = 3.14
+print(getType(f))
+
+// Bool
+b = true
+print(getType(b))
+
+b2 = false
+print(getType(b2))
+
+// Char
+c = 'x'
+print(getType(c))
+
+// BigInt
+bi = 12345678901234567890n
+print(getType(bi))
+
+// Rational
+rat = 0.75r
+print(getType(rat))
+
+// --- 2. String (List<Char>) ---
+
+print("=== String ===")
+
+s = "hello"
+print(getType(s))
+
+emptyStr = ""
+print(getType(emptyStr))
+
+// --- 3. List ---
+
+print("=== List ===")
+
+// List with Int elements
+nums = [1, 2, 3]
+print(getType(nums))
+
+// List with Float elements
+floats = [1.0, 2.5, 3.7]
+print(getType(floats))
+
+// List with Bool elements
+bools = [true, false, true]
+print(getType(bools))
+
+// Nested list
+nested = [[1, 2], [3, 4]]
+print(getType(nested))
+
+// Empty list without annotation
+emptyNoType: List<Int> = []
+print(getType(emptyNoType))
+
+// Empty list with inline annotation
+emptyInline = []: List<Float>
+print(getType(emptyInline))
+
+// --- 4. Tuple ---
+
+print("=== Tuple ===")
+
+// Simple tuple
+t1 = (1, 2)
+print(getType(t1))
+
+// Mixed tuple
+t2 = (1, "hello", true, 3.14)
+print(getType(t2))
+
+// Nested tuple
+t3 = ((1, 2), (3, 4))
+print(getType(t3))
+
+// Unit tuple
+t4 = ()
+print(getType(t4))
+
+// --- 5. Record ---
+
+print("=== Record ===")
+
+// Simple record
+r1 = { x: 10 }
+print(getType(r1))
+
+// Multiple fields
+r2 = { name: "Alice", age: 30, active: true }
+print(getType(r2))
+
+// Nested record
+r3 = { point: { x: 1, y: 2 }, label: "origin" }
+print(getType(r3))
+
+// Empty record
+r4 = {}
+print(getType(r4))
+
+// --- 6. User-defined ADT ---
+
+print("=== User ADT ===")
+
+type Color = Red | Green | Blue
+
+red = Red
+print(getType(red))
+
+green = Green
+print(getType(green))
+
+// ADT with fields
+type Shape = Circle Int | Rectangle Int Int
+
+circle = Circle(5)
+print(getType(circle))
+
+rect = Rectangle(10, 20)
+print(getType(rect))
+
+// Generic ADT
+type Container<T> = Wrap T
+
+wrapInt = Wrap(42)
+print(getType(wrapInt))
+
+wrapStr = Wrap("hello")
+print(getType(wrapStr))
+
+// Recursive ADT
+type MyList<T> = Cons T (MyList<T>) | End
+
+myList = Cons(1, Cons(2, Cons(3, End)))
+print(getType(myList))
+
+emptyMyList = End
+print(getType(emptyMyList))
+
+// --- 7. Built-in ADT: Option ---
+
+print("=== Option ===")
+
+some = Some(100)
+print(getType(some))
+
+zero = Zero
+print(getType(zero))
+
+// Nested Option
+nestedOpt = Some(Some(42))
+print(getType(nestedOpt))
+
+// --- 8. Built-in ADT: Result ---
+
+print("=== Result ===")
+
+ok = Ok(42)
+print(getType(ok))
+
+fail = Fail("error")
+print(getType(fail))
+
+// --- 9. Function ---
+
+print("=== Function ===")
+
+// Function with typed parameters
+fun add(a: Int, b: Int) -> Int { a + b }
+print(getType(add))
+
+// Function with single parameter
+fun double(x: Int) -> Int { x * 2 }
+print(getType(double))
+
+// Function with no parameters
+fun getZero() -> Int { 0 }
+print(getType(getZero))
+
+// Lambda with typed parameter
+lambda = fun(x: Int) -> x * 2
+print(getType(lambda))
+
+// Lambda without type annotation (shows ?)
+lambdaNoType = fun(x) -> x
+print(getType(lambdaNoType))
+
+// Function with complex types
+fun processLists(a: List<Int>, b: List<Int>) -> List<Int> { a }
+print(getType(processLists))
+
+// --- 10. Type Object ---
+
+print("=== Type ===")
+
+print(getType(Int))
+print(getType(Bool))
+print(getType(List))
+
+// --- 11. Edge Cases ---
+
+print("=== Edge Cases ===")
+
+n = print("side effect")
+print(getType(n))
+
+// List of records
+listOfRecs = [{ a: 1 }, { a: 2 }]
+print(getType(listOfRecs))
+
+// Record with list
+recWithList = { items: [1, 2, 3] }
+print(getType(recWithList))
+
+// Deeply nested
+deep = [[[[1]]]]
+print(getType(deep))
+
+// Tuple in list
+tupleList = [(1, 2), (3, 4)]
+print(getType(tupleList))
+
+// Mixed heterogeneous (first element determines type)
+// Note: type is inferred from first element
+mixed = [1, 2, 3]
+print(getType(mixed))
+
+// Type comparison
+if getType(42) == Int {
+    print("42 is Int: true")
+}
+
+if getType("hi") == String {
+    print("hi is String: true")
+}
+
+// getType of getType result
+typeOfType = getType(getType(42))
+print(typeOfType)
+
+// nil
+print(getType(nil))
+print(getType(getType(nil)))

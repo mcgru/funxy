@@ -1,0 +1,10 @@
+package funxylib (*)
+
+fun double(x: Int) -> Int {
+    x * 2
+}
+
+fun greet(name: String) -> String {
+    "Hello, " ++ name ++ "!"
+}
+

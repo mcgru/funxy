@@ -1,0 +1,46 @@
+// Row Polymorphism (Inference) Test
+
+fun getName(x) {
+    x.name
+}
+
+// x inferred as { name: t1, ... }
+// getName: ({name: t1, ...}) -> t1
+
+r1 = { name: "Alice", age: 30 }
+print(getName(r1)) // Alice
+
+r2 = { name: "Bob", city: "Paris" }
+print(getName(r2)) // Bob
+
+// Multi-field inference
+fun getFullName(p) {
+    // String concatenation not yet supported by + operator on Strings (List Char)
+    // Using tuple return to verify inference
+    [p.firstName, p.lastName]
+}
+
+// p inferred as { firstName: t1, lastName: t2, ... }
+
+r3 = { firstName: "John", lastName: "Doe", age: 42 }
+print(getFullName(r3)) // ["John", "Doe"]
+
+fun makePair(x) {
+    [x.a, x.b]
+}
+
+p1 = { a: 1, b: 2, c: 3 }
+print(makePair(p1)) // [1, 2]
+
+p2 = { a: true, b: false }
+print(makePair(p2)) // [true, false]
+
+// Nested open records?
+fun getNested(x) {
+    x.inner.val
+}
+
+// x inferred as { inner: { val: t1, ... }, ... }
+n1 = { inner: { val: 42 } }
+print(getNested(n1)) // 42
+

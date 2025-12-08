@@ -1,0 +1,162 @@
+// Test lib/task - async computations
+import "lib/task" (*)
+
+// =============================================
+// Basic spawn and await
+// =============================================
+print("=== async and await ===")
+
+task = async(fun() { 42 })
+result = await(task)
+match result {
+    Ok(v) -> print(v)           // 42
+    Fail(e) -> print("fail: " ++ e)
+}
+
+// =============================================
+// taskResolve - create resolved task
+// =============================================
+print("=== taskResolve ===")
+
+task = taskResolve(100)
+match await(task) {
+    Ok(v) -> print(v)           // 100
+    Fail(_) -> print("unexpected fail")
+}
+
+// =============================================
+// taskReject - create rejected task
+// =============================================
+print("=== taskReject ===")
+
+task = taskReject("error message")
+match await(task) {
+    Ok(_) -> print("unexpected ok")
+    Fail(e) -> print(e)         // error message
+}
+
+// =============================================
+// awaitTimeout - with timeout
+// =============================================
+print("=== awaitTimeout ===")
+
+// Fast task should complete
+fastTask = taskResolve(1)
+match awaitTimeout(fastTask, 1000) {
+    Ok(v) -> print(v)           // 1
+    Fail(e) -> print("timeout: " ++ e)
+}
+
+// =============================================
+// taskIsDone / taskIsCancelled
+// =============================================
+print("=== taskIsDone / taskIsCancelled ===")
+
+doneTask = taskResolve(1)
+print(taskIsDone(doneTask))         // true
+print(taskIsCancelled(doneTask))    // false
+
+// =============================================
+// taskCancel
+// =============================================
+print("=== taskCancel ===")
+
+cancelTask = async(fun() {
+    // This would run for a while normally
+    42
+})
+taskCancel(cancelTask)
+print(taskIsCancelled(cancelTask))  // true
+
+// =============================================
+// awaitAll - wait for multiple tasks
+// =============================================
+print("=== awaitAll ===")
+
+tasks = [
+    taskResolve(1),
+    taskResolve(2),
+    taskResolve(3)
+]
+match awaitAll(tasks) {
+    Ok(results) -> print(results)   // [1, 2, 3]
+    Fail(e) -> print("fail: " ++ e)
+}
+
+// =============================================
+// awaitAny - first successful
+// =============================================
+print("=== awaitAny ===")
+
+tasks = [
+    taskReject("fail1"),
+    taskResolve(42),
+    taskReject("fail2")
+]
+match awaitAny(tasks) {
+    Ok(v) -> print(v)           // 42
+    Fail(e) -> print("all failed: " ++ e)
+}
+
+// =============================================
+// awaitFirst - first completed (success or fail)
+// =============================================
+print("=== awaitFirst ===")
+
+tasks = [
+    taskResolve(1),
+    taskResolve(2)
+]
+match awaitFirst(tasks) {
+    Ok(v) -> print(v > 0)       // true (one of them)
+    Fail(e) -> print("fail: " ++ e)
+}
+
+// =============================================
+// taskMap - transform result
+// =============================================
+print("=== taskMap ===")
+
+task = taskResolve(10)
+doubled = taskMap(task, fun(x) { x * 2 })
+match await(doubled) {
+    Ok(v) -> print(v)           // 20
+    Fail(e) -> print("fail: " ++ e)
+}
+
+// =============================================
+// taskFlatMap - chain tasks
+// =============================================
+print("=== taskFlatMap ===")
+
+task = taskResolve(5)
+chained = taskFlatMap(task, fun(x) { taskResolve(x * 3) })
+match await(chained) {
+    Ok(v) -> print(v)           // 15
+    Fail(e) -> print("fail: " ++ e)
+}
+
+// =============================================
+// taskCatch - recover from error
+// =============================================
+print("=== taskCatch ===")
+
+failingTask = taskReject("original error")
+recovered = taskCatch(failingTask, fun(err) { 999 })
+match await(recovered) {
+    Ok(v) -> print(v)           // 999
+    Fail(e) -> print("still failed: " ++ e)
+}
+
+// =============================================
+// Pool management
+// =============================================
+print("=== pool ===")
+
+oldLimit = taskGetGlobalPool()
+taskSetGlobalPool(500)
+print(taskGetGlobalPool())      // 500
+taskSetGlobalPool(oldLimit)     // restore
+
+print("=== lib/task tests passed! ===")
+

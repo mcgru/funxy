@@ -1,0 +1,60 @@
+// Test Union Types
+
+// Basic union type annotation
+x: Int | String = 42
+print(x)
+
+x = "hello"
+print(x)
+
+// Multiple types in union
+val: Int | String | Bool = true
+print(val)
+
+val = 123
+print(val)
+
+val = "world"
+print(val)
+
+// Type alias with union
+type alias Nullable = Int | Nil
+n: Nullable = 42
+print(n)
+
+// Nullable shorthand T?
+name: String? = "Alice"
+print(name)
+
+// Function parameter with union
+fun process(v: Int | String) -> String {
+    show(v)
+}
+print(process(42))
+print(process("test"))
+
+// Type pattern matching
+fun describe(x: Int | String) -> String {
+    match x {
+        n: Int -> "int:" ++ show(n)
+        s: String -> "str:" ++ s
+    }
+}
+print(describe(100))
+print(describe("hi"))
+
+// Nil in union
+opt: Int | Nil = Nil
+print(opt)
+
+opt = 100
+print(opt)
+
+// Nested types in union
+list: List<Int> | Nil = [1, 2, 3]
+print(list)
+
+list = Nil
+print(list)
+
+print("Union types work!")

@@ -1,0 +1,57 @@
+// Basic default parameter
+fun greet(name = "World") {
+    print("Hello, ${name}!")
+}
+
+greet()         // Uses default
+greet("Alice")  // Override
+
+// Multiple parameters with defaults
+fun add(a, b = 10, c = 20) {
+    a + b + c
+}
+
+print(add(1))         // 1 + 10 + 20 = 31
+print(add(1, 2))      // 1 + 2 + 20 = 23
+print(add(1, 2, 3))   // 1 + 2 + 3 = 6
+
+// Mixed required and optional
+fun format(value, prefix = "[", suffix = "]") {
+    prefix ++ value ++ suffix
+}
+
+print(format("test"))           // [test]
+print(format("test", "<"))      // <test]
+print(format("test", "<", ">")) // <test>
+
+// Default with type annotation
+fun multiply(x: Int, y: Int = 2) -> Int {
+    x * y
+}
+
+print(multiply(5))     // 10
+print(multiply(5, 3))  // 15
+
+// Default using expression
+fun makeList(n, default = []) {
+    if n == 0 { default }
+    else { makeList(n - 1, [n, default...]) }
+}
+
+print(makeList(5))  // [1, 2, 3, 4, 5]
+
+// Default with function call
+fun getDefault() { 100 }
+
+fun useDefault(x = getDefault()) {
+    x
+}
+
+print(useDefault())    // 100
+print(useDefault(42))  // 42
+
+// Lambda with default
+double = fun(x, factor = 2) { x * factor }
+print(double(5))      // 10
+print(double(5, 3))   // 15
+

@@ -1,0 +1,25 @@
+// Empty record test
+type Empty = {}
+
+// Empty record value using new syntax (implicit in expression context)
+e = {}
+
+// Check type
+print(getType(e))
+
+// Assign to Empty type
+em: Empty = {}
+print(getType(em))
+
+// Non-empty record
+p = { x: 1 }
+print(p.x)
+
+// Empty block (should return Nil or last expr)
+res = if true {
+  // Empty block
+} else {
+  // Empty block
+}
+print(getType(res)) // Should be Nil (or whatever if/else returns if empty)
+

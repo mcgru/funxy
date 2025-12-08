@@ -1,0 +1,3 @@
+import "./helpers" as fmt
+
+print(fmt.format("test"))

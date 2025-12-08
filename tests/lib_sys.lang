@@ -1,0 +1,62 @@
+import "lib/sys" (*)
+
+// =============================================
+// sysArgs: () -> List<String>
+// =============================================
+// Returns command line arguments
+argsList = sysArgs()
+print(len(argsList) >= 1)  // at least the script file
+
+// =============================================
+// sysEnv: (String) -> Option<String>
+// =============================================
+// Returns environment variable or Zero
+
+// PATH should exist on all systems
+pathOpt = sysEnv("PATH")
+hasPath = match pathOpt {
+    Some(_) -> true
+    Zero -> false
+}
+print(hasPath)  // true
+
+// Non-existent variable
+noVar = sysEnv("DEFINITELY_NOT_A_REAL_VAR_12345")
+hasNoVar = match noVar {
+    Some(_) -> true
+    Zero -> false
+}
+print(hasNoVar)  // false
+
+// =============================================
+// sysExit: (Int) -> Nil
+// =============================================
+// Exits the program - can't test without exiting!
+// sysExit(0) would terminate here
+
+// =============================================
+// sysExec: (String, List<String>) -> { code: Int, stdout: String, stderr: String }
+// =============================================
+// Executes a command and returns result
+
+// Simple echo command
+echoResult = sysExec("echo", ["hello"])
+print(echoResult.code == 0)  // true - success
+
+// Check stdout contains expected output
+print(len(echoResult.stdout) > 0)  // true
+
+// Non-existent command returns code -1
+badResult = sysExec("definitely_not_a_real_command_12345", [])
+print(badResult.code == -1)  // true - command not found
+
+// Command with arguments
+lsResult = sysExec("ls", ["-la", "/"])
+print(lsResult.code == 0)  // true on unix systems
+
+// Print result struct works
+print(getType(echoResult.code))   // Int
+print(getType(echoResult.stdout)) // String
+print(getType(echoResult.stderr)) // String
+
+print("lib/sys tests passed!")

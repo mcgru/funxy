@@ -1,0 +1,202 @@
+import "lib/test" (*)
+import "lib/map" (*)
+import "lib/list" (length)
+
+// =============================================
+// Basic map operations
+// =============================================
+
+testRun("Empty map has size 0", fun() -> {
+    m: Map<String, Int> = %{}
+    assertEquals(mapSize(m), 0)
+    assertEquals(len(m), 0)
+})
+
+testRun("Map literal creates map with correct size", fun() -> {
+    m = %{ "a" => 1, "b" => 2, "c" => 3 }
+    assertEquals(mapSize(m), 3)
+})
+
+testRun("Multiline map literal", fun() -> {
+    m = %{
+        "x" => 10,
+        "y" => 20,
+        "z" => 30,
+    }
+    assertEquals(mapSize(m), 3)
+    assertEquals(mapGet(m, "x"), Some(10))
+    assertEquals(mapGet(m, "y"), Some(20))
+    assertEquals(mapGet(m, "z"), Some(30))
+})
+
+// =============================================
+// mapGet
+// =============================================
+
+testRun("mapGet returns Some for existing key", fun() -> {
+    m = %{ "key" => 42 }
+    assertEquals(mapGet(m, "key"), Some(42))
+})
+
+testRun("mapGet returns Zero for missing key", fun() -> {
+    m = %{ "key" => 42 }
+    assertEquals(mapGet(m, "other"), Zero)
+})
+
+// =============================================
+// mapGetOr
+// =============================================
+
+testRun("mapGetOr returns value for existing key", fun() -> {
+    m = %{ "key" => 42 }
+    assertEquals(mapGetOr(m, "key", -1), 42)
+})
+
+testRun("mapGetOr returns default for missing key", fun() -> {
+    m = %{ "key" => 42 }
+    assertEquals(mapGetOr(m, "other", -1), -1)
+})
+
+// =============================================
+// mapContains
+// =============================================
+
+testRun("mapContains returns true for existing key", fun() -> {
+    m = %{ "key" => 42 }
+    assert(mapContains(m, "key"))
+})
+
+testRun("mapContains returns false for missing key", fun() -> {
+    m = %{ "key" => 42 }
+    assert(mapContains(m, "other") == false)
+})
+
+// =============================================
+// mapPut
+// =============================================
+
+testRun("mapPut adds new key", fun() -> {
+    m = %{ "a" => 1 }
+    m2 = mapPut(m, "b", 2)
+    assertEquals(mapSize(m2), 2)
+    assertEquals(mapGet(m2, "b"), Some(2))
+})
+
+testRun("mapPut updates existing key", fun() -> {
+    m = %{ "a" => 1 }
+    m2 = mapPut(m, "a", 100)
+    assertEquals(mapGet(m2, "a"), Some(100))
+})
+
+testRun("mapPut is immutable", fun() -> {
+    m = %{ "a" => 1 }
+    m2 = mapPut(m, "b", 2)
+    assertEquals(mapSize(m), 1)
+    assertEquals(mapGet(m, "b"), Zero)
+})
+
+// =============================================
+// mapRemove
+// =============================================
+
+testRun("mapRemove removes existing key", fun() -> {
+    m = %{ "a" => 1, "b" => 2 }
+    m2 = mapRemove(m, "a")
+    assertEquals(mapSize(m2), 1)
+    assertEquals(mapGet(m2, "a"), Zero)
+})
+
+testRun("mapRemove is immutable", fun() -> {
+    m = %{ "a" => 1, "b" => 2 }
+    m2 = mapRemove(m, "a")
+    assertEquals(mapSize(m), 2)
+    assertEquals(mapGet(m, "a"), Some(1))
+})
+
+testRun("mapRemove non-existent key", fun() -> {
+    m = %{ "a" => 1 }
+    m2 = mapRemove(m, "b")
+    assertEquals(mapSize(m2), 1)
+})
+
+// =============================================
+// mapKeys, mapValues, mapItems
+// =============================================
+
+testRun("mapKeys returns all keys", fun() -> {
+    m = %{ "a" => 1, "b" => 2 }
+    keys = mapKeys(m)
+    assertEquals(length(keys), 2)
+})
+
+testRun("mapValues returns all values", fun() -> {
+    m = %{ "a" => 1, "b" => 2 }
+    vals = mapValues(m)
+    assertEquals(length(vals), 2)
+})
+
+testRun("mapItems returns all pairs", fun() -> {
+    m = %{ "a" => 1, "b" => 2 }
+    items = mapItems(m)
+    assertEquals(length(items), 2)
+})
+
+// =============================================
+// mapMerge
+// =============================================
+
+testRun("mapMerge combines two maps", fun() -> {
+    m1 = %{ "a" => 1, "b" => 2 }
+    m2 = %{ "c" => 3 }
+    merged = mapMerge(m1, m2)
+    assertEquals(mapSize(merged), 3)
+})
+
+testRun("mapMerge second map wins on conflict", fun() -> {
+    m1 = %{ "a" => 1 }
+    m2 = %{ "a" => 100 }
+    merged = mapMerge(m1, m2)
+    assertEquals(mapGet(merged, "a"), Some(100))
+})
+
+// =============================================
+// Index access
+// =============================================
+
+testRun("Index access returns Option", fun() -> {
+    m = %{ "a" => 1 }
+    assertEquals(m["a"], Some(1))
+    assertEquals(m["b"], Zero)
+})
+
+// =============================================
+// Different key types
+// =============================================
+
+testRun("Map with Int keys", fun() -> {
+    m = %{ 1 => "one", 2 => "two" }
+    assertEquals(mapGet(m, 1), Some("one"))
+    assertEquals(mapGet(m, 3), Zero)
+})
+
+// =============================================
+// Newlines
+// =============================================
+
+testRun("Map with Int keys", fun() -> {
+    m1 = %{ 1 => "one",
+            2 => "two", }
+    assertEquals(mapGet(m1, 1), Some("one"))
+
+    m2 = %{
+        1 => "one",
+        2 => "two",
+    }
+    assertEquals(mapGet(m2, 2), Some("two"))
+
+    m3 = %{ 1 => "one"
+           ,2 => "two"
+           ,3 => "three" }
+    assertEquals(mapGet(m3, 3), Some("three"))
+})
+

@@ -1,0 +1,38 @@
+// HKT Step 2: Using built-in Functor trait
+// Note: Functor instances for Option, List, Result are now built-in
+
+// Test Option fmap
+opt1 = fmap(fun(x) -> x * 2, Some(21))
+print(opt1)
+
+opt2 = fmap(fun(x) -> x + 1, Zero)
+print(opt2)
+
+opt3 = fmap(fun(s) -> s ++ "!", Some("hello"))
+print(opt3)
+
+// Test List fmap
+list1 = fmap(fun(x) -> x * 10, [1, 2, 3])
+print(list1)
+
+list2 = fmap(fun(x) -> x > 0, [-1, 0, 1, 2])
+print(list2)
+
+list3 = fmap(fun(s) -> len(s), ["a", "bb", "ccc"])
+print(list3)
+
+// Test Result fmap
+res1 = fmap(fun(x) -> x * 2, Ok(50))
+print(res1)
+
+res2 = fmap(fun(x) -> x + 1, Fail("error"))
+print(res2)
+
+res3 = fmap(fun(s) -> len(s), Ok("hello"))
+print(res3)
+
+// Test empty cases
+print(fmap(fun(x) -> x, []))
+print(fmap(fun(x) -> x, Zero))
+
+print("Step 2 passed!")

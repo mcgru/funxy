@@ -1,0 +1,5 @@
+package other (Circle)
+
+// Different Circle - conflict test
+type Circle = OtherCircle Int
+

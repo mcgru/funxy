@@ -1,0 +1,312 @@
+import "lib/list" (map)
+
+// =============================================================================
+// Functional Programming Traits Tests (Built-in)
+// =============================================================================
+// FP traits (Semigroup, Monoid, Functor, Applicative, Monad) are BUILT-IN.
+// No import required - they are always available.
+//
+// Tests compare built-in trait implementations against semantic versions
+// implemented in the language itself.
+//
+// Note: Semantic traits use function names instead of operators because
+// operators like <> are bound to built-in traits (Semigroup).
+
+// =============================================================================
+// SemigroupSemantics: associative binary operation
+// Using <|> operator (since <> is bound to built-in Semigroup)
+// =============================================================================
+
+instance UserOpChoose List<T> {
+    operator (<|>)(a: List<T>, b: List<T>) -> List<T> { a ++ b }
+}
+
+instance UserOpChoose Option<T> {
+    operator (<|>)(a: Option<T>, b: Option<T>) -> Option<T> {
+        match a {
+            Some(_) -> a
+            Zero -> b
+        }
+    }
+}
+
+print("=== Semigroup ===")
+
+// List: compare built-in <> with semantic <|>
+list1 = [1, 2, 3]
+list2 = [4, 5, 6]
+print(list1 <> list2)                         // [1, 2, 3, 4, 5, 6]
+print(list1 <|> list2)                        // [1, 2, 3, 4, 5, 6] (semantic)
+print((list1 <> list2) == (list1 <|> list2))  // true
+
+// Option (First wins)
+opt1 = Some(10)
+opt2 = Some(20)
+optZ: Option<Int> = Zero
+print(opt1 <> opt2)                           // Some(10)
+print((opt1 <> opt2) == (opt1 <|> opt2))      // true
+print(opt1 <> optZ)                           // Some(10)
+print((opt1 <> optZ) == (opt1 <|> optZ))      // true
+print(optZ <> opt2)                           // Some(20)
+print((optZ <> opt2) == (optZ <|> opt2))      // true
+print(optZ <> optZ)                           // Zero
+print((optZ <> optZ) == (optZ <|> optZ))      // true
+
+// Semigroup Law: Associativity
+// (a <> b) <> c == a <> (b <> c)
+a = [1]
+b = [2]
+c = [3]
+print(((a <> b) <> c) == (a <> (b <> c)))  // true
+
+// =============================================================================
+// MonoidSemantics: Semigroup with identity element
+// mempty :: A
+// =============================================================================
+
+trait MonoidSemantics<A> {
+    fun memptyS(dummy: A) -> A
+}
+
+instance MonoidSemantics List<T> {
+    fun memptyS(dummy: List<T>) -> List<T> { [] }
+}
+
+instance MonoidSemantics Option<T> {
+    fun memptyS(dummy: Option<T>) -> Option<T> { Zero }
+}
+
+print("=== Monoid ===")
+
+// List identity
+emptyList: List<Int> = memptyS([])
+print(emptyList)                      // []
+print(emptyList <> [1, 2, 3])         // [1, 2, 3]
+print([1, 2, 3] <> emptyList)         // [1, 2, 3]
+
+// Option identity
+emptyOpt: Option<Int> = memptyS(Zero)
+print(emptyOpt)                       // Zero
+print(emptyOpt <> Some(42))           // Some(42)
+print(Some(42) <> emptyOpt)           // Some(42)
+
+// Monoid Laws:
+// Left identity:  mempty <> x == x
+// Right identity: x <> mempty == x
+x = [1, 2, 3]
+print((emptyList <> x) == x)  // true
+print((x <> emptyList) == x)  // true
+
+// =============================================================================
+// FunctorSemantics: mappable containers
+// fmap :: (A -> B) -> F<A> -> F<B>
+// =============================================================================
+
+trait FunctorSemantics<F> {
+    fun fmapS<A, B>(f: (A) -> B, fa: F<A>) -> F<B>
+}
+
+instance FunctorSemantics<Option> {
+    fun fmapS<A, B>(f: (A) -> B, fa: Option<A>) -> Option<B> {
+        match fa {
+            Some(x) -> Some(f(x))
+            Zero -> Zero
+        }
+    }
+}
+
+instance FunctorSemantics<List> {
+    fun fmapS<A, B>(f: (A) -> B, fa: List<A>) -> List<B> {
+        match fa {
+            [] -> []
+            [x, xs...] -> f(x) :: fmapS(f, xs)
+        }
+    }
+}
+
+instance FunctorSemantics<Result, E> {
+    fun fmapS<A, B>(f: (A) -> B, fa: Result<E, A>) -> Result<E, B> {
+        match fa {
+            Ok(x) -> Ok(f(x))
+            Fail(e) -> Fail(e)
+        }
+    }
+}
+
+print("=== Functor ===")
+
+// List
+nums = [1, 2, 3, 4, 5]
+doubled = fmap(fun(x) -> x * 2, nums)
+print(doubled)                                           // [2, 4, 6, 8, 10]
+print(fmap(fun(x) -> x * 2, nums) == fmapS(fun(x) -> x * 2, nums))  // true
+
+// Option
+optVal = Some(10)
+print(fmap(fun(x) -> x * 2, optVal))                     // Some(20)
+print(fmap(fun(x) -> x * 2, optVal) == fmapS(fun(x) -> x * 2, optVal))  // true
+
+optEmpty: Option<Int> = Zero
+print(fmap(fun(x) -> x * 2, optEmpty))                   // Zero
+print(fmap(fun(x) -> x * 2, optEmpty) == fmapS(fun(x) -> x * 2, optEmpty))  // true
+
+// Result
+okVal = Ok(5)
+print(fmap(fun(x) -> x + 100, okVal))                    // Ok(105)
+print(fmap(fun(x) -> x + 100, okVal) == fmapS(fun(x) -> x + 100, okVal))  // true
+
+failVal: Result<String, Int> = Fail("error")
+print(fmap(fun(x) -> x + 100, failVal))                  // Fail("error")
+print(fmap(fun(x) -> x + 100, failVal) == fmapS(fun(x) -> x + 100, failVal))  // true
+
+// Functor Laws:
+// Identity:    fmap(id, x) == x
+// Composition: fmap(f ,, g, x) == fmap(f, fmap(g, x))
+id = fun(x) -> x
+inc = fun(x: Int) -> x + 1
+dbl = fun(x: Int) -> x * 2
+composed = dbl ,, inc  // dbl(inc(x))
+
+optTest = Some(5)
+print(fmap(id, optTest) == optTest)                           // true (Identity)
+print(fmap(composed, optTest) == fmap(dbl, fmap(inc, optTest))) // true (Composition)
+
+// =============================================================================
+// ApplicativeSemantics: Functor with application
+// pure  :: A -> F<A>
+// (<*>) :: F<(A -> B)> -> F<A> -> F<B>
+// =============================================================================
+
+trait ApplicativeSemantics<F> {
+    fun pureS<A>(dummy: F<A>, x: A) -> F<A>
+    fun applyS<A, B>(ff: F<(A) -> B>, fa: F<A>) -> F<B>
+}
+
+instance ApplicativeSemantics<Option> {
+    fun pureS<A>(dummy: Option<A>, x: A) -> Option<A> { Some(x) }
+    fun applyS<A, B>(ff: Option<(A) -> B>, fa: Option<A>) -> Option<B> {
+        match (ff, fa) {
+            (Some(f), Some(a)) -> Some(f(a))
+            _ -> Zero
+        }
+    }
+}
+
+instance ApplicativeSemantics<List> {
+    fun pureS<A>(dummy: List<A>, x: A) -> List<A> { [x] }
+    fun applyS<A, B>(ff: List<(A) -> B>, fa: List<A>) -> List<B> {
+        match ff {
+            [] -> []
+            [f, fs...] -> map(f, fa) ++ applyS(fs, fa)
+        }
+    }
+}
+
+print("=== Applicative ===")
+
+// Option <*>
+fn1: (Int) -> Int = fun(x) -> x + 1
+fn2: (Int) -> Int = fun(x) -> x * 2
+result1 = Some(fn1) <*> Some(10)
+print(result1)                                           // Some(11)
+print(result1 == applyS(Some(fn1), Some(10)))            // true
+
+result2 = Some(fn1) <*> Zero
+print(result2)                                           // Zero
+
+zeroFn: Option<(Int) -> Int> = Zero
+result3 = zeroFn <*> Some(10)
+print(result3)                                           // Zero
+
+// List <*> (Cartesian product)
+fns: List<(Int) -> Int> = [fn1, fn2]
+vals = [10, 20]
+result4 = fns <*> vals
+print(result4)                                           // [11, 21, 20, 40]
+print(result4 == applyS(fns, vals))                      // true
+
+// =============================================================================
+// MonadSemantics: Applicative with chaining
+// (>>=) :: M<A> -> (A -> M<B>) -> M<B>
+// =============================================================================
+
+trait MonadSemantics<M> {
+    fun bindS<A, B>(ma: M<A>, f: (A) -> M<B>) -> M<B>
+}
+
+instance MonadSemantics<Option> {
+    fun bindS<A, B>(ma: Option<A>, f: (A) -> Option<B>) -> Option<B> {
+        match ma {
+            Some(a) -> f(a)
+            Zero -> Zero
+        }
+    }
+}
+
+instance MonadSemantics<List> {
+    fun bindS<A, B>(ma: List<A>, f: (A) -> List<B>) -> List<B> {
+        match ma {
+            [] -> []
+            [x, xs...] -> f(x) ++ bindS(xs, f)
+        }
+    }
+}
+
+print("=== Monad ===")
+
+// Option >>=
+result5 = Some(10) >>= fun(x) -> Some(x + 1)
+print(result5)                                           // Some(11)
+print(result5 == bindS(Some(10), fun(x) -> Some(x + 1))) // true
+
+result6: Option<Int> = Zero >>= fun(x) -> Some(x + 1)
+print(result6)                                           // Zero
+
+// Chain operations
+result7 = Some(10) >>= fun(x) -> Some(x * 2) >>= fun(y) -> Some(y + 5)
+print(result7)                                           // Some(25)
+
+// List >>= (flatMap)
+result8 = [1, 2, 3] >>= fun(x) -> [x, x * 10]
+print(result8)                                           // [1, 10, 2, 20, 3, 30]
+print(result8 == bindS([1, 2, 3], fun(x) -> [x, x * 10])) // true
+
+// Monad Laws (for Option):
+// Left identity:  pure(a) >>= f == f(a)
+// Right identity: m >>= pure == m
+// Associativity:  (m >>= f) >>= g == m >>= (\x -> f(x) >>= g)
+
+f = fun(x: Int) -> Some(x + 1)
+g = fun(x: Int) -> Some(x * 2)
+m = Some(5)
+
+// Left identity
+print((Some(5) >>= f) == f(5))  // true
+
+// Right identity (using semantic pure since built-in needs type annotation)
+print((m >>= fun(x) -> Some(x)) == m)  // true
+
+// Associativity
+lhs = (m >>= f) >>= g              // Some(5) >>= f = Some(6), then >>= g = Some(12)
+rhs = m >>= fun(x) -> f(x) >>= g   // 5 -> f(5) >>= g = Some(6) >>= g = Some(12)
+print(lhs == rhs)  // true
+
+// =============================================================================
+// Practical Example: Safe division chain
+// =============================================================================
+
+print("=== Practical Example ===")
+
+fun safeDiv(x: Int, y: Int) -> Option<Int> {
+    if y == 0 { Zero } else { Some(x / y) }
+}
+
+// 100 / 2 / 5 / 2 = 5
+result9 = Some(100) >>= fun(x) -> safeDiv(x, 2) >>= fun(x) -> safeDiv(x, 5) >>= fun(x) -> safeDiv(x, 2)
+print(result9)  // Some(5)
+
+// Division by zero stops the chain
+result10 = Some(100) >>= fun(x) -> safeDiv(x, 0) >>= fun(x) -> safeDiv(x, 5)
+print(result10)  // Zero
+
+print("=== FP traits tests passed! ===")

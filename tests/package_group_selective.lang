@@ -1,0 +1,4 @@
+import "pkggroup" (double, greet)
+
+print(double(7))
+print(greet("Selective"))

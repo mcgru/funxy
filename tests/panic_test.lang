@@ -1,0 +1,16 @@
+// Panic test
+
+fun risky(x: Int) Int {
+  if x < 0 {
+    panic("negative value")
+  } else {
+    x
+  }
+}
+
+print(risky(10)) // Should print 10
+
+// This should crash
+print(risky(-1))
+print("Should not be reached")
+

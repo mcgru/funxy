@@ -1,0 +1,5 @@
+package helpers (*)
+
+fun greet(name: String) -> String { "Hello, " ++ name }
+fun exclaim(msg: String) -> String { msg ++ "!" }
+

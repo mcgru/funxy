@@ -1,0 +1,88 @@
+// Tests for automatic HKT detection via IsHKTTrait
+// Testing different kinds: * -> *, * -> * -> *, and non-HKT traits
+
+// ===========================================================================
+// Test 1: Non-HKT trait (T used directly, kind *)
+// ===========================================================================
+
+trait Printable<T> {
+    fun display(x: T) -> String
+}
+
+// Should work with concrete type - no kind restriction
+instance Printable<Int> {
+    fun display(x: Int) -> String { "int" }
+}
+
+instance Printable<String> {
+    fun display(x: String) -> String { "string" }
+}
+
+print(display(42))       // int
+print(display("hello"))  // string
+
+// ===========================================================================
+// Test 2: HKT trait with * -> * (one type param like Functor)
+// ===========================================================================
+
+// Note: Functor is now built-in, so we test with a custom HKT trait
+trait Container<C> {
+    fun contents<A>(c: C<A>) -> A
+}
+
+// Should work with Option (kind * -> *)
+instance Container<Option> {
+    fun contents<A>(c: Option<A>) -> A {
+        match c { Some(x) -> x; Zero -> panic("empty") }
+    }
+}
+
+// Should work with List (kind * -> *)
+instance Container<List> {
+    fun contents<A>(c: List<A>) -> A {
+        match c { [x, _...] -> x; [] -> panic("empty") }
+    }
+}
+
+print(contents(Some(42)))  // 42
+print(contents([10, 20]))  // 10
+
+// ===========================================================================
+// Test 3: HKT trait with * -> * -> * (two type params like Bifunctor)
+// ===========================================================================
+
+trait Bifunctor<B> {
+    fun bimap<A, C, D, E>(f: (A) -> C, g: (D) -> E, x: B<A, D>) -> B<C, E>
+}
+
+// Result has kind * -> * -> * with Result<E, A> (error first, success last)
+instance Bifunctor<Result> {
+    // B<A, D> = Result<A, D> where A is first param (error), D is second param (success)
+    // f: (A) -> C maps error, g: (D) -> E maps success
+    fun bimap<A, C, D, E>(f: (A) -> C, g: (D) -> E, x: Result<A, D>) -> Result<C, E> {
+        match x {
+            Ok(d) -> Ok(g(d))      // success (D) transformed by g
+            Fail(a) -> Fail(f(a))  // error (A) transformed by f
+        }
+    }
+}
+
+// bimap(errorFn, successFn, value)
+res1 = bimap(fun(e) -> e ++ "!", fun(x) -> x * 2, Ok(21))
+print(res1)  // Ok(42)
+
+res2 = bimap(fun(e) -> e ++ "!", fun(x) -> x * 2, Fail("err"))
+print(res2)  // Fail("err!")
+
+// ===========================================================================
+// Test 4: Functor (built-in trait, instances already registered)
+// ===========================================================================
+
+// Functor instances for Option, List, Result are now built-in
+print(fmap(fun(x) -> x * 2, Some(21)))     // Some(42)
+print(fmap(fun(x) -> x * 2, [1, 2, 3]))    // [2, 4, 6]
+print(fmap(fun(x) -> x * 2, Ok(50)))       // Ok(100)
+print(fmap(fun(x) -> x * 2, Fail("err")))  // Fail("err")
+
+print("HKT traits test passed!")
+

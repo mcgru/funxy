@@ -1,0 +1,28 @@
+{
+  "name": "funxy-language",
+  "displayName": "Funxy Language",
+  "description": "Syntax highlighting for Funxy programming language",
+  "version": "0.4.0",
+  "publisher": "funxy",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": ["Programming Languages"],
+  "contributes": {
+    "languages": [
+      {
+        "id": "funxy",
+        "aliases": ["Funxy", "funxy", "lang"],
+        "extensions": [".lang", ".funxy", ".fx"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "funxy",
+        "scopeName": "source.funxy",
+        "path": "./syntaxes/funxy.tmLanguage.json"
+      }
+    ]
+  }
+}

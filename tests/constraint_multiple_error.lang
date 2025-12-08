@@ -1,0 +1,37 @@
+// Test: Multiple constraints error
+// Bool implements Show but NOT Cmp
+
+trait Show<T> {
+    fun show(val: T) -> String
+}
+
+trait Cmp<T> {
+    fun cmp(a: T, b: T) -> Bool
+}
+
+// Only Show for Bool, NOT Cmp
+instance Show Bool {
+    fun show(val: Bool) -> String { 
+        if val { "true" } else { "false" } 
+    }
+}
+
+// Both Show and Cmp for Int
+instance Show Int {
+    fun show(val: Int) -> String { "int" }
+}
+
+instance Cmp Int {
+    fun cmp(a: Int, b: Int) -> Bool { a == b }
+}
+
+// Function requires BOTH Show AND Cmp
+fun process<T: Show, T: Cmp>(x: T, y: T) -> String {
+    if cmp(x, y) { show(x) } else { "different" }
+}
+
+// Works - Int implements both
+print(process(1, 1))
+
+// ERROR - Bool implements Show but NOT Cmp
+print(process(true, false))

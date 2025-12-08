@@ -1,0 +1,70 @@
+// TCO Usage Examples
+
+// 1. Deep Recursion Counter
+fun count(n, acc) {
+    if n == 0 { acc } else { count(n - 1, acc + 1) }
+}
+print(count(1000000, 0))
+
+// 2. ADT Linked List
+type LList<T> = Cons T (LList<T>) | LNil
+
+fun lRange(n, acc) {
+    if n == 0 { acc } else { lRange(n - 1, Cons(n, acc)) }
+}
+
+fun lLength(list, acc) {
+    match list {
+        LNil -> acc
+        Cons(v, tail) -> lLength(tail, acc + 1)
+    }
+}
+
+list = lRange(100000, LNil)
+print(lLength(list, 0))
+
+// 3. Sum
+fun sumTail(list: List<Int>, acc: Int) {
+    match list {
+        [] -> acc
+        [x, xs...] -> sumTail(xs, acc + x)
+    }
+}
+print(sumTail([1, 2, 3, 4, 5], 0))
+
+// 4. Reverse
+fun reverse(list: List<Int>, acc: List<Int>) {
+    match list {
+        [] -> acc
+        [x, xs...] -> reverse(xs, [x, acc...])
+    }
+}
+print(reverse([1, 2, 3], []))
+
+// 5. Quicksort
+fun filter(list: List<Int>, predicate: (Int) -> Bool, acc: List<Int>) {
+    match list {
+        [] -> acc
+        [x, xs...] -> {
+            if predicate(x) {
+                filter(xs, predicate, [x, acc...])
+            } else {
+                filter(xs, predicate, acc)
+            }
+        }
+    }
+}
+
+fun quicksort(list: List<Int>) -> List<Int> {
+    match list {
+        [] -> []
+        [pivot, others...] -> {
+            smaller = filter(others, fun(x) -> x < pivot, [])
+            greater = filter(others, fun(x) -> !(x < pivot), [])
+            
+            [quicksort(smaller)..., pivot, quicksort(greater)...]
+        }
+    }
+}
+
+print(quicksort([3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5]))

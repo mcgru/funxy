@@ -1,0 +1,33 @@
+// Test write() function - output without newline
+
+// Basic write
+write("Hello")
+write(" ")
+write("World")
+print("!")  // Final newline
+
+// Write with multiple args
+write("A", "B", "C")
+print("")
+
+// Write numbers
+write(1)
+write(2)
+write(3)
+print("")
+
+// Write mixed types
+write("x=")
+write(42)
+write(", y=")
+write(3.14)
+print("")
+
+// Empty write
+write()
+print("after empty write")
+
+// Write list (not string)
+write([1, 2])
+print(" done")
+

@@ -1,0 +1,24 @@
+// Test Spread Inference with TVar
+
+fun append(list, item) {
+    [...list, item]
+}
+
+// append: (List<t>, t) -> List<t>
+
+l1 = [1, 2]
+l2 = append(l1, 3)
+print(l2) // [1, 2, 3]
+
+// Generic function using spread
+fun concat(l1, l2) {
+    [...l1, ...l2]
+}
+print(concat(l1, l2))
+
+l3 = concat([1], [2, 3])
+print(l3) // [1, 2, 3]
+
+// Verify type safety
+// l4 = append([1], "a") // Should fail: Int vs String (List Char)
+

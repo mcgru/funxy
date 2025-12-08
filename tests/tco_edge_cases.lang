@@ -1,0 +1,98 @@
+// TCO Edge Cases Test
+
+// 1. Simple tail recursion - SHOULD be TCO
+fun countdown(n) {
+    if n == 0 { "done" } else { countdown(n - 1) }
+}
+print(countdown(100000))
+
+// 2. NON-tail call - result used in operation - should NOT be TCO (but shouldn't break)
+fun factorial_non_tail(n) {
+    if n <= 1 { 1 } else { n * factorial_non_tail(n - 1) }
+}
+print(factorial_non_tail(10))
+
+// 3. Tail call with accumulator - SHOULD be TCO
+fun factorial_tail(n, acc) {
+    if n <= 1 { acc } else { factorial_tail(n - 1, n * acc) }
+}
+print(factorial_tail(10, 1))
+
+// 4. Nested if expressions - both branches SHOULD be TCO
+fun nested_if(n, acc) {
+    if n == 0 {
+        acc
+    } else {
+        if n > 50000 {
+            nested_if(n - 1, acc + 1)
+        } else {
+            nested_if(n - 1, acc + 2)
+        }
+    }
+}
+print(nested_if(100000, 0))
+
+// 5. Match expression - all arms SHOULD be TCO
+fun match_tco(n, acc) {
+    match n {
+        0 -> acc
+        _ -> match_tco(n - 1, acc + 1)
+    }
+}
+print(match_tco(100000, 0))
+
+// 6. Mutual recursion - both should be TCO
+fun is_even(n) {
+    if n == 0 { true } else { is_odd(n - 1) }
+}
+
+fun is_odd(n) {
+    if n == 0 { false } else { is_even(n - 1) }
+}
+print(is_even(100000))
+print(is_odd(100000))
+
+// 7. Tail call to different function - SHOULD be TCO
+fun helper(n) {
+    if n == 0 { "helper done" } else { countdown_helper(n - 1) }
+}
+
+fun countdown_helper(n) {
+    if n == 0 { "countdown done" } else { helper(n - 1) }
+}
+print(helper(100000))
+
+// 8. Tail call in named function (lambda alternative) - SHOULD be TCO
+fun lambda_counter(n, acc) {
+    if n == 0 { acc } else { lambda_counter(n - 1, acc + 1) }
+}
+print(lambda_counter(100000, 0))
+
+// 9. Call NOT in tail position (in let binding) - should NOT be TCO
+fun not_tail_let(n) {
+    if n == 0 {
+        0
+    } else {
+        result = not_tail_let(n - 1)  // NOT tail - assigned to variable
+        result + 1
+    }
+}
+print(not_tail_let(100))  // Small number - would stack overflow with deep recursion
+
+// 10. Call in list literal - NOT tail position
+fun list_not_tail(n) {
+    if n == 0 { [] } else { [n, list_not_tail(n - 1)...] }
+}
+print(list_not_tail(10))
+
+// 11. Multiple statements in block - only LAST should be TCO
+fun multi_stmt(n, acc) {
+    if n == 0 {
+        acc
+    } else {
+        temp = acc + 1  // This is not a tail call context
+        multi_stmt(n - 1, temp)  // This IS tail position
+    }
+}
+print(multi_stmt(100000, 0))
+

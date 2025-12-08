@@ -1,0 +1,96 @@
+import "lib/list" (map, filter, foldl, foldr)
+
+// ==========================================
+// 1. Basic function partial application
+// ==========================================
+fun add(a: Int, b: Int) -> Int { a + b }
+
+add1 = add(1)
+print(add1(2))   // 3
+print(add1(10))  // 11
+
+// ==========================================
+// 2. Multiple partial applications
+// ==========================================
+fun add3(a: Int, b: Int, c: Int) -> Int { a + b + c }
+
+add10 = add3(10)
+add10and20 = add10(20)
+print(add10and20(5))  // 35
+
+// Direct chaining
+print(add3(1)(2)(3))  // 6
+
+// ==========================================
+// 3. Constructor partial application
+// ==========================================
+type Point = MkPoint Int Int
+pointX5 = MkPoint(5)
+print(pointX5(10))  // MkPoint(5, 10)
+
+type Box<T> = MkBox T T T
+boxWith1 = MkBox(1)
+print(boxWith1(2)(3))  // MkBox(1, 2, 3)
+
+// ==========================================
+// 4. Partial application with lib/list
+// ==========================================
+double = fun(x) -> x * 2
+doubled = map(double)
+print(doubled([1, 2, 3]))  // [2, 4, 6]
+
+isEven = fun(x) -> x % 2 == 0
+evens = filter(isEven)
+print(evens([1, 2, 3, 4, 5, 6]))  // [2, 4, 6]
+
+sum = foldl((+), 0)
+print(sum([1, 2, 3, 4, 5]))  // 15
+
+// foldr partial application
+cons = fun(x, acc) -> x :: acc
+toList = foldr(cons, [])
+print(toList([1, 2, 3]))  // [1, 2, 3]
+
+// ==========================================
+// 5. Partial application with pipe operator
+// ==========================================
+result = [1, 2, 3, 4, 5] |> filter(fun(x) -> x > 2) |> map(fun(x) -> x * 10)
+print(result)  // [30, 40, 50]
+
+// More complex pipeline with partial application
+transform = map(fun(x) -> x + 1)
+filterBig = filter(fun(x) -> x > 3)
+pipeline = [1, 2, 3, 4, 5] |> transform |> filterBig
+print(pipeline)  // [4, 5, 6]
+
+// ==========================================
+// 6. Higher-order partial application
+// ==========================================
+fun apply(f: (Int) -> Int, x: Int) -> Int { f(x) }
+applyDouble = apply(double)
+print(applyDouble(5))  // 10
+
+// ==========================================
+// 7. Builtin Some/Ok partial application
+// ==========================================
+wrapSome = Some
+print(wrapSome(42))  // Some(42)
+
+wrapOk = Ok
+print(wrapOk("success"))  // Ok("success")
+
+// ==========================================
+// 8. Partial application preserves closures
+// ==========================================
+fun makeAdder(n: Int) -> (Int) -> Int {
+    add(n)
+}
+add5 = makeAdder(5)
+print(add5(3))  // 8
+
+// ==========================================
+// 9. Generic constructor partial application
+// ==========================================
+type Pair<A, B> = MkPair A B
+pairWith1 = MkPair(1)
+print(pairWith1("hello"))  // MkPair(1, "hello")

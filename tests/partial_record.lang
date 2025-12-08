@@ -1,0 +1,36 @@
+// Test Partial Record Matching and Row Polymorphism Inference
+
+// 1. Simple Partial Match
+// r is inferred as { x: t1 }. Passed { x: 1, y: 2 } should work via width subtyping.
+fun getX(r) {
+    match r {
+        { x: x } -> x
+    }
+}
+
+print(getX({ x: 1, y: 2 }))
+
+// 2. Multiple constraints (The hard one)
+// r needs to have 'x' AND 'y'.
+// Current implementation might fail if it infers closed { x } then tries to unify with { y }.
+fun printXY(r) {
+    match r {
+        { x: x } -> print(x)
+    }
+    match r {
+        { y: y } -> print(y)
+    }
+}
+
+printXY({ x: 10, y: 20 })
+
+// 3. Mixed with member access (which infers Open Record)
+fun accessAndMatch(r) {
+    print(r.z)
+    match r {
+        { w: w } -> print(w)
+    }
+}
+
+accessAndMatch({ z: 3, w: 4 })
+

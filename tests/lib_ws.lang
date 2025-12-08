@@ -1,0 +1,108 @@
+import "lib/ws" (*)
+import "lib/time" (sleepMs)
+
+// lib/ws tests - WebSocket client and server
+
+// Test connect timeout to non-existent server
+print("=== WebSocket Tests ===")
+print("")
+
+print("1. Testing connection timeout...")
+result = wsConnectTimeout("ws://localhost:19999", 1000)
+match result {
+    Ok(_) -> print("Unexpected success")
+    Fail(_) -> print("Expected failure on non-existent server: OK")
+}
+print("")
+
+print("2. Testing invalid URL...")
+result2 = wsConnect("not-a-valid-url")
+match result2 {
+    Ok(_) -> print("Unexpected success")
+    Fail(err) -> print("Expected failure for invalid URL: OK")
+}
+print("")
+
+print("3. Testing operations on non-existent connection...")
+// Try to send on non-existent connection
+sendResult = wsSend(99999, "test")
+match sendResult {
+    Fail(err) -> print("Invalid connection send: OK - " ++ err)
+    Ok(_) -> print("Unexpected success")
+}
+
+// Try to receive on non-existent connection  
+recvResult = wsRecv(99999)
+match recvResult {
+    Fail(_) -> print("Invalid connection recv: OK")
+    Ok(_) -> print("Unexpected success")
+}
+
+// Try to close non-existent connection
+closeResult = wsClose(99999)
+match closeResult {
+    Fail(_) -> print("Invalid connection close: OK")
+    Ok(_) -> print("Unexpected success")
+}
+print("")
+
+print("4. Testing invalid server stop...")
+stopResult = wsServerStop(99999)
+match stopResult {
+    Fail(_) -> print("Invalid server stop: OK")
+    Ok(_) -> print("Unexpected success")
+}
+print("")
+
+// Echo handler for WebSocket server
+fun echoHandler(connId: Int, msg: String) -> String {
+    msg  // Just echo back
+}
+
+print("5. Testing async server with echo...")
+// Start server on port 9876
+serverResult = wsServeAsync(9876, echoHandler)
+match serverResult {
+    Ok(serverId) -> {
+        print("Server started with ID: " ++ show(serverId))
+        
+        // Give server time to start
+        sleepMs(100)
+        
+        // Connect to our server
+        connResult = wsConnectTimeout("ws://localhost:9876", 5000)
+        match connResult {
+            Ok(connId) -> {
+                print("Connected with ID: " ++ show(connId))
+                
+                // Send message
+                sendRes = wsSend(connId, "Hello WebSocket!")
+                match sendRes {
+                    Ok(_) -> print("Message sent")
+                    Fail(err) -> print("Send failed: " ++ err)
+                }
+                
+                // Receive echo with timeout
+                recvRes = wsRecvTimeout(connId, 2000)
+                match recvRes {
+                    Ok(Some(msg)) -> print("Received: " ++ msg)
+                    Ok(Zero) -> print("Timeout waiting for response")
+                    Fail(err) -> print("Receive failed: " ++ err)
+                }
+                
+                // Close connection
+                wsClose(connId)
+                print("Connection closed")
+            }
+            Fail(err) -> print("Connect failed: " ++ err)
+        }
+        
+        // Stop server
+        wsServerStop(serverId)
+        print("Server stopped")
+    }
+    Fail(err) -> print("Server start failed: " ++ err)
+}
+print("")
+
+print("=== All WebSocket Tests Complete ===")

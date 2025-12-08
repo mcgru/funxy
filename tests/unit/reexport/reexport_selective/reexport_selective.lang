@@ -1,0 +1,7 @@
+package reexport_selective (triple, source(Circle, area))
+
+import "../source" (*)
+
+fun triple(x: Float) -> Float {
+    x * 3.0
+}

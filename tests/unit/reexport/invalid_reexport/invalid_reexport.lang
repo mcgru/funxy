@@ -1,0 +1,11 @@
+package invalid_reexport (localFn, nonexistent(*))
+
+// This module has a bug: it tries to re-export from "nonexistent" module
+// but "nonexistent" is never imported!
+// Currently no error is raised - this is the bug we're testing
+
+fun localFn() -> Int {
+    42
+}
+
+

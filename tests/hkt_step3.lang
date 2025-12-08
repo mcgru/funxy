@@ -1,0 +1,41 @@
+// HKT Step 3: where constraints
+// Tests: fun foo<F>(...) where Trait<F> syntax
+// Note: Functor instances for Option, List, Result are now built-in
+
+// Generic function with inline constraint (preferred for simple cases)
+fun double<F: Functor>(fa: F<Int>) -> F<Int> {
+    fmap(fun(x) -> x * 2, fa)
+}
+
+// Test with Option
+opt1 = double(Some(21))
+print(opt1)
+
+opt2 = double(Zero)
+print(opt2)
+
+// Test with List
+list1 = double([1, 2, 3, 4, 5])
+print(list1)
+
+list2 = double([])
+print(list2)
+
+// Another generic function (also inline constraint)
+fun increment<F: Functor>(fa: F<Int>) -> F<Int> {
+    fmap(fun(x) -> x + 1, fa)
+}
+
+// Example with where clause (for complex cases)
+fun doubleWhere<F: Functor>(fa: F<Int>) -> F<Int> where Functor<F> {
+    fmap(fun(x) -> x * 2, fa)
+}
+
+print(increment(Some(99)))
+print(increment([10, 20, 30]))
+
+// Composition of generic functions
+print(double(increment(Some(20))))
+print(increment(double([1, 2, 3])))
+
+print("Step 3 passed!")

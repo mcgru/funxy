@@ -1,0 +1,97 @@
+package import_chain_test
+
+import "lib/test" (*)
+
+// Import from shapes directly and from reexport
+// This tests type handling across imports
+import "./shapes" (Shape, Circle, Rectangle, Point, Config, makeCircle, makeRect, makeConfig, Radius)
+import "./reexport" (Wrapper, Wrap, wrapShape, Distance)
+
+// ============================================================================
+// Test types after import chain
+// ============================================================================
+
+testImportedADT = fun() {
+    // Types from shapes.lang via reexport.lang
+    circle = Circle(10)
+    assertEquals(getType(circle), Shape, "Circle from import chain")
+    
+    rect = Rectangle((5, 10))
+    assertEquals(getType(rect), Shape, "Rectangle from import chain")
+    
+    point = Point
+    assertEquals(getType(point), Shape, "Point from import chain")
+}
+
+testImportedRecordAlias = fun() {
+    // Record type from shapes.lang via reexport.lang
+    cfg = makeConfig("test", 42)
+    assertEquals(getType(cfg), Config, "Config from import chain")
+    
+    // Direct construction
+    cfg2: Config = { name: "direct", value: 100 }
+    assertEquals(getType(cfg2), Config, "direct Config construction")
+}
+
+testWrapperFromReexport = fun() {
+    // Wrapper type defined in reexport.lang
+    wrapped = Wrap(Circle(5))
+    assertEquals(getType(wrapped), Wrapper, "Wrapper type")
+    
+    // Using helper function
+    w = wrapShape(Rectangle((3, 4)))
+    assertEquals(getType(w), Wrapper, "wrapShape result type")
+}
+
+testMixedTypes = fun() {
+    // List of imported types
+    shapes = [Circle(1), Rectangle((2, 3)), Point]
+    assert(typeOf(shapes, List), "List of Shape")
+    
+    // Tuple with imported types
+    pair = (Circle(5), makeConfig("x", 1))
+    t = getType(pair)
+    assert(t != getType(42), "Tuple of imported types has type")
+    
+    // Map with imported type as value
+    m = %{ "circle" => Circle(10) }
+    assert(typeOf(m, Map), "Map with Shape value")
+}
+
+testTypePreservationAfterOps = fun() {
+    // Create shape
+    s = makeCircle(10)
+    assertEquals(getType(s), Shape, "makeCircle returns Shape")
+    
+    // Wrap and check
+    w = wrapShape(s)
+    assertEquals(getType(w), Wrapper, "wrapped Shape is Wrapper")
+    
+    // List operations
+    shapes = [Circle(1)]
+    shapes2 = shapes ++ [Rectangle((2, 3))]
+    assert(typeOf(shapes2, List), "concat preserves List type")
+}
+
+testTypeAliasesFromImport = fun() {
+    // Type alias imported directly from shapes
+    r: Radius = 10
+    assertEquals(getType(r), Int, "Radius alias resolves to Int")
+    
+    // Type alias imported through reexport chain
+    d: Distance = 3.14
+    assertEquals(getType(d), Float, "Distance alias resolves to Float")
+}
+
+// ============================================================================
+// Run tests
+// ============================================================================
+
+testRun("imported ADT types", testImportedADT)
+testRun("imported record alias", testImportedRecordAlias)
+testRun("wrapper from reexport", testWrapperFromReexport)
+testRun("mixed imported types", testMixedTypes)
+testRun("type preservation after ops", testTypePreservationAfterOps)
+testRun("type aliases from import", testTypeAliasesFromImport)
+
+print("import_chain_test: all tests passed!")

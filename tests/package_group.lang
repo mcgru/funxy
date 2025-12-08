@@ -1,0 +1,6 @@
+import "pkggroup" (*)
+
+print(double(5))
+print(triple(5))
+print(greet("World"))
+print(exclaim("Hi"))

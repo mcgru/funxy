@@ -1,0 +1,8 @@
+// Test: Partial application with 0 arguments should be an error
+// f() when f expects arguments is likely a mistake, not partial application
+
+fun add(a: Int, b: Int) -> Int { a + b }
+
+// This should error - calling with 0 args when expecting 2
+add()
+

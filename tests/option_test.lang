@@ -1,0 +1,16 @@
+type MyOption<T> = MyJust T | MyNothing
+
+val = MyJust(42)
+noVal = MyNothing
+
+res1 = match val {
+    MyJust x -> x,
+    MyNothing -> 0
+}
+print(res1)
+
+res2 = match noVal {
+    MyJust x -> x,
+    MyNothing -> 0
+}
+print(res2)

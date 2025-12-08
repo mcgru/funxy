@@ -1,0 +1,23 @@
+package shapes (*)
+
+// User-defined ADT
+type Shape = Circle(Int) | Rectangle((Int, Int)) | Point
+
+// Record type
+type Config = {
+    name: String,
+    value: Int
+}
+
+// Nested type
+type Container = Box(Shape) | NoShape
+
+// Type aliases
+type alias Radius = Int
+type alias Distance = Float
+
+// Helper functions
+makeCircle = fun(r: Int) -> Shape { Circle(r) }
+makeRect = fun(w: Int, h: Int) -> Shape { Rectangle((w, h)) }
+makeConfig = fun(n: String, v: Int) -> Config { { name: n, value: v } }
+

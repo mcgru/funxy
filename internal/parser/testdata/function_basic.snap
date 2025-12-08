@@ -1,0 +1,20 @@
+--- AST Tree ---
+Program
+  FunctionStatement
+    Name: add
+    Params:
+      x: NamedType(Identifier(Int))
+      y: NamedType(Identifier(Int))
+    Return: NamedType(Identifier(Int))
+    Body:
+Block
+        Infix(+)
+          Left: Identifier(x)
+          Right: Identifier(y)
+
+
+
+--- Source Code ---
+fun add(x: Int, y: Int) -> Int {
+    x + y
+}

@@ -1,0 +1,126 @@
+// Test lib/bits functionality
+import "lib/bits" (*)
+import "lib/map" (mapGet)
+
+print("=== Bits Creation ===")
+
+// Empty bits
+b1 = bitsNew()
+print(b1)
+print(len(b1))
+print(len(b1) == 0)
+
+// From bytes
+b2 = bitsFromBytes(@"A")
+print(b2)
+print(len(b2))
+
+// From binary string
+match bitsFromBinary("10101010") {
+    Ok(b) -> print(b)
+    Fail(e) -> print("error: " ++ e)
+}
+
+// From hex string
+match bitsFromHex("FF") {
+    Ok(b) -> print(b)
+    Fail(e) -> print("error: " ++ e)
+}
+
+print("=== Bits Literals ===")
+print(#b"10101010")
+print(#b"101")
+print(#x"FF")
+print(#x"A5")
+
+print("=== Octal Literals ===")
+print(#o"7")      // 3 bits: 111
+print(len(#o"7"))
+print(#o"77")     // 6 bits: 111111
+print(len(#o"77"))
+print(#o"377")    // 9 bits: 011111111
+print(len(#o"377"))
+
+// From octal string
+match bitsFromOctal("377") {
+    Ok(b) -> print(b)
+    Fail(e) -> print("error: " ++ e)
+}
+
+print("=== Bits Conversion ===")
+b3 = #b"10101010"
+print(bitsToBinary(b3))
+
+// bitsToBytes with default padding ("low")
+print(bitsToBytes(#b"10101010"))
+// bitsToBytes with explicit padding
+print(bitsToBytes(#b"101", "low"))
+print(bitsToBytes(#b"101", "high"))
+
+print("=== Bits Slicing ===")
+b4 = #b"11110000"
+print(bitsSlice(b4, 0, 4))
+print(bitsSlice(b4, 4, 8))
+
+print("=== Bits Concatenation ===")
+b5 = #b"1111" ++ #b"0000"
+print(b5)
+b6 = bitsConcat(#b"1010", #b"0101")
+print(b6)
+
+print("=== Bits Padding ===")
+b7 = #b"101"
+print(bitsPadLeft(b7, 8))
+print(bitsPadRight(b7, 8))
+
+print("=== Bits Numeric Operations ===")
+// With explicit endianness
+b8 = bitsAddInt(bitsNew(), 255, 8, "big")
+print(b8)
+b9 = bitsAddInt(bitsNew(), 1, 16, "big")
+print(b9)
+
+// With default endianness ("big")
+b10 = bitsAddInt(bitsNew(), 255, 8)
+print(b10)
+
+// Little endian
+b11 = bitsAddInt(bitsNew(), 256, 16, "little")
+print(b11)
+
+// Native endianness (system-dependent)
+b12 = bitsAddInt(bitsNew(), 255, 8, "native")
+print(b12)
+
+// Signed values
+b13 = bitsAddInt(bitsNew(), -1, 8, "big-signed")
+print(b13)
+
+print("=== Bits Equality ===")
+print(#b"101" == #b"101")
+print(#b"101" == #b"110")
+print(#b"101" != #b"110")
+
+print("=== Pattern Matching ===")
+// Create test data: version(8) + flags(4) + reserved(4) + length(16)
+data = #b"00000001010100000000000100000000"
+
+specs = [
+    bitsInt("version", 8, "big"),
+    bitsInt("flags", 4, "big"),
+    bitsInt("reserved", 4, "big"),
+    bitsInt("length", 16, "big")
+]
+
+match bitsExtract(data, specs) {
+    Ok(fields) -> {
+        print(mapGet(fields, "version"))
+        print(mapGet(fields, "flags"))
+        print(mapGet(fields, "reserved"))
+        print(mapGet(fields, "length"))
+    }
+    Fail(err) -> print("Error: " ++ err)
+}
+
+print("=== Done ===")
+

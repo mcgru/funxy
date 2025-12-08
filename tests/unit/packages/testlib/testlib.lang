@@ -1,0 +1,70 @@
+package testlib (Point, Circle, Radius, add, distance, scale, area)
+
+import "lib/math" (sqrt, pi)
+
+// Type alias to record - tests extension methods on type aliases
+type Point = { x: Int, y: Int }
+
+// ADT type - tests extension methods and trait instances on ADTs
+type Circle = Radius Float
+
+// Regular function
+fun add(a: Point, b: Point) -> Point {
+    { x: a.x + b.x, y: a.y + b.y }
+}
+
+// Function using imported lib
+fun distance(p: Point) -> Float {
+    sqrt(intToFloat(p.x * p.x + p.y * p.y))
+}
+
+// Trait instance for type alias
+instance Semigroup Point {
+    operator (<>)(a: Point, b: Point) -> Point {
+        add(a, b)
+    }
+}
+
+// Trait instance for ADT
+instance Semigroup Circle {
+    operator (<>)(a: Circle, b: Circle) -> Circle {
+        match (a, b) {
+            (Radius r1, Radius r2) -> Radius(r1 + r2)
+        }
+    }
+}
+
+// Extension method for type alias
+fun (p: Point) scale(factor: Int) -> Point {
+    { x: p.x * factor, y: p.y * factor }
+}
+
+// Extension method for type alias (another)
+fun (p: Point) magnitude() -> Float {
+    distance(p)
+}
+
+// Extension method for ADT
+fun (c: Circle) area() -> Float {
+    match c {
+        Radius r -> pi() * r * r
+    }
+}
+
+// Extension method for ADT (another)
+fun (c: Circle) diameter() -> Float {
+    match c {
+        Radius r -> r * 2.0
+    }
+}
+
+// Unexported function - should NOT be available after import
+fun internalHelper(p: Point) -> Int {
+    p.x + p.y
+}
+
+// Unexported extension method - should NOT be available after import
+fun (p: Point) _internal() -> Int {
+    p.x * p.y
+}
+

@@ -1,0 +1,40 @@
+// Test extension methods
+
+// Define an ADT
+type Container<T> = Box T
+
+// Define extension method
+fun<T> (b: Container<T>) unbox() -> T {
+    match b {
+        Box(v) -> v
+    }
+}
+
+b = Box(42)
+print(b.unbox())
+
+// Define extension on primitive
+fun (i: Int) double() -> Int {
+    i * 2
+}
+
+print(10.double())
+
+// Define extension on Record
+type Point = { x: Int, y: Int }
+fun (p: Point) sum() -> Int {
+    p.x + p.y
+}
+
+pt: Point = { x: 10, y: 20 }
+print(pt.sum())
+
+// Test implicit generic resolution (List)
+// List is built-in but handled as List a
+// Extension on List
+fun<T> (l: List<T>) len_plus_one() -> Int {
+    len(l) + 1
+}
+
+lst = [1, 2, 3]
+print(lst.len_plus_one())

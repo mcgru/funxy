@@ -1,0 +1,236 @@
+// Unit tests for Bits type
+import "lib/bits" (*)
+import "lib/test" (*)
+import "lib/map" (mapGet)
+
+// === Literal Tests ===
+
+testRun("binary literal basic", fun() -> {
+    b = #b"10101010"
+    assertEquals(len(b), 8)
+})
+
+testRun("binary literal non-aligned", fun() -> {
+    b = #b"101"
+    assertEquals(len(b), 3)
+})
+
+testRun("binary literal empty", fun() -> {
+    b = #b""
+    assertEquals(len(b), 0)
+    assert(len(b) == 0)
+})
+
+testRun("hex literal", fun() -> {
+    b = #x"FF"
+    assertEquals(len(b), 8)
+    assertEquals(bitsToBinary(b), "11111111")
+})
+
+testRun("octal literal 7", fun() -> {
+    b = #o"7"
+    assertEquals(len(b), 3)
+    assertEquals(bitsToBinary(b), "111")
+})
+
+testRun("octal literal 77", fun() -> {
+    b = #o"77"
+    assertEquals(len(b), 6)
+    assertEquals(bitsToBinary(b), "111111")
+})
+
+testRun("octal literal 377", fun() -> {
+    b = #o"377"
+    assertEquals(len(b), 9)
+    assertEquals(bitsToBinary(b), "011111111")
+})
+
+// === Creation Tests ===
+
+testRun("bitsNew creates empty", fun() -> {
+    b = bitsNew()
+    assertEquals(len(b), 0)
+    assert(len(b) == 0)
+})
+
+testRun("bitsFromBytes", fun() -> {
+    b = bitsFromBytes(@"A")
+    assertEquals(len(b), 8)
+})
+
+testRun("bitsFromBinary", fun() -> {
+    match bitsFromBinary("10101010") {
+        Ok(b) -> assertEquals(len(b), 8)
+        Fail(_) -> panic("should succeed")
+    }
+})
+
+testRun("bitsFromHex", fun() -> {
+    match bitsFromHex("FF") {
+        Ok(b) -> assertEquals(bitsToBinary(b), "11111111")
+        Fail(_) -> panic("should succeed")
+    }
+})
+
+testRun("bitsFromOctal", fun() -> {
+    match bitsFromOctal("7") {
+        Ok(b) -> {
+            assertEquals(len(b), 3)
+            assertEquals(bitsToBinary(b), "111")
+        }
+        Fail(_) -> panic("should succeed")
+    }
+})
+
+// === Conversion Tests ===
+
+testRun("bitsToBytes default padding", fun() -> {
+    b = #b"10101010"
+    bytes = bitsToBytes(b)  // default "low"
+    assertEquals(len(bytes), 1)
+})
+
+testRun("bitsToBytes low padding", fun() -> {
+    b = #b"101"
+    bytes = bitsToBytes(b, "low")
+    assertEquals(len(bytes), 1)
+})
+
+testRun("bitsToBytes high padding", fun() -> {
+    b = #b"101"
+    bytes = bitsToBytes(b, "high")
+    assertEquals(len(bytes), 1)
+})
+
+testRun("bitsToBinary", fun() -> {
+    b = #b"11110000"
+    assertEquals(bitsToBinary(b), "11110000")
+})
+
+// === Access Tests ===
+
+testRun("bitsSlice", fun() -> {
+    b = #b"11110000"
+    assertEquals(bitsToBinary(bitsSlice(b, 0, 4)), "1111")
+    assertEquals(bitsToBinary(bitsSlice(b, 4, 8)), "0000")
+})
+
+testRun("bitsGet", fun() -> {
+    b = #b"10"
+    match bitsGet(b, 0) {
+        Some(v) -> assertEquals(v, 1)
+        Zero -> panic("should have value")
+    }
+    match bitsGet(b, 1) {
+        Some(v) -> assertEquals(v, 0)
+        Zero -> panic("should have value")
+    }
+})
+
+// === Modification Tests ===
+
+testRun("bitsConcat", fun() -> {
+    b1 = #b"1111"
+    b2 = #b"0000"
+    result = bitsConcat(b1, b2)
+    assertEquals(bitsToBinary(result), "11110000")
+})
+
+testRun("bits ++ operator", fun() -> {
+    result = #b"1111" ++ #b"0000"
+    assertEquals(bitsToBinary(result), "11110000")
+})
+
+testRun("bitsPadLeft", fun() -> {
+    b = #b"101"
+    padded = bitsPadLeft(b, 8)
+    assertEquals(len(padded), 8)
+    assertEquals(bitsToBinary(padded), "00000101")
+})
+
+testRun("bitsPadRight", fun() -> {
+    b = #b"101"
+    padded = bitsPadRight(b, 8)
+    assertEquals(len(padded), 8)
+    assertEquals(bitsToBinary(padded), "10100000")
+})
+
+// === Numeric Tests ===
+
+testRun("bitsAddInt default endianness", fun() -> {
+    b = bitsAddInt(bitsNew(), 255, 8)  // default "big"
+    assertEquals(bitsToBinary(b), "11111111")
+})
+
+testRun("bitsAddInt big endian", fun() -> {
+    b = bitsAddInt(bitsNew(), 255, 8, "big")
+    assertEquals(bitsToBinary(b), "11111111")
+})
+
+testRun("bitsAddInt little endian", fun() -> {
+    b = bitsAddInt(bitsNew(), 256, 16, "little")
+    assertEquals(len(b), 16)
+})
+
+testRun("bitsAddInt native endianness", fun() -> {
+    b = bitsAddInt(bitsNew(), 255, 8, "native")
+    assertEquals(len(b), 8)
+})
+
+testRun("bitsAddInt signed", fun() -> {
+    b = bitsAddInt(bitsNew(), -1, 8, "big-signed")
+    assertEquals(bitsToBinary(b), "11111111")
+})
+
+// === Equality Tests ===
+
+testRun("bits equality", fun() -> {
+    assert(#b"101" == #b"101")
+    assert(#b"101" != #b"110")
+})
+
+// === Pattern Matching Tests ===
+
+testRun("bitsExtract simple", fun() -> {
+    data = #b"0000000101010000"  // version=1, flags=5, rest=0
+    specs = [
+        bitsInt("version", 8, "big"),
+        bitsInt("flags", 4, "big"),
+        bitsInt("rest", 4, "big")
+    ]
+    match bitsExtract(data, specs) {
+        Ok(fields) -> {
+            match mapGet(fields, "version") {
+                Some(v) -> assertEquals(v, 1)
+                Zero -> panic("version not found")
+            }
+            match mapGet(fields, "flags") {
+                Some(v) -> assertEquals(v, 5)
+                Zero -> panic("flags not found")
+            }
+        }
+        Fail(err) -> panic("extraction failed: " ++ err)
+    }
+})
+
+testRun("bitsRest spec", fun() -> {
+    data = #b"1111111100001111"
+    specs = [
+        bitsInt("header", 8, "big"),
+        bitsRest("tail")
+    ]
+    match bitsExtract(data, specs) {
+        Ok(fields) -> {
+            match mapGet(fields, "header") {
+                Some(v) -> assertEquals(v, 255)
+                Zero -> panic("header not found")
+            }
+            match mapGet(fields, "tail") {
+                Some(tail) -> assertEquals(len(tail), 8)
+                Zero -> panic("tail not found")
+            }
+        }
+        Fail(err) -> panic("extraction failed: " ++ err)
+    }
+})
+

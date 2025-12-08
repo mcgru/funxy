@@ -1,0 +1,874 @@
+package evaluator
+
+import (
+	"fmt"
+	"github.com/funvibe/funxy/internal/analyzer"
+	"github.com/funvibe/funxy/internal/ast"
+	"github.com/funvibe/funxy/internal/config"
+	"github.com/funvibe/funxy/internal/modules"
+	"github.com/funvibe/funxy/internal/typesystem"
+	"github.com/funvibe/funxy/internal/utils"
+)
+
+func (e *Evaluator) evalProgram(program *ast.Program, env *Environment) Object {
+	var result Object
+	for _, stmt := range program.Statements {
+		result = e.Eval(stmt, env)
+		switch result := result.(type) {
+		case *Error:
+			return result
+		}
+	}
+	return result
+}
+
+func (e *Evaluator) evalImportStatement(node *ast.ImportStatement, env *Environment) Object {
+	if e.Loader == nil {
+		return &Nil{}
+	}
+
+	importPath := node.Path.Value
+	pathToCheck := utils.ResolveImportPath(e.BaseDir, importPath)
+
+	modInterface, err := e.Loader.GetModule(pathToCheck)
+	if err != nil {
+		return newError("failed to load module: %s (%s)", node.Path.Value, err.Error())
+	}
+
+	if mod, ok := modInterface.(*modules.Module); ok {
+		// Handle virtual modules (lib/list, etc.)
+		if mod.IsVirtual {
+			return e.importVirtualModule(node, mod, env)
+		}
+		
+		// Handle package groups (import "dir" imports all sub-packages)
+		if mod.IsPackageGroup {
+			return e.importPackageGroup(node, mod, env)
+		}
+		
+		modObj, err := e.EvaluateModule(mod)
+		if err != nil {
+			return newError("failed to evaluate module %s: %s", mod.Name, err.Error())
+		}
+
+		// Import trait implementations from the module
+		for traitName, typeImpls := range mod.ClassImplementations {
+			if e.ClassImplementations[traitName] == nil {
+				e.ClassImplementations[traitName] = make(map[string]Object)
+			}
+			for typeName, impl := range typeImpls {
+				if obj, ok := impl.(Object); ok {
+					e.ClassImplementations[traitName][typeName] = obj
+				}
+			}
+		}
+
+		record, ok := modObj.(*RecordInstance)
+		if !ok {
+			return newError("module %s is not a record", mod.Name)
+		}
+
+		// Handle import specifications
+		if node.ImportAll {
+			// import "path" (*) - import all symbols into current scope
+			for name, val := range record.Fields {
+				env.Set(name, val)
+			}
+			return &Nil{}
+		}
+
+		if len(node.Symbols) > 0 {
+			// import "path" (a, b, c) - import only specified symbols
+			for _, sym := range node.Symbols {
+				if val, ok := record.Fields[sym.Value]; ok {
+					env.Set(sym.Value, val)
+				} else {
+					return newError("symbol '%s' not found in module %s", sym.Value, mod.Name)
+				}
+			}
+			return &Nil{}
+		}
+
+		if len(node.Exclude) > 0 {
+			// import "path" !(a, b, c) - import all except specified
+			excludeSet := make(map[string]bool)
+			for _, sym := range node.Exclude {
+				excludeSet[sym.Value] = true
+			}
+			for name, val := range record.Fields {
+				if !excludeSet[name] {
+					env.Set(name, val)
+				}
+			}
+			return &Nil{}
+		}
+
+		// Default: import as module object with alias
+		name := ""
+		if node.Alias != nil {
+			name = node.Alias.Value
+		} else {
+			name = utils.ExtractModuleName(node.Path.Value)
+		}
+
+		env.Set(name, modObj)
+		return &Nil{}
+	}
+
+	return newError("invalid module type loaded")
+}
+
+// importVirtualModule handles importing built-in virtual modules
+func (e *Evaluator) importVirtualModule(node *ast.ImportStatement, mod *modules.Module, env *Environment) Object {
+	// Special case: import "lib" imports all lib/* packages
+	if mod.Name == "lib" {
+		return e.importAllLibPackages(node, env)
+	}
+	
+	// Get builtins for this virtual module
+	builtins := e.getVirtualModuleBuiltins(mod.Name)
+	if builtins == nil {
+		return newError("unknown virtual module: %s", mod.Name)
+	}
+	
+	// Handle import specifications
+	if node.ImportAll {
+		for name, fn := range builtins {
+			env.Set(name, fn)
+		}
+		return &Nil{}
+	}
+	
+	if len(node.Symbols) > 0 {
+		for _, sym := range node.Symbols {
+			if fn, ok := builtins[sym.Value]; ok {
+				env.Set(sym.Value, fn)
+			} else {
+				return newError("symbol '%s' not found in module %s", sym.Value, mod.Name)
+			}
+		}
+		return &Nil{}
+	}
+	
+	if len(node.Exclude) > 0 {
+		excludeSet := make(map[string]bool)
+		for _, sym := range node.Exclude {
+			excludeSet[sym.Value] = true
+		}
+		for name, fn := range builtins {
+			if !excludeSet[name] {
+				env.Set(name, fn)
+			}
+		}
+		return &Nil{}
+	}
+	
+	// Default: import as module object
+	fields := make(map[string]Object)
+	for name, fn := range builtins {
+		fields[name] = fn
+	}
+	modObj := &RecordInstance{Fields: fields}
+	
+	name := ""
+	if node.Alias != nil {
+		name = node.Alias.Value
+	} else {
+		name = mod.Name
+	}
+	
+	env.Set(name, modObj)
+	return &Nil{}
+}
+
+// getVirtualModuleBuiltins returns builtins for a virtual module by name
+func (e *Evaluator) getVirtualModuleBuiltins(name string) map[string]*Builtin {
+	var builtins map[string]*Builtin
+	
+	switch name {
+	case "list":
+		builtins = ListBuiltins()
+		SetListBuiltinTypes(builtins)
+	case "map":
+		builtins = GetMapBuiltins()
+		SetMapBuiltinTypes(builtins)
+	case "bytes":
+		builtins = BytesBuiltins()
+	case "bits":
+		builtins = BitsBuiltins()
+		SetBitsBuiltinTypes(builtins)
+	case "time":
+		builtins = TimeBuiltins()
+		SetTimeBuiltinTypes(builtins)
+	case "io":
+		builtins = IOBuiltins()
+		SetIOBuiltinTypes(builtins)
+	case "sys":
+		builtins = SysBuiltins()
+		SetSysBuiltinTypes(builtins)
+	case "tuple":
+		builtins = TupleBuiltins()
+		SetTupleBuiltinTypes(builtins)
+	case "string":
+		builtins = StringBuiltins()
+		SetStringBuiltinTypes(builtins)
+	case "math":
+		builtins = MathBuiltins()
+		SetMathBuiltinTypes(builtins)
+	case "bignum":
+		builtins = BignumBuiltins()
+		SetBignumBuiltinTypes(builtins)
+	case "char":
+		builtins = CharBuiltins()
+		SetCharBuiltinTypes(builtins)
+	case "json":
+		builtins = JsonBuiltins()
+		SetJsonBuiltinTypes(builtins)
+	case "crypto":
+		builtins = CryptoBuiltins()
+		SetCryptoBuiltinTypes(builtins)
+	case "regex":
+		builtins = RegexBuiltins()
+		SetRegexBuiltinTypes(builtins)
+	case "http":
+		builtins = HttpBuiltins()
+		SetHttpBuiltinTypes(builtins)
+	case "test":
+		builtins = TestBuiltins()
+		SetTestBuiltinTypes(builtins)
+	case "rand":
+		builtins = RandBuiltins()
+		SetRandBuiltinTypes(builtins)
+	case "date":
+		builtins = DateBuiltins()
+		SetDateBuiltinTypes(builtins)
+	case "ws":
+		builtins = WsBuiltins()
+		SetWsBuiltinTypes(builtins)
+	case "sql":
+		builtins = SqlBuiltins()
+		SetSqlBuiltinTypes(builtins)
+	case "url":
+		builtins = UrlBuiltins()
+		SetUrlBuiltinTypes(builtins)
+	case "path":
+		builtins = PathBuiltins()
+		SetPathBuiltinTypes(builtins)
+	case "uuid":
+		builtins = UuidBuiltins()
+		SetUuidBuiltinTypes(builtins)
+	case "log":
+		builtins = LogBuiltins()
+		SetLogBuiltinTypes(builtins)
+	case "task":
+		builtins = TaskBuiltins()
+		SetTaskBuiltinTypes(builtins)
+	default:
+		return nil
+	}
+	return builtins
+}
+
+// importAllLibPackages handles import "lib" - imports all lib/* packages
+func (e *Evaluator) importAllLibPackages(node *ast.ImportStatement, env *Environment) Object {
+	// Collect all builtins from all lib/* packages
+	allBuiltins := make(map[string]*Builtin)
+	
+	for _, pkgName := range modules.GetLibSubPackages() {
+		builtins := e.getVirtualModuleBuiltins(pkgName)
+		if builtins != nil {
+			for name, fn := range builtins {
+				allBuiltins[name] = fn
+			}
+		}
+	}
+	
+	// Handle import specifications
+	if node.ImportAll {
+		// import "lib" (*) - import all symbols from all packages
+		for name, fn := range allBuiltins {
+			env.Set(name, fn)
+		}
+		return &Nil{}
+	}
+	
+	if len(node.Symbols) > 0 {
+		// import "lib" (symbol1, symbol2) - import specific symbols
+		for _, sym := range node.Symbols {
+			if fn, ok := allBuiltins[sym.Value]; ok {
+				env.Set(sym.Value, fn)
+			} else {
+				return newError("symbol '%s' not found in lib packages", sym.Value)
+			}
+		}
+		return &Nil{}
+	}
+	
+	if len(node.Exclude) > 0 {
+		// import "lib" !(symbol1, symbol2) - import all except specified
+		excludeSet := make(map[string]bool)
+		for _, sym := range node.Exclude {
+			excludeSet[sym.Value] = true
+		}
+		for name, fn := range allBuiltins {
+			if !excludeSet[name] {
+				env.Set(name, fn)
+			}
+		}
+		return &Nil{}
+	}
+	
+	// Default: import "lib" as module object containing subpackages
+	libFields := make(map[string]Object)
+	for _, pkgName := range modules.GetLibSubPackages() {
+		builtins := e.getVirtualModuleBuiltins(pkgName)
+		if builtins != nil {
+			pkgFields := make(map[string]Object)
+			for name, fn := range builtins {
+				pkgFields[name] = fn
+			}
+			libFields[pkgName] = &RecordInstance{Fields: pkgFields}
+		}
+	}
+	
+	libObj := &RecordInstance{Fields: libFields}
+	
+	name := "lib"
+	if node.Alias != nil {
+		name = node.Alias.Value
+	}
+	
+	env.Set(name, libObj)
+	return &Nil{}
+}
+
+// importPackageGroup handles importing from a directory containing sub-packages
+func (e *Evaluator) importPackageGroup(node *ast.ImportStatement, mod *modules.Module, env *Environment) Object {
+	// Collect all exported symbols from all sub-packages
+	allFields := make(map[string]Object)
+	
+	for _, subMod := range mod.Imports {
+		// Evaluate each sub-package
+		subModObj, err := e.EvaluateModule(subMod)
+		if err != nil {
+			return newError("failed to evaluate sub-package %s: %s", subMod.Name, err.Error())
+		}
+
+		// Import trait implementations from sub-module
+		for traitName, typeImpls := range subMod.ClassImplementations {
+			if e.ClassImplementations[traitName] == nil {
+				e.ClassImplementations[traitName] = make(map[string]Object)
+			}
+			for typeName, impl := range typeImpls {
+				if obj, ok := impl.(Object); ok {
+					e.ClassImplementations[traitName][typeName] = obj
+				}
+			}
+		}
+
+		subRecord, ok := subModObj.(*RecordInstance)
+		if !ok {
+			return newError("sub-package %s is not a record", subMod.Name)
+		}
+		
+		// Collect exported fields
+		for name, val := range subRecord.Fields {
+			if subMod.Exports[name] {
+				allFields[name] = val
+			}
+		}
+	}
+	
+	// Handle import specifications
+	if node.ImportAll {
+		for name, val := range allFields {
+			env.Set(name, val)
+		}
+		return &Nil{}
+	}
+	
+	if len(node.Symbols) > 0 {
+		for _, sym := range node.Symbols {
+			if val, ok := allFields[sym.Value]; ok {
+				env.Set(sym.Value, val)
+			} else {
+				return newError("symbol '%s' not found in package group %s", sym.Value, mod.Name)
+			}
+		}
+		return &Nil{}
+	}
+	
+	if len(node.Exclude) > 0 {
+		excludeSet := make(map[string]bool)
+		for _, sym := range node.Exclude {
+			excludeSet[sym.Value] = true
+		}
+		for name, val := range allFields {
+			if !excludeSet[name] {
+				env.Set(name, val)
+			}
+		}
+		return &Nil{}
+	}
+	
+	// Default: import as module object containing all sub-packages
+	modObj := &RecordInstance{Fields: allFields}
+	
+	name := ""
+	if node.Alias != nil {
+		name = node.Alias.Value
+	} else {
+		name = mod.Name
+	}
+	
+	env.Set(name, modObj)
+	return &Nil{}
+}
+
+func (e *Evaluator) EvaluateModule(mod *modules.Module) (Object, error) {
+	if cached, ok := e.ModuleCache[mod.Dir]; ok {
+		return cached, nil
+	}
+
+	// Save current ClassImplementations to detect what was added by this module
+	oldClassImpls := make(map[string]map[string]Object)
+	for trait, impls := range e.ClassImplementations {
+		oldClassImpls[trait] = make(map[string]Object)
+		for typeName, impl := range impls {
+			oldClassImpls[trait][typeName] = impl
+		}
+	}
+
+	env := NewEnvironment()
+	RegisterBuiltins(env)
+	RegisterFPTraits(e, env) // Register FP traits for this module
+
+	// Pre-create exports map and module object to handle cycles
+	exports := make(map[string]Object)
+	modObj := &RecordInstance{Fields: exports}
+	e.ModuleCache[mod.Dir] = modObj
+
+	oldBaseDir := e.BaseDir
+	e.BaseDir = mod.Dir
+	defer func() { e.BaseDir = oldBaseDir }()
+
+	for _, file := range mod.Files {
+		res := e.Eval(file, env)
+		if isError(res) {
+			return nil, fmt.Errorf("runtime error in %s: %s", mod.Name, res.Inspect())
+		}
+	}
+
+	// Populate exports from environment
+	for name := range mod.Exports {
+		if val, ok := env.Get(name); ok {
+			exports[name] = val
+		}
+	}
+
+	// Copy newly added ClassImplementations to module
+	mod.ClassImplementations = make(map[string]map[string]interface{})
+	for trait, impls := range e.ClassImplementations {
+		if oldImpls, had := oldClassImpls[trait]; had {
+			// Copy only new implementations for this trait
+			for typeName, impl := range impls {
+				if _, wasOld := oldImpls[typeName]; !wasOld {
+					if mod.ClassImplementations[trait] == nil {
+						mod.ClassImplementations[trait] = make(map[string]interface{})
+					}
+					mod.ClassImplementations[trait][typeName] = impl
+				}
+			}
+		} else {
+			// Copy all implementations for new trait
+			mod.ClassImplementations[trait] = make(map[string]interface{})
+			for typeName, impl := range impls {
+				mod.ClassImplementations[trait][typeName] = impl
+			}
+		}
+	}
+
+	return modObj, nil
+}
+
+func (e *Evaluator) evalBlockStatement(block *ast.BlockStatement, env *Environment) Object {
+	var result Object
+	blockEnv := NewEnclosedEnvironment(env)
+
+	for _, stmt := range block.Statements {
+		result = e.Eval(stmt, blockEnv)
+		if result != nil {
+			rt := result.Type()
+			if rt == ERROR_OBJ {
+				return result
+			}
+			if rt == RETURN_VALUE_OBJ {
+				return result
+			}
+			if rt == BREAK_SIGNAL_OBJ || rt == CONTINUE_SIGNAL_OBJ {
+				return result
+			}
+		}
+	}
+
+	if result == nil {
+		return &Nil{}
+	}
+	return result
+}
+
+func (e *Evaluator) evalTypeDeclaration(node *ast.TypeDeclarationStatement, env *Environment) Object {
+	tCon := typesystem.TCon{Name: node.Name.Value}
+	env.Set(node.Name.Value, &TypeObject{TypeVal: tCon})
+
+	if node.IsAlias {
+		// For type aliases, store TCon with the alias name (not the expanded type)
+		// This ensures getType(Point) returns type(Point), not type({ x: Int, y: Int })
+		// Also store the underlying type in TypeAliases for default() to work
+		if e.TypeAliases == nil {
+			e.TypeAliases = make(map[string]typesystem.Type)
+		}
+		underlyingType := analyzer.BuildType(node.TargetType, nil, nil)
+		e.TypeAliases[node.Name.Value] = underlyingType
+		return &Nil{}
+	}
+
+	for _, c := range node.Constructors {
+		if len(c.Parameters) == 0 {
+			env.Set(c.Name.Value, &DataInstance{Name: c.Name.Value, Fields: []Object{}, TypeName: node.Name.Value})
+		} else {
+			env.Set(c.Name.Value, &Constructor{Name: c.Name.Value, TypeName: node.Name.Value, Arity: len(c.Parameters)})
+		}
+	}
+	return &Nil{}
+}
+
+func (e *Evaluator) evalTraitDeclaration(node *ast.TraitDeclaration, env *Environment) Object {
+	for _, sig := range node.Signatures {
+		methodName := sig.Name.Value
+		// For operator methods, use the synthetic name "(+)" etc.
+		// sig.Operator is non-empty for operator methods
+		if sig.Operator != "" {
+			methodName = "(" + sig.Operator + ")"
+		}
+		// Arity from parameter count - used to determine if auto-call in type context
+		arity := len(sig.Parameters)
+		env.Set(methodName, &ClassMethod{Name: methodName, ClassName: node.Name.Value, Arity: arity})
+	}
+
+	if _, ok := e.ClassImplementations[node.Name.Value]; !ok {
+		e.ClassImplementations[node.Name.Value] = make(map[string]Object)
+	}
+
+	return &Nil{}
+}
+
+func (e *Evaluator) evalInstanceDeclaration(node *ast.InstanceDeclaration, env *Environment) Object {
+	className := node.TraitName.Value
+
+	typeName, err := e.resolveCanonicalTypeName(node.Target, env)
+	if err != nil {
+		return newError("%s", err.Error())
+	}
+
+	if _, ok := e.ClassImplementations[className]; !ok {
+		e.ClassImplementations[className] = make(map[string]Object)
+	}
+
+	methods := make(map[string]Object)
+	for _, method := range node.Methods {
+		fn := &Function{
+			Name:       method.Name.Value,
+			Parameters: method.Parameters,
+			ReturnType: method.ReturnType,
+			Body:       method.Body,
+			Env:        env,
+			Line:       method.Token.Line,
+			Column:     method.Token.Column,
+		}
+		methods[method.Name.Value] = fn
+	}
+
+	table := &MethodTable{Methods: methods}
+	e.ClassImplementations[className][typeName] = table
+
+	return &Nil{}
+}
+
+func (e *Evaluator) evalConstantDeclaration(node *ast.ConstantDeclaration, env *Environment) Object {
+	val := e.Eval(node.Value, env)
+	if isError(val) {
+		return val
+	}
+	
+	// Handle pattern destructuring
+	if node.Pattern != nil {
+		return e.bindPatternToValue(node.Pattern, val, env)
+	}
+	
+	// Simple binding
+	env.Set(node.Name.Value, val)
+	return &Nil{}
+}
+
+func (e *Evaluator) evalPatternAssignExpression(node *ast.PatternAssignExpression, env *Environment) Object {
+	val := e.Eval(node.Value, env)
+	if isError(val) {
+		return val
+	}
+	return e.bindPatternToValue(node.Pattern, val, env)
+}
+
+// bindPatternToValue binds variables from a pattern to their values
+func (e *Evaluator) bindPatternToValue(pat ast.Pattern, val Object, env *Environment) Object {
+	switch p := pat.(type) {
+	case *ast.IdentifierPattern:
+		env.Set(p.Value, val)
+		return &Nil{}
+		
+	case *ast.TuplePattern:
+		tuple, ok := val.(*Tuple)
+		if !ok {
+			return newError("cannot destructure non-tuple value with tuple pattern")
+		}
+		if len(tuple.Elements) != len(p.Elements) {
+			return newError("tuple pattern has %d elements but value has %d", len(p.Elements), len(tuple.Elements))
+		}
+		for i, elem := range p.Elements {
+			result := e.bindPatternToValue(elem, tuple.Elements[i], env)
+			if isError(result) {
+				return result
+			}
+		}
+		return &Nil{}
+		
+	case *ast.ListPattern:
+		list, ok := val.(*List)
+		if !ok {
+			return newError("cannot destructure non-list value with list pattern")
+		}
+		if list.len() < len(p.Elements) {
+			return newError("list pattern has %d elements but value has %d", len(p.Elements), list.len())
+		}
+		for i, elem := range p.Elements {
+			result := e.bindPatternToValue(elem, list.get(i), env)
+			if isError(result) {
+				return result
+			}
+		}
+		return &Nil{}
+		
+	case *ast.WildcardPattern:
+		// Ignore - don't bind anything
+		return &Nil{}
+		
+	case *ast.RecordPattern:
+		record, ok := val.(*RecordInstance)
+		if !ok {
+			return newError("cannot destructure non-record value with record pattern")
+		}
+		for fieldName, fieldPat := range p.Fields {
+			fieldVal, ok := record.Fields[fieldName]
+			if !ok {
+				return newError("record does not have field '%s'", fieldName)
+			}
+			result := e.bindPatternToValue(fieldPat, fieldVal, env)
+			if isError(result) {
+				return result
+			}
+		}
+		return &Nil{}
+		
+	default:
+		return newError("unsupported pattern in destructuring")
+	}
+}
+
+func (e *Evaluator) evalExtensionMethod(node *ast.FunctionStatement, env *Environment) Object {
+	typeName, err := e.resolveCanonicalTypeName(node.Receiver.Type, env)
+	if err != nil {
+		return newError("%s", err.Error())
+	}
+
+	methodName := node.Name.Value
+
+	fn := &Function{
+		Name:       node.Name.Value,
+		Parameters: node.Parameters,
+		ReturnType: node.ReturnType,
+		Body:       node.Body,
+		Env:        env,
+		Line:       node.Token.Line,
+		Column:     node.Token.Column,
+	}
+	newParams := append([]*ast.Parameter{node.Receiver}, node.Parameters...)
+	fn.Parameters = newParams
+
+	if _, ok := e.ExtensionMethods[typeName]; !ok {
+		e.ExtensionMethods[typeName] = make(map[string]*Function)
+	}
+	e.ExtensionMethods[typeName][methodName] = fn
+
+	return &Nil{}
+}
+
+func (e *Evaluator) evalForExpression(node *ast.ForExpression, env *Environment) Object {
+	loopEnv := NewEnclosedEnvironment(env)
+
+	runBody := func() (Object, bool) {
+		res := e.evalBlockStatement(node.Body, loopEnv)
+
+		if isError(res) {
+			return res, true
+		}
+
+		if breakSig, ok := res.(*BreakSignal); ok {
+			return breakSig.Value, true
+		}
+
+		if _, ok := res.(*ContinueSignal); ok {
+			return nil, false
+		}
+
+		if rt := res.Type(); rt == RETURN_VALUE_OBJ {
+			return res, true
+		}
+
+		return res, false
+	}
+
+	var lastResult Object = &Nil{}
+
+	if node.Iterable != nil {
+		iterable := e.Eval(node.Iterable, env)
+		if isError(iterable) {
+			return iterable
+		}
+
+		var iteratorFn Object
+
+		// Look up iter method from Iter trait implementation for this type
+		iterableTypeName := getRuntimeTypeName(iterable)
+		if iterMethod, found := e.lookupTraitMethod(config.IterTraitName, iterableTypeName, config.IterMethodName); found {
+			res := e.applyFunction(iterMethod, []Object{iterable})
+			if !isError(res) {
+				iteratorFn = res
+			}
+		}
+		
+		// Fallback: try direct environment lookup (for backward compatibility)
+		if iteratorFn == nil {
+			if iterSym, ok := env.Get(config.IterMethodName); ok {
+				res := e.applyFunction(iterSym, []Object{iterable})
+				if !isError(res) {
+					iteratorFn = res
+				}
+			}
+		}
+
+		if iteratorFn != nil {
+			itemName := node.ItemName.Value
+
+			for {
+				stepRes := e.applyFunction(iteratorFn, []Object{})
+				if isError(stepRes) {
+					return stepRes
+				}
+
+				if data, ok := stepRes.(*DataInstance); ok && data.TypeName == config.OptionTypeName {
+					if data.Name == config.SomeCtorName {
+						val := data.Fields[0]
+						loopEnv.Set(itemName, val)
+
+						res, shouldBreak := runBody()
+						if shouldBreak {
+							if isError(res) || res.Type() == RETURN_VALUE_OBJ {
+								return res
+							}
+							return res
+						}
+						if res != nil {
+							lastResult = res
+						}
+					} else if data.Name == config.ZeroCtorName {
+						break
+					} else {
+						return newError("iterator returned unexpected Option variant: %s", data.Name)
+					}
+				} else {
+					return newError("iterator must return Option, got %s", stepRes.Type())
+				}
+			}
+
+		} else {
+			var items []Object
+			if list, ok := iterable.(*List); ok {
+				items = list.toSlice()
+			} else if str, ok := iterable.(*List); ok {
+				items = str.toSlice()
+			} else {
+				return newError("iterable must be List or implement Iter trait, got %s", iterable.Type())
+			}
+
+			itemName := node.ItemName.Value
+
+			for _, item := range items {
+				loopEnv.Set(itemName, item)
+
+				res, shouldBreak := runBody()
+				if shouldBreak {
+					if isError(res) || res.Type() == RETURN_VALUE_OBJ {
+						return res
+					}
+					return res
+				}
+				if res != nil {
+					lastResult = res
+				}
+			}
+		}
+
+	} else {
+		for {
+			cond := e.Eval(node.Condition, loopEnv)
+			if isError(cond) {
+				return cond
+			}
+
+			if !e.isTruthy(cond) {
+				break
+			}
+
+			res, shouldBreak := runBody()
+			if shouldBreak {
+				if isError(res) || res.Type() == RETURN_VALUE_OBJ {
+					return res
+				}
+				return res
+			}
+			if res != nil {
+				lastResult = res
+			}
+		}
+	}
+
+	return lastResult
+}
+
+func (e *Evaluator) evalBreakStatement(node *ast.BreakStatement, env *Environment) Object {
+	var val Object
+	if node.Value != nil {
+		val = e.Eval(node.Value, env)
+		if isError(val) {
+			return val
+		}
+	} else {
+		val = &Nil{}
+	}
+	return &BreakSignal{Value: val}
+}
+
+func (e *Evaluator) evalContinueStatement(node *ast.ContinueStatement, env *Environment) Object {
+	return &ContinueSignal{}
+}
+

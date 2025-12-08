@@ -1,0 +1,32 @@
+// Test: Operator traits using built-in Numeric trait
+
+// Define a custom type - single constructor with one field (wrapper)
+type MyInt = MkMyInt Int
+
+// Helper to extract value
+fun getValue(m: MyInt) -> Int {
+    match m {
+        MkMyInt x -> x
+    }
+}
+
+// Implement Numeric for MyInt (+ operator is defined there)
+instance Numeric MyInt {
+    operator (+)(a: MyInt, b: MyInt) -> MyInt {
+        MkMyInt(getValue(a) + getValue(b))
+    }
+}
+
+// Test: Create MyInts and add them
+v1 = MkMyInt(10)
+v2 = MkMyInt(20)
+v3 = v1 + v2
+
+print(getValue(v3))  // 30
+
+// Test: Chained addition
+v4 = MkMyInt(5)
+v5 = v1 + v2 + v4
+
+print(getValue(v5))  // 35
+

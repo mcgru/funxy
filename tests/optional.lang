@@ -1,0 +1,102 @@
+// Tests for ?? (null coalescing) operator via Optional trait
+
+// Option: Some(x) ?? default = x
+print(Some(42) ?? 0)       // 42
+
+// Option: Zero ?? default = default
+print(Zero ?? 100)         // 100
+
+// Result: Ok(x) ?? default = x
+print(Ok(99) ?? 0)         // 99
+
+// Result: Fail(_) ?? default = default
+print(Fail("error") ?? -1) // -1
+
+// Chaining: first non-empty wins
+print(Zero ?? Zero ?? Some(5) ?? 999)  // 5
+
+// Short-circuit: right side not evaluated when unnecessary
+counter = 0
+
+fun sideEffect() -> Int {
+    counter = counter + 1
+    999
+}
+
+// Some doesn't call fallback
+x = Some(1) ?? sideEffect()
+print(x)       // 1
+print(counter) // 0
+
+// Zero calls fallback
+y = Zero ?? sideEffect()
+print(y)       // 999
+print(counter) // 1
+
+// Ok doesn't call fallback
+z = Ok(42) ?? sideEffect()
+print(z)       // 42
+print(counter) // 1
+
+// Fail calls fallback
+w = Fail("err") ?? sideEffect()
+print(w)       // 999
+print(counter) // 2
+
+// Type inference works correctly
+opt: Option<Int> = Some(10)
+res: Result<String, Int> = Ok(20)
+
+print(opt ?? 0)  // 10
+print(res ?? 0)  // 20
+
+// =============================================
+// Custom type with inner type at Args[1]
+// Tests that ?? correctly extracts inner type from unwrap signature
+// =============================================
+
+type Validated<E, A> = Invalid E | Valid A
+
+instance Empty Validated {
+    fun isEmpty(v: Validated<E, A>) -> Bool {
+        match v {
+            Invalid(_) -> true
+            Valid(_) -> false
+        }
+    }
+}
+
+instance Optional Validated {
+    fun unwrap(v: Validated<E, A>) -> A {
+        match v {
+            Invalid(_) -> panic("unwrap on Invalid")
+            Valid(a) -> a
+        }
+    }
+    
+    fun wrap(a: A) -> Validated<E, A> {
+        Valid(a)
+    }
+}
+
+// Test ?? with Validated - inner type is Int (Args[1]), NOT String (Args[0])
+val1: Validated<String, Int> = Valid(42)
+val2: Validated<String, Int> = Invalid("error")
+
+print(val1 ?? 0)  // 42
+print(val2 ?? 0)  // 0
+
+// Test ?. with Validated
+type User = { name: String, score: Int }
+val3: Validated<String, User> = Valid({ name: "Alice", score: 100 })
+val4: Validated<String, User> = Invalid("not found")
+
+print(val3?.score)  // Valid(100)
+print(val4?.score)  // Invalid("not found")
+
+// Combined ?. and ??
+print(val3?.score ?? 0)  // 100
+print(val4?.score ?? 0)  // 0
+
+print("All fallback tests passed!")
+

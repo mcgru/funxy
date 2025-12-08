@@ -1,0 +1,12 @@
+type Shape = Circle Int | Rectangle Int Int
+type MyList<T> = End | Cons T (MyList<T>)
+
+c = Circle(10)
+r = Rectangle(20, 30)
+l = Cons(1, End)
+l2 = Cons(2, Cons(1, End))
+
+print(c)
+print(r)
+print(l)
+print(l2)

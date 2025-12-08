@@ -1,0 +1,242 @@
+// Test: All user-definable operators
+// Each operator must have a test with a custom type
+
+// ============================================
+// Semigroup (<>) - Semigroup combine, right-assoc
+// Note: <> now uses the Semigroup trait (FP standard)
+// ============================================
+type Text = MkText String
+
+fun getText(t: Text) -> String { match t { MkText s -> s } }
+
+instance Semigroup Text {
+    operator (<>)(a: Text, b: Text) -> Text {
+        match (a, b) { (MkText x, MkText y) -> MkText(x ++ y) }
+    }
+}
+
+t1 = MkText("Hello")
+t2 = MkText(" ")
+t3 = MkText("World")
+result = t1 <> t2 <> t3  // right-associative: t1 <> (t2 <> t3)
+print(getText(result))   // Hello World
+
+// ============================================
+// UserOpChoose (<|>) - Alternative choice, left-assoc
+// ============================================
+type Maybe = MkJust Int | MkNothing
+
+fun getMaybe(m: Maybe) -> Int { 
+    match m { 
+        MkJust x -> x 
+        MkNothing -> -1 
+    } 
+}
+
+instance UserOpChoose Maybe {
+    operator (<|>)(a: Maybe, b: Maybe) -> Maybe {
+        match a {
+            MkJust _ -> a
+            MkNothing -> b
+        }
+    }
+}
+
+m1 = MkNothing
+m2 = MkJust(42)
+m3 = MkJust(100)
+print(getMaybe(m1 <|> m2))  // 42 (first non-Nothing)
+print(getMaybe(m2 <|> m3))  // 42 (left wins)
+
+// ============================================
+// UserOpCons (<:>) - Custom cons operator, right-assoc
+// Note: <*> is now Applicative (HKT), using <:> for simple types
+// ============================================
+type Box = MkBox Int
+
+fun getBox(b: Box) -> Int { match b { MkBox x -> x } }
+
+instance UserOpCons Box {
+    operator (<:>)(a: Box, b: Box) -> Box {
+        match (a, b) { (MkBox x, MkBox y) -> MkBox(x * y) }
+    }
+}
+
+b1 = MkBox(3)
+b2 = MkBox(4)
+b3 = MkBox(2)
+print(getBox(b1 <:> b2))        // 12
+print(getBox(b1 <:> b2 <:> b3)) // 24 (right-assoc: 3*(4*2)=24)
+
+// ============================================
+// UserOpSwap (<~>) - Custom swap operator, left-assoc
+// Note: >>= is now Monad (HKT), using <~> for simple types
+// ============================================
+type Chain = MkChain Int
+
+fun getChain(c: Chain) -> Int { match c { MkChain x -> x } }
+
+instance UserOpSwap Chain {
+    operator (<~>)(a: Chain, b: Chain) -> Chain {
+        match (a, b) { (MkChain x, MkChain y) -> MkChain(x + y) }
+    }
+}
+
+c1 = MkChain(10)
+c2 = MkChain(5)
+c3 = MkChain(3)
+print(getChain(c1 <~> c2))        // 15
+print(getChain(c1 <~> c2 <~> c3)) // 18 (left-assoc: (10+5)+3)
+
+// ============================================
+// UserOpMap (<$>) - Functor map, left-assoc
+// ============================================
+type Val = MkVal Int
+
+fun getVal(v: Val) -> Int { match v { MkVal x -> x } }
+
+instance UserOpMap Val {
+    operator (<$>)(a: Val, b: Val) -> Val {
+        match (a, b) { (MkVal x, MkVal y) -> MkVal(x - y) }
+    }
+}
+
+v1 = MkVal(100)
+v2 = MkVal(30)
+v3 = MkVal(10)
+print(getVal(v1 <$> v2))        // 70
+print(getVal(v1 <$> v2 <$> v3)) // 60 (left-assoc: (100-30)-10)
+
+// ============================================
+// UserOpCons (<:>) - Cons-like prepend, right-assoc
+// ============================================
+type Node = MkNode Int
+
+fun getNode(n: Node) -> Int { match n { MkNode x -> x } }
+
+instance UserOpCons Node {
+    operator (<:>)(a: Node, b: Node) -> Node {
+        // Prepend semantics: combine values
+        match (a, b) { (MkNode x, MkNode y) -> MkNode(x * 10 + y) }
+    }
+}
+
+n1 = MkNode(1)
+n2 = MkNode(2)
+n3 = MkNode(3)
+// right-assoc: n1 <:> (n2 <:> n3) = 1 <:> (2*10+3) = 1 <:> 23 = 1*10+23 = 33
+print(getNode(n1 <:> n2 <:> n3)) // 33
+
+// ============================================
+// UserOpSwap (<~>) - Swap/Exchange, left-assoc
+// ============================================
+type Swap = MkSwap Int
+
+fun getSwap(s: Swap) -> Int { match s { MkSwap x -> x } }
+
+instance UserOpSwap Swap {
+    operator (<~>)(a: Swap, b: Swap) -> Swap {
+        // Swap: return second minus first
+        match (a, b) { (MkSwap x, MkSwap y) -> MkSwap(y - x) }
+    }
+}
+
+s1 = MkSwap(3)
+s2 = MkSwap(10)
+s3 = MkSwap(5)
+print(getSwap(s1 <~> s2))        // 7 (10 - 3)
+print(getSwap(s1 <~> s2 <~> s3)) // -2 (left-assoc: (10-3) <~> 5 = 5-7)
+
+// ============================================
+// UserOpImply (=>) - Implication, right-assoc
+// ============================================
+type Logic = MkLogic Bool
+
+fun getLogic(l: Logic) -> Bool { match l { MkLogic b -> b } }
+
+instance UserOpImply Logic {
+    operator (=>)(a: Logic, b: Logic) -> Logic {
+        // a => b is equivalent to !a || b
+        match (a, b) {
+            (MkLogic x, MkLogic y) -> MkLogic(!x || y)
+        }
+    }
+}
+
+lt = MkLogic(true)
+lf = MkLogic(false)
+print(getLogic(lt => lt))  // true  (true => true)
+print(getLogic(lt => lf))  // false (true => false)
+print(getLogic(lf => lt))  // true  (false => anything)
+print(getLogic(lf => lf))  // true  (false => anything)
+
+// ============================================
+// $ - Built-in function application (low precedence, right-assoc)
+// ============================================
+fun double(x: Int) -> Int { x * 2 }
+fun add10(x: Int) -> Int { x + 10 }
+
+// f $ x = f(x)
+print(double $ 21)  // 42
+
+// Right-assoc: f $ g $ x = f $ (g $ x) = f(g(x))
+print(add10 $ double $ 5)  // add10(double(5)) = add10(10) = 20
+
+// Works with composition
+print(double ,, add10 $ 5)  // (double ,, add10)(5) = double(add10(5)) = double(15) = 30
+
+// ============================================
+// UserOpPipeLeft (<|) - Right-associative pipe
+// ============================================
+type PipeVal = MkPipeVal Int
+
+fun getPipeVal(p: PipeVal) -> Int { match p { MkPipeVal x -> x } }
+
+instance UserOpPipeLeft PipeVal {
+    operator (<|)(a: PipeVal, b: PipeVal) -> PipeVal {
+        match (a, b) { (MkPipeVal x, MkPipeVal y) -> MkPipeVal(x * y) }
+    }
+}
+
+pv1 = MkPipeVal(2)
+pv2 = MkPipeVal(3)
+pv3 = MkPipeVal(7)
+// right-assoc: pv1 <| pv2 <| pv3 = pv1 <| (pv2 <| pv3) = 2 * (3 * 7) = 42
+print(getPipeVal(pv1 <| pv2 <| pv3))
+
+// ============================================
+// Using operators as functions
+// ============================================
+combine = (<>)
+t4 = combine(MkText("A"), MkText("B"))
+print(getText(t4))  // AB
+
+choose = (<|>)
+print(getMaybe(choose(MkNothing, MkJust(99))))  // 99
+
+// Note: <*> and >>= are now HKT operators, using <:> and <~> instead
+consOp = (<:>)
+print(getBox(consOp(MkBox(6), MkBox(7))))  // 42
+
+swapOp = (<~>)
+print(getChain(swapOp(MkChain(20), MkChain(2))))  // 22
+
+fmapOp = (<$>)
+print(getVal(fmapOp(MkVal(50), MkVal(8))))  // 42
+
+cons = (<:>)
+print(getNode(cons(MkNode(4), MkNode(2))))  // 42
+
+swap = (<~>)
+print(getSwap(swap(MkSwap(8), MkSwap(50))))  // 42 (50 - 8)
+
+imply = (=>)
+print(getLogic(imply(MkLogic(false), MkLogic(false))))  // true
+
+// $ is now built-in, not user-definable
+print(double $ 21)  // 42
+
+pipeLeft = (<|)
+print(getPipeVal(pipeLeft(MkPipeVal(6), MkPipeVal(7))))  // 42
+
+print("All user operators work!")

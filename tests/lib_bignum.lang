@@ -1,0 +1,123 @@
+import "lib/bignum" (*)
+
+// =============================================================================
+// lib/bignum - BigInt and Rational Tests
+// =============================================================================
+
+print("=== BigInt Creation ===")
+
+// bigIntNew: (String) -> BigInt
+a = bigIntNew("123456789012345678901234567890")
+print(a)
+
+// bigIntFromInt: (Int) -> BigInt
+b = bigIntFromInt(42)
+print(b)
+
+b2 = bigIntFromInt(-100)
+print(b2)
+
+print("=== BigInt Conversion ===")
+
+// bigIntToString: (BigInt) -> String
+print(bigIntToString(a))
+
+// bigIntToInt: (BigInt) -> Option<Int>
+print(bigIntToInt(b))           // Some(42) - fits
+print(bigIntToInt(a))           // Zero - doesn't fit
+print(bigIntToInt(bigIntFromInt(-50)))  // Some(-50)
+
+print("=== BigInt Operators ===")
+
+// Arithmetic via Numeric trait
+x = 1000000000000000000n
+y = 2000000000000000000n
+
+print(x + y)    // 3000000000000000000
+print(y - x)    // 1000000000000000000
+print(x * y)    // 2000000000000000000000000000000000000
+print(y / x)    // 2
+print(y % x)    // 0
+
+// Power
+print(2n ** 100n)  // 2^100
+
+// Comparison via Order trait
+print(x < y)    // true
+print(x == x)   // true
+print(x > y)    // false
+
+print("=== Rational Creation ===")
+
+// ratFromInt: (Int, Int) -> Rational
+r1 = ratFromInt(1, 3)
+print(ratToString(r1))  // "1/3"
+
+r2 = ratFromInt(2, 4)
+print(ratToString(r2))  // "1/2" (auto-simplified)
+
+r3 = ratFromInt(-5, 10)
+print(ratToString(r3))  // "-1/2"
+
+// ratNew: (BigInt, BigInt) -> Rational
+num = bigIntNew("22")
+denom = bigIntNew("7")
+r4 = ratNew(num, denom)
+print(ratToString(r4))  // "22/7"
+
+print("=== Rational Access ===")
+
+// ratNumer: (Rational) -> BigInt
+// ratDenom: (Rational) -> BigInt
+print(bigIntToString(ratNumer(r1)))    // 1
+print(bigIntToString(ratDenom(r1)))  // 3
+
+frac = ratFromInt(3, 4)
+print(bigIntToString(ratNumer(frac)))    // 3
+print(bigIntToString(ratDenom(frac)))  // 4
+
+print("=== Rational Conversion ===")
+
+// ratToFloat: (Rational) -> Option<Float>
+print(ratToFloat(r1))   // Some(0.333...)
+print(ratToFloat(frac)) // Some(0.75)
+
+// ratToString: (Rational) -> String
+print(ratToString(ratFromInt(7, 8)))  // "7/8"
+
+print("=== Rational Operators ===")
+
+// Arithmetic via Numeric trait
+half = ratFromInt(1, 2)
+third = ratFromInt(1, 3)
+quarter = ratFromInt(1, 4)
+
+print(ratToString(half + third))      // "5/6"
+print(ratToString(half - third))      // "1/6"
+print(ratToString(half * third))      // "1/6"
+print(ratToString(half / third))      // "3/2"
+
+// Comparison
+print(half > third)   // true
+print(half == half)   // true
+print(quarter < third) // true
+
+print("=== Practical Examples ===")
+
+// Exact arithmetic (no floating point errors)
+sum = ratFromInt(1, 10) + ratFromInt(2, 10)
+print(ratToString(sum))  // "3/10" (exact)
+
+// Compare: 0.1 + 0.2 in floats often gives 0.30000000000000004
+print(ratToFloat(sum))  // Some(0.3)
+
+// Large factorial with BigInt
+fun factorial(n: BigInt) -> BigInt {
+    if bigIntToInt(n) == Some(0) { 1n }
+    else { n * factorial(n - 1n) }
+}
+
+print(factorial(20n))  // 2432902008176640000
+print(factorial(50n))  // huge number
+
+print("=== lib/bignum tests passed! ===")

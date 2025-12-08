@@ -1,0 +1,38 @@
+// Test tuple unpacking in let bindings
+
+// Simple unpacking with =
+pair = (1, 2)
+(a, b) = pair
+print(a)
+print(b)
+
+// Simple unpacking with :-
+pair2 :- (3, 4)
+(c, d) :- pair2
+print(c)
+print(d)
+
+// Direct unpacking
+(x, y) = (10, 20)
+print(x + y)
+
+// Nested tuple unpacking
+((p, q), r) = ((100, 200), 300)
+print(p)
+print(q)
+print(r)
+
+// Wildcard in pattern
+(first, _) = (42, 999)
+print(first)
+
+// Triple tuple
+(t1, t2, t3) = (1, 2, 3)
+print(t1 + t2 + t3)
+
+// Mix of types
+(num, str, flag) = (123, "hello", true)
+print(num)
+print(str)
+print(flag)
+

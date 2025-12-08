@@ -1,0 +1,9 @@
+--- AST Tree ---
+Program
+  TypeDeclaration (Alias)
+    Name: Identifier(Pair)
+    Target: TupleType(NamedType(Identifier(Int)), NamedType(Identifier(Bool)))
+
+
+--- Source Code ---
+type alias Pair = (Int, Bool)

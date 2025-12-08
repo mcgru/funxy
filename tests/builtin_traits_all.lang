@@ -1,0 +1,258 @@
+// Test: All built-in traits with custom types
+
+// ============================================
+// 1. Equal<T> - equality comparison
+// ============================================
+type Email = MkEmail String
+
+instance Equal Email {
+    operator (==)(a: Email, b: Email) -> Bool {
+        match (a, b) { (MkEmail x, MkEmail y) -> x == y }
+    }
+    operator (!=)(a: Email, b: Email) -> Bool {
+        match (a, b) { (MkEmail x, MkEmail y) -> x != y }
+    }
+}
+
+e1 = MkEmail("test@example.com")
+e2 = MkEmail("test@example.com")
+e3 = MkEmail("other@example.com")
+
+print(e1 == e2)  // true
+print(e1 == e3)  // false
+print(e1 != e3)  // true
+print(e1 != e2)  // false
+
+// ============================================
+// 2. Order<T> : Equal<T> - ordering
+// ============================================
+type Age = MkAge Int
+
+instance Equal Age {
+    operator (==)(a: Age, b: Age) -> Bool {
+        match (a, b) { (MkAge x, MkAge y) -> x == y }
+    }
+    operator (!=)(a: Age, b: Age) -> Bool {
+        match (a, b) { (MkAge x, MkAge y) -> x != y }
+    }
+}
+
+instance Order Age {
+    operator (<)(a: Age, b: Age) -> Bool {
+        match (a, b) { (MkAge x, MkAge y) -> x < y }
+    }
+    operator (>)(a: Age, b: Age) -> Bool {
+        match (a, b) { (MkAge x, MkAge y) -> x > y }
+    }
+    operator (<=)(a: Age, b: Age) -> Bool {
+        match (a, b) { (MkAge x, MkAge y) -> x <= y }
+    }
+    operator (>=)(a: Age, b: Age) -> Bool {
+        match (a, b) { (MkAge x, MkAge y) -> x >= y }
+    }
+}
+
+a1 = MkAge(25)
+a2 = MkAge(30)
+a3 = MkAge(25)
+
+print(a1 < a2)   // true
+print(a2 > a1)   // true
+print(a1 <= a3)  // true
+print(a2 >= a1)  // true
+print(a1 == a3)  // true (inherited from Equal)
+
+// ============================================
+// 3. Numeric<T> - arithmetic operations
+// ============================================
+type Money = MkMoney Int
+
+fun getMoney(m: Money) -> Int { match m { MkMoney x -> x } }
+
+instance Numeric Money {
+    operator (+)(a: Money, b: Money) -> Money {
+        match (a, b) { (MkMoney x, MkMoney y) -> MkMoney(x + y) }
+    }
+    operator (-)(a: Money, b: Money) -> Money {
+        match (a, b) { (MkMoney x, MkMoney y) -> MkMoney(x - y) }
+    }
+    operator (*)(a: Money, b: Money) -> Money {
+        match (a, b) { (MkMoney x, MkMoney y) -> MkMoney(x * y) }
+    }
+    operator (/)(a: Money, b: Money) -> Money {
+        match (a, b) { (MkMoney x, MkMoney y) -> MkMoney(x / y) }
+    }
+    operator (%)(a: Money, b: Money) -> Money {
+        match (a, b) { (MkMoney x, MkMoney y) -> MkMoney(x % y) }
+    }
+    operator (**)(a: Money, b: Money) -> Money {
+        match (a, b) { (MkMoney x, MkMoney y) -> MkMoney(x ** y) }
+    }
+}
+
+m1 = MkMoney(100)
+m2 = MkMoney(30)
+
+print(getMoney(m1 + m2))   // 130
+print(getMoney(m1 - m2))   // 70
+print(getMoney(m1 * m2))   // 3000
+print(getMoney(m1 / m2))   // 3
+print(getMoney(m1 % m2))   // 10
+print(getMoney(MkMoney(2) ** MkMoney(8)))  // 256
+
+// ============================================
+// 4. Bitwise<T> - bitwise operations
+// ============================================
+type Flags = MkFlags Int
+
+fun getFlags(f: Flags) -> Int { match f { MkFlags x -> x } }
+
+instance Bitwise Flags {
+    operator (&)(a: Flags, b: Flags) -> Flags {
+        match (a, b) { (MkFlags x, MkFlags y) -> MkFlags(x & y) }
+    }
+    operator (|)(a: Flags, b: Flags) -> Flags {
+        match (a, b) { (MkFlags x, MkFlags y) -> MkFlags(x | y) }
+    }
+    operator (^)(a: Flags, b: Flags) -> Flags {
+        match (a, b) { (MkFlags x, MkFlags y) -> MkFlags(x ^ y) }
+    }
+    operator (<<)(a: Flags, b: Flags) -> Flags {
+        match (a, b) { (MkFlags x, MkFlags y) -> MkFlags(x << y) }
+    }
+    operator (>>)(a: Flags, b: Flags) -> Flags {
+        match (a, b) { (MkFlags x, MkFlags y) -> MkFlags(x >> y) }
+    }
+}
+
+f1 = MkFlags(12)  // 1100
+f2 = MkFlags(10)  // 1010
+
+print(getFlags(f1 & f2))   // 8  (1000)
+print(getFlags(f1 | f2))   // 14 (1110)
+print(getFlags(f1 ^ f2))   // 6  (0110)
+print(getFlags(MkFlags(1) << MkFlags(4)))  // 16
+print(getFlags(MkFlags(32) >> MkFlags(2))) // 8
+
+// ============================================
+// 5. Concat<T> - concatenation
+// ============================================
+type Path = MkPath String
+
+fun getPath(p: Path) -> String { match p { MkPath x -> x } }
+
+instance Concat Path {
+    operator (++)(a: Path, b: Path) -> Path {
+        match (a, b) { (MkPath x, MkPath y) -> MkPath(x ++ "/" ++ y) }
+    }
+}
+
+p1 = MkPath("home")
+p2 = MkPath("user")
+p3 = MkPath("file.txt")
+
+print(getPath(p1 ++ p2))           // home/user
+print(getPath(p1 ++ p2 ++ p3))     // home/user/file.txt
+
+// ============================================
+// 6. Default<T> - default value
+// ============================================
+
+// 6a. ADT with custom getDefault
+type Counter = MkCounter Int
+
+fun getCounter(c: Counter) -> Int { match c { MkCounter x -> x } }
+
+instance Default Counter {
+    fun getDefault(dummy: Counter) -> Counter {
+        MkCounter(0)
+    }
+}
+
+c: Counter = default(Counter)
+print(getCounter(c))  // 0
+
+// 6b. Record type (auto-defaults fields)
+type Point = { x: Int, y: Int }
+
+instance Default Point {}
+
+pt: Point = default(Point)
+print(pt.x)  // 0
+print(pt.y)  // 0
+
+// 6c. Record with nested types
+type Config = { name: String, value: Int, enabled: Bool }
+
+instance Default Config {}
+
+cfg: Config = default(Config)
+print(cfg.name)     // (empty string)
+print(cfg.value)    // 0
+print(cfg.enabled)  // false
+
+// ============================================
+// 7. Verify primitives implement traits
+// ============================================
+
+// Equal for primitives
+print(42 == 42)        // true
+print(3.14 == 3.14)    // true
+print('a' == 'a')      // true
+print("hi" == "hi")    // true
+
+// Order for primitives
+print(1 < 2)           // true
+print(3.0 > 2.0)       // true
+print('a' < 'b')       // true
+print(false < true)    // true
+
+// Numeric for primitives
+print(10 + 5)          // 15
+print(10.0 - 3.0)      // 7.0
+print(100n * 2n)       // 200
+print(10r / 4r)        // 2.5 (rational)
+
+// Bitwise for Int
+print(12 & 10)         // 8
+print(12 | 10)         // 14
+print(1 << 4)          // 16
+
+// Default for primitives
+i: Int = default(Int)
+f: Float = default(Float)
+b: Bool = default(Bool)
+ch: Char = default(Char)
+
+print(i)   // 0
+print(f)   // 0
+print(b)   // false
+// char 0 prints nothing visible, skip
+
+// ============================================
+// 8. Operators as functions with traits
+// ============================================
+fun fold<T, R>(f: (R, T) -> R, init: R, list: List<T>) -> R {
+    match list {
+        [] -> init
+        [head, tail...] -> fold(f, f(init, head), tail)
+    }
+}
+
+// Using (+) as function
+sum = fold((+), 0, [1, 2, 3, 4, 5])
+print(sum)  // 15
+
+// Using (*) as function
+product = fold((*), 1, [1, 2, 3, 4])
+print(product)  // 24
+
+// Using (&&) and (||) as functions
+allTrue = fold((&&), true, [true, true, true])
+print(allTrue)  // true
+
+anyTrue = fold((||), false, [false, true, false])
+print(anyTrue)  // true
+
+print("All built-in traits work!")
+

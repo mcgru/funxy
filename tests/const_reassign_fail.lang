@@ -1,0 +1,5 @@
+// Test that cannot reassign constant with =
+a :- "hello"
+a = "world"  // ERROR: cannot reassign constant
+print(a)
+

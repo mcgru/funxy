@@ -1,0 +1,97 @@
+// Guard Patterns Tests
+
+// Basic guard with numbers
+fun classify(n: Int) -> String {
+    match n {
+        x if x > 0 -> "positive"
+        x if x < 0 -> "negative"
+        _ -> "zero"
+    }
+}
+
+print(classify(5))    // positive
+print(classify(-3))   // negative
+print(classify(0))    // zero
+
+// FizzBuzz with guards
+fun fizzbuzz(n: Int) -> String {
+    match n {
+        x if x % 15 == 0 -> "FizzBuzz"
+        x if x % 3 == 0 -> "Fizz"
+        x if x % 5 == 0 -> "Buzz"
+        x -> show(x)
+    }
+}
+
+print(fizzbuzz(3))    // Fizz
+print(fizzbuzz(5))    // Buzz
+print(fizzbuzz(15))   // FizzBuzz
+print(fizzbuzz(7))    // 7
+
+// Guards with tuple destructuring
+fun comparePair(pair: (Int, Int)) -> String {
+    match pair {
+        (a, b) if a == b -> "equal"
+        (a, b) if a > b -> "first"
+        (a, b) -> "second"
+    }
+}
+
+print(comparePair((5, 5)))   // equal
+print(comparePair((10, 3)))  // first
+print(comparePair((2, 8)))   // second
+
+// Guards with list patterns
+fun findPositive(xs: List<Int>) -> Option<Int> {
+    match xs {
+        [] -> Zero
+        [x, rest...] if x > 0 -> Some(x)
+        [_, rest...] -> findPositive(rest)
+    }
+}
+
+print(findPositive([-1, -2, 3, 4]))  // Some(3)
+print(findPositive([-1, -2]))        // Zero
+print(findPositive([5]))             // Some(5)
+
+// Guards with ADT
+type Shape = Circle Float | Rectangle Float Float
+
+fun area(s: Shape) -> Float {
+    match s {
+        Circle(r) if r <= 0.0 -> 0.0
+        Circle(r) -> 3.14159 * r * r
+        Rectangle(w, h) if w <= 0.0 -> 0.0
+        Rectangle(w, h) if h <= 0.0 -> 0.0
+        Rectangle(w, h) -> w * h
+    }
+}
+
+print(area(Circle(2.0)))         // ~12.56
+print(area(Circle(-1.0)))        // 0.0
+print(area(Rectangle(3.0, 4.0))) // 12.0
+print(area(Rectangle(-1.0, 4.0))) // 0.0
+
+// Guards with record patterns (using anonymous record type)
+fun canVote(u: { name: String, age: Int }) -> Bool {
+    match u {
+        { age: a } if a >= 18 -> true
+        _ -> false
+    }
+}
+
+print(canVote({ name: "Alice", age: 25 }))  // true
+print(canVote({ name: "Bob", age: 16 }))    // false
+
+// Complex guard expressions
+fun inRange(n: Int, low: Int, high: Int) -> Bool {
+    match n {
+        x if x >= low && x <= high -> true
+        _ -> false
+    }
+}
+
+print(inRange(5, 1, 10))   // true
+print(inRange(15, 1, 10))  // false
+print(inRange(0, 1, 10))   // false
+

@@ -1,0 +1,11 @@
+package reexport (Shape, Circle, Rectangle, Point, Config, Container, Box, NoShape, makeCircle, makeRect, makeConfig, Radius, Distance, Wrapper, Wrap, wrapShape)
+
+// Import and re-export shapes
+import "../shapes" (*)
+
+// Additional type defined here
+type Wrapper = Wrap(Shape)
+
+// Function that uses imported types
+wrapShape = fun(s: Shape) -> Wrapper { Wrap(s) }
+

@@ -1,0 +1,225 @@
+import "lib/test" (*)
+import "lib/list" (length, head, map, filter)
+import "lib/map" (*)
+
+// =============================================
+// Multiline Lists
+// =============================================
+
+testRun("Multiline list literal", fun() -> {
+    xs = [
+        1,
+        2,
+        3,
+    ]
+    assertEquals(length(xs), 3)
+})
+
+testRun("Multiline list with trailing comma", fun() -> {
+    xs = [
+        "a",
+        "b",
+        "c",
+    ]
+    assertEquals(head(xs), "a")
+})
+
+testRun("Multiline nested lists", fun() -> {
+    matrix = [
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9],
+    ]
+    assertEquals(length(matrix), 3)
+})
+
+// =============================================
+// Multiline Tuples
+// =============================================
+
+testRun("Multiline tuple literal", fun() -> {
+    t = (
+        1,
+        "hello",
+        true,
+    )
+    assertEquals(t, (1, "hello", true))
+})
+
+// =============================================
+// Multiline Records
+// =============================================
+
+testRun("Multiline record literal", fun() -> {
+    point = {
+        x: 10,
+        y: 20,
+        z: 30,
+    }
+    assertEquals(point.x, 10)
+    assertEquals(point.y, 20)
+})
+
+testRun("Multiline record with complex values", fun() -> {
+    config = {
+        name: "test",
+        values: [
+            1,
+            2,
+            3,
+        ],
+        nested: {
+            a: 1,
+            b: 2,
+        },
+    }
+    assertEquals(config.name, "test")
+    assertEquals(length(config.values), 3)
+})
+
+// =============================================
+// Multiline Maps
+// =============================================
+
+testRun("Multiline map literal", fun() -> {
+    m = %{
+        "a" => 1,
+        "b" => 2,
+        "c" => 3,
+    }
+    assertEquals(mapSize(m), 3)
+})
+
+testRun("Multiline map with trailing comma", fun() -> {
+    m = %{
+        1 => "one",
+        2 => "two",
+        3 => "three",
+    }
+    assertEquals(mapGet(m, 2), Some("two"))
+})
+
+testRun("Multiline map with complex keys", fun() -> {
+    m = %{
+        "key1" => [1, 2, 3],
+        "key2" => [4, 5, 6],
+    }
+    assertEquals(length(mapGetOr(m, "key1", [])), 3)
+})
+
+// =============================================
+// Multiline Function Calls
+// =============================================
+
+testRun("Multiline function arguments", fun() -> {
+    result = map(
+        fun(x) -> x * 2,
+        [1, 2, 3],
+    )
+    assertEquals(length(result), 3)
+})
+
+testRun("Nested multiline calls", fun() -> {
+    result = filter(
+        fun(x) -> x > 2,
+        map(
+            fun(x) -> x * 2,
+            [1, 2, 3],
+        ),
+    )
+    assertEquals(length(result), 2)
+})
+
+// =============================================
+// Multiline Match Arms
+// =============================================
+
+testRun("Multiline match expression", fun() -> {
+    value = Some(42)
+    result = match value {
+        Some(x) -> x * 2
+        Zero -> 0
+    }
+    assertEquals(result, 84)
+})
+
+// =============================================
+// Multiline If/Else
+// =============================================
+
+testRun("Multiline if expression", fun() -> {
+    x = 10
+    result = if x > 5 {
+        "big"
+    } else {
+        "small"
+    }
+    assertEquals(result, "big")
+})
+
+// =============================================
+// Multiline Function Definitions
+// =============================================
+
+fun multilineFunc(
+    a: Int,
+    b: Int,
+    c: Int,
+) -> Int {
+    a + b + c
+}
+
+testRun("Function with multiline params", fun() -> {
+    result = multilineFunc(
+        1,
+        2,
+        3,
+    )
+    assertEquals(result, 6)
+})
+
+// =============================================
+// Multiline Lambdas
+// =============================================
+
+testRun("Multiline lambda body", fun() -> {
+    f = fun(x) -> {
+        y = x * 2
+        z = y + 1
+        z
+    }
+    assertEquals(f(5), 11)
+})
+
+// =============================================
+// Multiline Pipe Chains
+// =============================================
+
+testRun("Multiline pipe chain", fun() -> {
+    result = [1, 2, 3, 4, 5]
+        |> filter(fun(x) -> x % 2 == 0)
+        |> map(fun(x) -> x * 10)
+    assertEquals(length(result), 2)
+})
+
+// =============================================
+// Mixed Multiline Constructs
+// =============================================
+
+testRun("Complex nested multiline", fun() -> {
+    data = {
+        items: [
+            %{
+                "name" => "item1",
+                "value" => "100",
+            },
+            %{
+                "name" => "item2",
+                "value" => "200",
+            },
+        ],
+        count: 2,
+    }
+    assertEquals(length(data.items), 2)
+})
+

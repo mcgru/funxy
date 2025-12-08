@@ -1,0 +1,30 @@
+type Point = { x: Int, y: Int }
+
+// Function expecting a Point
+fun printX(p: Point) {
+  print(p.x)
+}
+
+// Function expecting a smaller record
+fun printXSmall(p: { x: Int }) {
+  print(p.x)
+}
+
+// 1. Pass exact record
+p1 = { x: 1, y: 2 }
+printX(p1) // 1
+
+// 2. Pass larger record to function expecting smaller
+p3 = { x: 10, y: 20, z: 30 }
+printX(p3) // 10 (Point only needs x,y) - Wait, Point alias is exact {x,y} usually, but now we allow extra?
+           // If UnifyAllowExtra is used, yes.
+           // printX expects Point ({x,y}). p3 has {x,y,z}. Unify({x,y}, {x,y,z}) -> OK.
+
+// 3. Pass larger record to explicit smaller type
+printXSmall({ x: 100, other: "ignored" }) // 100
+
+// 4. Assignment
+pSmall: { x: Int } = { x: 5 }
+pSmall = { x: 6, y: 7 } // Should be allowed (pSmall only accessed as {x})
+print(pSmall.x) // 6
+
