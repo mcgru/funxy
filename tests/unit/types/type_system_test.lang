@@ -1,0 +1,494 @@
+// Comprehensive Type System Tests
+// Tests for type inference, type erasure, typeOf, getType, and edge cases
+
+import "lib/test" (*)
+import "lib/json" (jsonDecode)
+
+// ============================================================================
+// Basic Type Inference
+// ============================================================================
+
+testRun("Infer Int from literal", fun() {
+    x = 42
+    assert(typeOf(x, Int), "x should be Int")
+})
+
+testRun("Infer Float from literal", fun() {
+    x = 3.14
+    assert(typeOf(x, Float), "x should be Float")
+})
+
+testRun("Infer Bool from literal", fun() {
+    x = true
+    assert(typeOf(x, Bool), "x should be Bool")
+})
+
+testRun("Infer String from literal", fun() {
+    x = "hello"
+    assert(typeOf(x, List(Char)), "x should be List<Char>")
+})
+
+testRun("Infer Char from literal", fun() {
+    x = 'a'
+    assert(typeOf(x, Char), "x should be Char")
+})
+
+testRun("Infer List<Int> from elements", fun() {
+    x = [1, 2, 3]
+    assert(typeOf(x, List(Int)), "x should be List<Int>")
+})
+
+testRun("Infer List<String> from elements", fun() {
+    x = ["a", "b"]
+    assert(typeOf(x, List), "x should be List")
+})
+
+testRun("Infer nested List type", fun() {
+    x = [[1, 2], [3, 4]]
+    assert(typeOf(x, List), "x should be List")
+})
+
+testRun("Infer Record type", fun() {
+    x = { name: "Alice", age: 30 }
+    assert(typeOf(x.name, List(Char)), "name should be String")
+    assert(typeOf(x.age, Int), "age should be Int")
+})
+
+testRun("Tuple getType", fun() {
+    x = (1, "hello", true)
+    t = getType(x)
+    // Tuple type is (Int, List Char, Bool)
+    assert(t != getType(42), "tuple should not be Int")
+})
+
+// ============================================================================
+// Generic Function Inference
+// ============================================================================
+
+testRun("Generic identity function with Int", fun() {
+    fun identity<T>(x: T) -> T { x }
+    result = identity(42)
+    assertEquals(42, result)
+    assert(typeOf(result, Int), "result should be Int")
+})
+
+testRun("Generic identity function with String", fun() {
+    fun identity<T>(x: T) -> T { x }
+    result = identity("hello")
+    assertEquals("hello", result)
+    assert(typeOf(result, List(Char)), "result should be String")
+})
+
+testRun("Generic identity function with List", fun() {
+    fun identity<T>(x: T) -> T { x }
+    result = identity([1, 2, 3])
+    assertEquals([1, 2, 3], result)
+    assert(typeOf(result, List), "result should be List")
+})
+
+testRun("Generic swap function", fun() {
+    fun swap<A, B>(pair: (A, B)) -> (B, A) {
+        (a, b) = pair
+        (b, a)
+    }
+    result = swap((1, "hello"))
+    assertEquals(("hello", 1), result)
+})
+
+testRun("Generic const function", fun() {
+    fun myConst<A, B>(a: A, b: B) -> A { a }
+    result = myConst(42, "ignored")
+    assertEquals(42, result)
+})
+
+// ============================================================================
+// Polymorphic Constructors
+// ============================================================================
+
+testRun("Zero with explicit Int type", fun() {
+    z: Option<Int> = Zero
+    assert(typeOf(z, Option), "z should be Option")
+})
+
+testRun("Zero with explicit String type", fun() {
+    z: Option<String> = Zero
+    assert(typeOf(z, Option), "z should be Option")
+})
+
+testRun("Some infers type from value", fun() {
+    s = Some(42)
+    assert(typeOf(s, Option), "s should be Option")
+})
+
+testRun("Ok infers type from value", fun() {
+    r = Ok(42)
+    assert(typeOf(r, Result), "r should be Result")
+})
+
+testRun("Fail infers type from value", fun() {
+    r = Fail("error")
+    assert(typeOf(r, Result), "r should be Result")
+})
+
+testRun("Zero and Some have same base type at runtime", fun() {
+    z: Option<Int> = Zero
+    s = Some(42)
+    // Both should be Option at runtime (type erasure)
+    assert(show(getType(z)) == show(getType(s)), "should have same base type")
+})
+
+testRun("Ok and Fail have same base type at runtime", fun() {
+    o = Ok(42)
+    f = Fail("error")
+    // Both should be Result at runtime
+    assert(show(getType(o)) == show(getType(f)), "should have same base type")
+})
+
+// ============================================================================
+// Type Erasure
+// ============================================================================
+
+testRun("getType erases Option parameter", fun() {
+    o1: Option<Int> = Some(42)
+    o2: Option<String> = Some("hi")
+    // Use string comparison to avoid type mismatch
+    assertEquals(show(getType(o1)), show(getType(o2)))
+})
+
+testRun("getType erases Result parameters", fun() {
+    r1 = Ok(42)
+    r2 = Ok("hi")
+    assertEquals(show(getType(r1)), show(getType(r2)))
+})
+
+testRun("getType shows Option without element type", fun() {
+    o = Some(42)
+    t = getType(o)
+    assertEquals("type(Option)", show(t))
+})
+
+testRun("getType shows List with element type for concrete lists", fun() {
+    list = [1, 2, 3]
+    t = getType(list)
+    assertEquals("type((List Int))", show(t))
+})
+
+testRun("getType for empty list", fun() {
+    list: List<Int> = []
+    assert(typeOf(list, List), "empty list should be List")
+})
+
+testRun("getType for String", fun() {
+    s = "hello"
+    t = getType(s)
+    assertEquals("type((List Char))", show(t))
+})
+
+// ============================================================================
+// typeOf Function
+// ============================================================================
+
+testRun("typeOf Int positive", fun() {
+    assert(typeOf(42, Int), "42 should be Int")
+})
+
+testRun("typeOf Int negative", fun() {
+    assert(!typeOf("hello", Int), "string should not be Int")
+})
+
+testRun("typeOf String positive", fun() {
+    assert(typeOf("hello", List(Char)), "string should be List<Char>")
+})
+
+testRun("typeOf List positive", fun() {
+    assert(typeOf([1, 2, 3], List), "array should be List")
+})
+
+testRun("typeOf List with param positive", fun() {
+    assert(typeOf([1, 2, 3], List(Int)), "int array should be List<Int>")
+})
+
+testRun("typeOf Option positive", fun() {
+    assert(typeOf(Some(42), Option), "Some should be Option")
+})
+
+testRun("typeOf Zero positive", fun() {
+    assert(typeOf(Zero, Option), "Zero should be Option")
+})
+
+testRun("typeOf Result positive", fun() {
+    assert(typeOf(Ok(42), Result), "Ok should be Result")
+})
+
+testRun("typeOf Fail positive", fun() {
+    assert(typeOf(Fail("err"), Result), "Fail should be Result")
+})
+
+testRun("typeOf Map positive", fun() {
+    assert(typeOf(%{ "a" => 1 }, Map), "map should be Map")
+})
+
+testRun("typeOf Bool positive", fun() {
+    assert(typeOf(true, Bool), "true should be Bool")
+    assert(typeOf(false, Bool), "false should be Bool")
+})
+
+testRun("typeOf Float positive", fun() {
+    assert(typeOf(3.14, Float), "3.14 should be Float")
+})
+
+testRun("typeOf Char positive", fun() {
+    assert(typeOf('a', Char), "char should be Char")
+})
+
+// ============================================================================
+// Comparing Types
+// ============================================================================
+
+testRun("Same base types are equal", fun() {
+    t1 = show(getType(Some(1)))
+    t2 = show(getType(Some("x")))
+    assertEquals(t1, t2)
+})
+
+testRun("Different base types are not equal", fun() {
+    assert(getType(Some(1)) != getType(Ok(1)), "Option != Result")
+})
+
+testRun("Int and Float are different", fun() {
+    assert(getType(42) != getType(3.14), "Int != Float")
+})
+
+testRun("List and Map are different", fun() {
+    assert(getType([1]) != getType(%{ "a" => 1 }), "List != Map")
+})
+
+// ============================================================================
+// Custom ADT Type Inference
+// ============================================================================
+
+type Color = Red | Green | Blue
+type Tree<T> = Leaf T | Branch (Tree<T>, Tree<T>)
+
+testRun("Custom enum ADT", fun() {
+    c = Red
+    assert(show(getType(c)) == show(getType(Green)), "Red == Green type")
+    assert(show(getType(c)) == show(getType(Blue)), "Red == Blue type")
+})
+
+testRun("Custom generic ADT", fun() {
+    t1 = Leaf(42)
+    t2 = Leaf("hello")
+    // Both Tree (erased) - compare as strings
+    assertEquals(show(getType(t1)), show(getType(t2)))
+})
+
+testRun("Nested custom ADT", fun() {
+    t = Branch((Leaf(1), Leaf(2)))
+    assert(typeOf(t, Tree), "should be Tree")
+})
+
+// ============================================================================
+// Type Aliases
+// ============================================================================
+
+type alias UserId = Int
+type alias Email = String
+
+testRun("Type alias resolves to underlying type", fun() {
+    userId: UserId = 42
+    assert(typeOf(userId, Int), "UserId should be Int")
+})
+
+testRun("String alias is List<Char>", fun() {
+    email: Email = "test@example.com"
+    assert(typeOf(email, List(Char)), "Email should be List<Char>")
+})
+
+// ============================================================================
+// Union Types
+// ============================================================================
+
+testRun("Union type Int | String with Int", fun() {
+    x: Int | String = 42
+    assert(typeOf(x, Int), "x should be Int")
+})
+
+testRun("Union type Int | String with String", fun() {
+    x: Int | String = "hello"
+    assert(typeOf(x, List(Char)), "x should be String")
+})
+
+testRun("Nullable type with value", fun() {
+    x: Int? = 42
+    assert(typeOf(x, Int), "x should be Int")
+})
+
+testRun("Nullable type with Nil", fun() {
+    x: Int? = Nil
+    assertEquals("type(Nil)", show(getType(x)))
+})
+
+// ============================================================================
+// JSON Dynamic Data
+// ============================================================================
+
+testRun("jsonDecode returns Int", fun() {
+    match jsonDecode("42") {
+        Ok(data) -> assert(typeOf(data, Int), "should be Int")
+        Fail(_) -> assert(false, "should not fail")
+    }
+})
+
+testRun("jsonDecode returns String", fun() {
+    match jsonDecode("\"hello\"") {
+        Ok(data) -> assert(typeOf(data, List(Char)), "should be String")
+        Fail(_) -> assert(false, "should not fail")
+    }
+})
+
+testRun("jsonDecode returns List", fun() {
+    match jsonDecode("[1, 2, 3]") {
+        Ok(data) -> assert(typeOf(data, List), "should be List")
+        Fail(_) -> assert(false, "should not fail")
+    }
+})
+
+testRun("jsonDecode returns Bool", fun() {
+    match jsonDecode("true") {
+        Ok(data) -> assert(typeOf(data, Bool), "should be Bool")
+        Fail(_) -> assert(false, "should not fail")
+    }
+})
+
+testRun("jsonDecode returns Nil for null", fun() {
+    match jsonDecode("null") {
+        Ok(data) -> assertEquals("type(Nil)", show(getType(data)))
+        Fail(_) -> assert(false, "should not fail")
+    }
+})
+
+testRun("jsonDecode returns Record for object", fun() {
+    match jsonDecode("{\"x\":1}") {
+        Ok(data) -> {
+            assert(typeOf(data.x, Int), "x should be Int")
+        }
+        Fail(_) -> assert(false, "should not fail")
+    }
+})
+
+// ============================================================================
+// Edge Cases
+// ============================================================================
+
+testRun("Empty list type", fun() {
+    list: List<Int> = []
+    assert(typeOf(list, List), "empty list should be List")
+})
+
+testRun("Empty map type", fun() {
+    m: Map<String, Int> = %{}
+    assert(typeOf(m, Map), "empty map should be Map")
+})
+
+testRun("Empty tuple", fun() {
+    t = ()
+    assert(getType(t) != getType(42), "unit should not be Int")
+})
+
+testRun("Deeply nested List", fun() {
+    x = [[[1]]]
+    assert(typeOf(x, List), "deeply nested should be List")
+})
+
+testRun("BigInt type", fun() {
+    n = 12345678901234567890n
+    assert(typeOf(n, BigInt), "should be BigInt")
+})
+
+testRun("Function type", fun() {
+    f = fun(x: Int) -> x + 1
+    t = getType(f)
+    assert(t != getType(42), "function should not be Int")
+})
+
+testRun("Nil type", fun() {
+    n = Nil
+    assertEquals("type(Nil)", show(getType(n)))
+})
+
+testRun("Bytes type", fun() {
+    b = @"hello"
+    assertEquals("type(Bytes)", show(getType(b)))
+})
+
+testRun("Record with spread preserves type", fun() {
+    type Point = { x: Int, y: Int }
+    p1: Point = { x: 1, y: 2 }
+    p2 = { ...p1, x: 10 }
+    assertEquals(show(getType(p1)), show(getType(p2)))
+})
+
+testRun("Pattern matching preserves types", fun() {
+    opt = Some(42)
+    result = match opt {
+        Some(x) -> x
+        Zero -> 0
+    }
+    assert(typeOf(result, Int), "result should be Int")
+})
+
+testRun("List operations preserve type", fun() {
+    list1 = [1, 2, 3]
+    list2 = list1 ++ [4, 5]
+    assertEquals(show(getType(list1)), show(getType(list2)))
+})
+
+testRun("Comparison with type objects", fun() {
+    t1 = Int
+    t2 = Int
+    t3 = String
+    assert(t1 == t2, "Int == Int")
+    assert(t1 != t3, "Int != String")
+})
+
+testRun("Type as value in typeOf", fun() {
+    t = List(Int)
+    assert(typeOf([1,2,3], t), "should match List<Int>")
+})
+
+// ============================================================================
+// Type Erasure Edge Cases
+// ============================================================================
+
+testRun("Different Option contents same type", fun() {
+    o1 = Some(42)
+    o2 = Some([1,2,3])
+    o3 = Some({ x: 1 })
+    // All should be type(Option)
+    assertEquals("type(Option)", show(getType(o1)))
+    assertEquals("type(Option)", show(getType(o2)))
+    assertEquals("type(Option)", show(getType(o3)))
+})
+
+testRun("Zero is always Option", fun() {
+    z1: Option<Int> = Zero
+    z2: Option<List<String>> = Zero
+    assertEquals("type(Option)", show(getType(z1)))
+    assertEquals("type(Option)", show(getType(z2)))
+})
+
+testRun("Nested Option type", fun() {
+    o: Option<Option<Int>> = Some(Some(42))
+    // Outer is Option (erased)
+    assertEquals("type(Option)", show(getType(o)))
+})
+
+testRun("Result with different error types", fun() {
+    r1: Result<String, Int> = Ok(42)
+    r2: Result<Int, Int> = Ok(42)
+    assertEquals("type(Result)", show(getType(r1)))
+    assertEquals("type(Result)", show(getType(r2)))
+})
+
+print("type_system_test: all tests passed!")

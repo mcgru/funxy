@@ -319,12 +319,12 @@ func main() {
 	// Catch panics and show user-friendly error
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Fprintf(os.Stderr, "Internal error: %v\n", r)
-			fmt.Fprintln(os.Stderr, "This is a bug. Please report it.")
 			// Print stack trace for debugging
 			if os.Getenv("DEBUG") == "1" {
 				panic(r) // Re-panic to get stack trace
 			}
+			fmt.Fprintf(os.Stderr, "Internal error: %v\n", r)
+			fmt.Fprintln(os.Stderr, "This is a bug. Please report it.")
 			os.Exit(1)
 		}
 	}()

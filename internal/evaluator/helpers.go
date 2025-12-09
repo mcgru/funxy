@@ -644,6 +644,9 @@ func (e *Evaluator) applyFunction(fn Object, args []Object) Object {
 				RemainingParams: fn.Arity - len(args),
 			}
 		}
+		// Note: TypeArgs is not inferred from fields - that would incorrectly treat
+		// constructor arguments (e.g., Circle Int) as type parameters.
+		// TypeArgs should only be set when the type is actually generic.
 		return &DataInstance{Name: fn.Name, Fields: args, TypeName: fn.TypeName}
 	case *TypeObject:
 		var typeArgs []typesystem.Type

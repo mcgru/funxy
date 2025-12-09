@@ -330,7 +330,7 @@ fun handler(req) {
     }
 }
 
-httpServe(8080, handler)
+// httpServe(8080, handler)
 ```
 
 ### Pattern Priority
@@ -355,3 +355,174 @@ match "/prefix/" {
     "/prefix/{suffix}" -> "got: [" ++ suffix ++ "]"  // got: []
     _ -> "no match"
 }
+```
+
+### Escaping Braces
+
+To match literal `{` and `}` characters, use double braces:
+
+- `{{` matches literal `{`
+- `}}` matches literal `}`
+
+```rust
+// String contains literal braces
+s = "value {x}"
+
+match s {
+    "value {{x}}" -> print("matched literal {x}")
+    "value {captured}" -> print("captured: " ++ captured)
+    _ -> print("no match")
+}
+// Result: "matched literal {x}"
+```
+
+Mixed example with both literal braces and capture:
+
+```rust
+s = "prefix {literal} suffix value"
+
+match s {
+    "prefix {{literal}} suffix {val}" -> print("val = " ++ val)
+    _ -> print("no match")
+}
+// Result: "val = value"
+```
+
+## Pin Operator (^)
+
+The pin operator `^` allows matching against an **existing variable's value** instead of creating a new binding.
+
+### Problem: Pattern Variables Create New Bindings
+
+By default, identifiers in patterns create new bindings:
+
+```rust
+someAge = 18
+user = { name: "Alice", age: 25 }
+
+match user {
+    { age: someAge } -> print("Age: " ++ show(someAge))  // someAge = 25 (new binding!)
+    _ -> print("No match")
+}
+// Prints: Age: 25
+```
+
+The pattern `{ age: someAge }` doesn't compare with the outer `someAge = 18`. Instead, it creates a new variable `someAge` bound to the record's age.
+
+### Solution: Pin Operator
+
+Use `^` to compare with an existing value:
+
+```rust
+someAge = 18
+user = { name: "Alice", age: 25 }
+
+match user {
+    { age: ^someAge } -> print("Exact match!")  // Compares: 25 == 18? No
+    _ -> print("No match")
+}
+// Prints: No match
+```
+
+Now `^someAge` means "compare with the value of `someAge`", not "bind to a new variable".
+
+### Examples
+
+#### Basic Pin
+
+```rust
+x = 5
+match 5 {
+    ^x -> "matched"   // 5 == 5? Yes
+    _ -> "no"
+}
+// Result: "matched"
+
+match 10 {
+    ^x -> "matched"   // 10 == 5? No
+    _ -> "no"
+}
+// Result: "no"
+```
+
+#### Pin in Records
+
+```rust
+expectedAge = 18
+
+users = [
+    { name: "Alice", age: 18 },
+    { name: "Bob", age: 25 }
+]
+
+for user in users {
+    match user {
+        { name: name, age: ^expectedAge } -> print(name ++ " is 18")
+        { name: name } -> print(name ++ " is not 18")
+    }
+}
+// Alice is 18
+// Bob is not 18
+```
+
+#### Pin in Tuples
+
+```rust
+x = 1
+y = 2
+match (1, 2) {
+    (^x, ^y) -> "exact match"
+    _ -> "no"
+}
+// Result: "exact match"
+```
+
+#### Pin in Constructor Patterns
+
+```rust
+expected = 42
+opt = Some(42)
+
+match opt {
+    Some(^expected) -> "matched 42"
+    Some(n) -> "got " ++ show(n)
+    Zero -> "empty"
+}
+// Result: "matched 42"
+```
+
+#### Pin with Complex Values
+
+Pin works with any comparable value, including lists:
+
+```rust
+expected = [1, 2, 3]
+match [1, 2, 3] {
+    ^expected -> "same list"
+    _ -> "different"
+}
+// Result: "same list"
+```
+
+### Pin vs Guard
+
+Both can match against existing values:
+
+```rust
+someAge = 18
+user = { name: "Alice", age: 18 }
+
+// Using pin (concise)
+match user {
+    { age: ^someAge } -> "exact"
+    _ -> "other"
+}
+
+// Using guard (equivalent)
+match user {
+    { age: a } if a == someAge -> "exact"
+    _ -> "other"
+}
+```
+
+Pin is more concise when comparing a single value. Guards are more flexible for complex conditions.

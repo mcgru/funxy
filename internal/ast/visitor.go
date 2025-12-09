@@ -59,6 +59,7 @@ type Visitor interface {
 	VisitRecordPattern(n *RecordPattern)
 	VisitTypePattern(n *TypePattern)
 	VisitStringPattern(n *StringPattern)
+	VisitPinPattern(n *PinPattern)
 	VisitMemberExpression(n *MemberExpression)
 	// Loops
 	VisitForExpression(n *ForExpression)

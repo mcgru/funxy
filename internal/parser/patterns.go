@@ -44,7 +44,7 @@ func (p *Parser) parsePattern() ast.Pattern {
 	// If we removed registerPrefix(UNDERSCORE), then p.parseExpression(LOWEST) won't work if it starts with _.
 	// But patterns are NOT expressions. They are parsed via parsePattern.
 	// So checking here is correct.
-	
+
 	return p.parseAtomicPattern()
 }
 
@@ -82,6 +82,13 @@ func (p *Parser) parseRecordPattern() ast.Pattern {
 
 func (p *Parser) parseAtomicPattern() ast.Pattern {
 	switch p.curToken.Type {
+	case token.CARET:
+		// Pin pattern: ^variable (compare with existing value)
+		caretToken := p.curToken
+		if !p.expectPeek(token.IDENT_LOWER) {
+			return nil
+		}
+		return &ast.PinPattern{Token: caretToken, Name: p.curToken.Literal.(string)}
 	case token.INT:
 		return &ast.LiteralPattern{Token: p.curToken, Value: p.curToken.Literal}
 	case token.TRUE, token.FALSE:
@@ -223,7 +230,7 @@ func (p *Parser) parseConstructorPattern() ast.Pattern {
 		}
 
 		p.nextToken() // move to start of first argument
-		
+
 		// First arg
 		pat := p.parsePattern()
 		cp.Elements = append(cp.Elements, pat)
@@ -247,34 +254,35 @@ func (p *Parser) parseConstructorPattern() ast.Pattern {
 	// Actually, ML style arguments are atomic patterns.
 	// Cons (a, b) c -> Cons has 2 args: (a,b) and c.
 	// Cons a b -> Cons has 2 args: a and b.
-	
+
 	// We should look ahead.
 	for {
-		if p.peekTokenIs(token.ARROW) || p.peekTokenIs(token.COMMA) || 
-		   p.peekTokenIs(token.RPAREN) || p.peekTokenIs(token.RBRACE) || 
-		   p.peekTokenIs(token.RBRACKET) || p.peekTokenIs(token.EOF) ||
-		   p.peekTokenIs(token.COLON) { // Colon for type annotation? Or record field?
+		if p.peekTokenIs(token.ARROW) || p.peekTokenIs(token.COMMA) ||
+			p.peekTokenIs(token.RPAREN) || p.peekTokenIs(token.RBRACE) ||
+			p.peekTokenIs(token.RBRACKET) || p.peekTokenIs(token.EOF) ||
+			p.peekTokenIs(token.COLON) { // Colon for type annotation? Or record field?
 			break
 		}
-		
+
 		// If next token is NOT a start of atomic pattern, break.
 		// Atomic starts: INT, TRUE, FALSE, STRING, CHAR, UNDERSCORE, IDENT, LPAREN, LBRACKET, LBRACE?
 		// LBRACE is Record. LBRACKET is List.
 		// Wait, Cons {x:1} is valid.
-		
+
 		// Note: parseAtomicPattern handles these.
 		// We can try to parse. But if we parse something that is NOT a pattern, we fail.
 		// But parser expects pattern.
-		
+
 		// Check peek token type.
 		tt := p.peekToken.Type
-		if tt != token.INT && tt != token.TRUE && tt != token.FALSE && 
-		   tt != token.STRING && tt != token.CHAR && tt != token.UNDERSCORE &&
-		   tt != token.IDENT_LOWER && tt != token.IDENT_UPPER &&
-		   tt != token.LPAREN && tt != token.LBRACKET && tt != token.LBRACE {
+		if tt != token.INT && tt != token.TRUE && tt != token.FALSE &&
+			tt != token.STRING && tt != token.CHAR && tt != token.UNDERSCORE &&
+			tt != token.IDENT_LOWER && tt != token.IDENT_UPPER &&
+			tt != token.LPAREN && tt != token.LBRACKET && tt != token.LBRACE &&
+			tt != token.CARET {
 			break
 		}
-		
+
 		p.nextToken()
 		arg := p.parseAtomicPattern() // Only atomic patterns are allowed as args in ML style (without parens)
 		if arg == nil {
@@ -287,55 +295,57 @@ func (p *Parser) parseConstructorPattern() ast.Pattern {
 }
 
 // parseStringPatternParts parses a string looking for {name} or {name...} capture patterns.
-// Returns nil if no captures found (plain string), otherwise returns the parts.
+// Returns nil if no captures found AND no escape sequences (plain string), otherwise returns the parts.
+// Supports escaping: {{ becomes literal {, }} becomes literal }
 func (p *Parser) parseStringPatternParts(s string) []ast.StringPatternPart {
 	var parts []ast.StringPatternPart
 	hasCapture := false
-	
+	hasEscape := false
+	var currentLiteral string
+
 	i := 0
 	for i < len(s) {
-		// Look for '{'
-		start := i
-		for i < len(s) && s[i] != '{' {
-			i++
-		}
-		
-		// Add literal part if any
-		if i > start {
-			parts = append(parts, ast.StringPatternPart{
-				IsCapture: false,
-				Value:     s[start:i],
-			})
-		}
-		
-		// If we found '{'
-		if i < len(s) && s[i] == '{' {
+		if s[i] == '{' {
+			// Check for escaped {{ -> literal {
+			if i+1 < len(s) && s[i+1] == '{' {
+				currentLiteral += "{"
+				hasEscape = true
+				i += 2
+				continue
+			}
+
+			// Flush current literal if any
+			if currentLiteral != "" {
+				parts = append(parts, ast.StringPatternPart{
+					IsCapture: false,
+					Value:     currentLiteral,
+				})
+				currentLiteral = ""
+			}
+
 			i++ // skip '{'
-			
+
 			// Find the closing '}'
 			nameStart := i
 			for i < len(s) && s[i] != '}' {
 				i++
 			}
-			
+
 			if i >= len(s) {
 				// No closing '}' - treat as literal
-				parts = append(parts, ast.StringPatternPart{
-					IsCapture: false,
-					Value:     "{" + s[nameStart:],
-				})
+				currentLiteral += "{" + s[nameStart:]
 				break
 			}
-			
+
 			name := s[nameStart:i]
 			greedy := false
-			
+
 			// Check for greedy pattern {name...}
 			if len(name) > 3 && name[len(name)-3:] == "..." {
 				name = name[:len(name)-3]
 				greedy = true
 			}
-			
+
 			// Validate capture name (must be valid identifier)
 			if isValidIdentifier(name) {
 				parts = append(parts, ast.StringPatternPart{
@@ -346,20 +356,41 @@ func (p *Parser) parseStringPatternParts(s string) []ast.StringPatternPart {
 				hasCapture = true
 			} else {
 				// Invalid name - treat as literal
-				parts = append(parts, ast.StringPatternPart{
-					IsCapture: false,
-					Value:     "{" + s[nameStart:i] + "}",
-				})
+				currentLiteral += "{" + s[nameStart:i] + "}"
 			}
-			
+
 			i++ // skip '}'
+		} else if s[i] == '}' {
+			// Check for escaped }} -> literal }
+			if i+1 < len(s) && s[i+1] == '}' {
+				currentLiteral += "}"
+				hasEscape = true
+				i += 2
+				continue
+			}
+			// Single } without matching { - just a literal
+			currentLiteral += "}"
+			i++
+		} else {
+			currentLiteral += string(s[i])
+			i++
 		}
 	}
-	
-	if !hasCapture {
-		return nil // No captures - use regular LiteralPattern
+
+	// Flush remaining literal
+	if currentLiteral != "" {
+		parts = append(parts, ast.StringPatternPart{
+			IsCapture: false,
+			Value:     currentLiteral,
+		})
 	}
-	
+
+	// Return parts if we have captures OR escape sequences
+	// (escape sequences need StringPattern to properly compare the unescaped value)
+	if !hasCapture && !hasEscape {
+		return nil // Plain string - use regular LiteralPattern
+	}
+
 	return parts
 }
 
@@ -381,4 +412,3 @@ func isValidIdentifier(s string) bool {
 	}
 	return true
 }
-

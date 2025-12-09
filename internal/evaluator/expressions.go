@@ -387,7 +387,7 @@ func (e *Evaluator) evalMatchExpression(node *ast.MatchExpression, env *Environm
 	}
 
 	for _, arm := range node.Arms {
-		matched, newBindings := e.matchPattern(arm.Pattern, val)
+		matched, newBindings := e.matchPattern(arm.Pattern, val, env)
 		if matched {
 			armEnv := NewEnclosedEnvironment(env)
 			for k, v := range newBindings {
@@ -417,7 +417,7 @@ func (e *Evaluator) evalMatchExpression(node *ast.MatchExpression, env *Environm
 		val.Inspect(), val.Type())
 }
 
-func (e *Evaluator) matchPattern(pat ast.Pattern, val Object) (bool, map[string]Object) {
+func (e *Evaluator) matchPattern(pat ast.Pattern, val Object, env *Environment) (bool, map[string]Object) {
 	bindings := make(map[string]Object)
 
 	switch p := pat.(type) {
@@ -427,6 +427,15 @@ func (e *Evaluator) matchPattern(pat ast.Pattern, val Object) (bool, map[string]
 	case *ast.IdentifierPattern:
 		bindings[p.Value] = val
 		return true, bindings
+
+	case *ast.PinPattern:
+		// Pin pattern: compare with existing variable value
+		pinnedVal, ok := env.Get(p.Name)
+		if !ok {
+			return false, bindings
+		}
+		// Compare values using equality
+		return objectsEqual(pinnedVal, val), bindings
 
 	case *ast.LiteralPattern:
 		if intVal, ok := val.(*Integer); ok {
@@ -498,7 +507,7 @@ func (e *Evaluator) matchPattern(pat ast.Pattern, val Object) (bool, map[string]
 		}
 
 		for i, el := range p.Elements {
-			matched, subBindings := e.matchPattern(el, dataVal.Fields[i])
+			matched, subBindings := e.matchPattern(el, dataVal.Fields[i], env)
 			if !matched {
 				return false, bindings
 			}
@@ -528,7 +537,7 @@ func (e *Evaluator) matchPattern(pat ast.Pattern, val Object) (bool, map[string]
 			}
 
 			for i := 0; i < fixedCount; i++ {
-				matched, subBindings := e.matchPattern(p.Elements[i], listVal.get(i))
+				matched, subBindings := e.matchPattern(p.Elements[i], listVal.get(i), env)
 				if !matched {
 					return false, bindings
 				}
@@ -540,7 +549,7 @@ func (e *Evaluator) matchPattern(pat ast.Pattern, val Object) (bool, map[string]
 			spreadPat := p.Elements[fixedCount].(*ast.SpreadPattern)
 			restList := listVal.slice(fixedCount, listVal.len())
 
-			matched, subBindings := e.matchPattern(spreadPat.Pattern, restList)
+			matched, subBindings := e.matchPattern(spreadPat.Pattern, restList, env)
 			if !matched {
 				return false, bindings
 			}
@@ -554,7 +563,7 @@ func (e *Evaluator) matchPattern(pat ast.Pattern, val Object) (bool, map[string]
 				return false, bindings
 			}
 			for i, el := range p.Elements {
-				matched, subBindings := e.matchPattern(el, listVal.get(i))
+				matched, subBindings := e.matchPattern(el, listVal.get(i), env)
 				if !matched {
 					return false, bindings
 				}
@@ -584,7 +593,7 @@ func (e *Evaluator) matchPattern(pat ast.Pattern, val Object) (bool, map[string]
 					}
 
 					for i := 0; i < fixedCount; i++ {
-						matched, subBindings := e.matchPattern(p.Elements[i], listVal.get(i))
+						matched, subBindings := e.matchPattern(p.Elements[i], listVal.get(i), env)
 						if !matched {
 							return false, bindings
 						}
@@ -596,7 +605,7 @@ func (e *Evaluator) matchPattern(pat ast.Pattern, val Object) (bool, map[string]
 					spreadPat := p.Elements[fixedCount].(*ast.SpreadPattern)
 					restList := listVal.slice(fixedCount, listVal.len())
 
-					matched, subBindings := e.matchPattern(spreadPat.Pattern, restList)
+					matched, subBindings := e.matchPattern(spreadPat.Pattern, restList, env)
 					if !matched {
 						return false, bindings
 					}
@@ -610,7 +619,7 @@ func (e *Evaluator) matchPattern(pat ast.Pattern, val Object) (bool, map[string]
 						return false, bindings
 					}
 					for i, el := range p.Elements {
-						matched, subBindings := e.matchPattern(el, listVal.get(i))
+						matched, subBindings := e.matchPattern(el, listVal.get(i), env)
 						if !matched {
 							return false, bindings
 						}
@@ -638,7 +647,7 @@ func (e *Evaluator) matchPattern(pat ast.Pattern, val Object) (bool, map[string]
 			}
 
 			for i := 0; i < fixedCount; i++ {
-				matched, subBindings := e.matchPattern(p.Elements[i], tupleVal.Elements[i])
+				matched, subBindings := e.matchPattern(p.Elements[i], tupleVal.Elements[i], env)
 				if !matched {
 					return false, bindings
 				}
@@ -651,7 +660,7 @@ func (e *Evaluator) matchPattern(pat ast.Pattern, val Object) (bool, map[string]
 			restElements := tupleVal.Elements[fixedCount:]
 			restTuple := &Tuple{Elements: restElements}
 
-			matched, subBindings := e.matchPattern(spreadPat.Pattern, restTuple)
+			matched, subBindings := e.matchPattern(spreadPat.Pattern, restTuple, env)
 			if !matched {
 				return false, bindings
 			}
@@ -666,7 +675,7 @@ func (e *Evaluator) matchPattern(pat ast.Pattern, val Object) (bool, map[string]
 				return false, bindings
 			}
 			for i, el := range p.Elements {
-				matched, subBindings := e.matchPattern(el, tupleVal.Elements[i])
+				matched, subBindings := e.matchPattern(el, tupleVal.Elements[i], env)
 				if !matched {
 					return false, bindings
 				}
@@ -687,7 +696,7 @@ func (e *Evaluator) matchPattern(pat ast.Pattern, val Object) (bool, map[string]
 			if !ok {
 				return false, bindings // Field missing
 			}
-			matched, subBindings := e.matchPattern(subPat, fieldVal)
+			matched, subBindings := e.matchPattern(subPat, fieldVal, env)
 			if !matched {
 				return false, bindings
 			}

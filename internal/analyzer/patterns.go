@@ -20,6 +20,15 @@ func inferPattern(ctx *InferenceContext, pat ast.Pattern, expectedType typesyste
 		table.Define(p.Value, expectedType, "")
 		return typesystem.Subst{}, nil
 
+	case *ast.PinPattern:
+		// Pin pattern: ^variable (compare with existing value, no new binding)
+		sym, ok := table.Find(p.Name)
+		if !ok {
+			return nil, inferErrorf(p, "undefined variable in pin pattern: %s", p.Name)
+		}
+		// Unify the pinned variable's type with expected type
+		return typesystem.Unify(expectedType, sym.Type)
+
 	case *ast.TypePattern:
 		// Type pattern: n: Int
 		// Build the type from AST
@@ -28,7 +37,7 @@ func inferPattern(ctx *InferenceContext, pat ast.Pattern, expectedType typesyste
 		if len(errs) > 0 {
 			return nil, errs[0]
 		}
-		
+
 		// Check if expected type can contain this pattern type
 		// For union types, check if patternType is a member
 		// For non-union types, unify directly
@@ -50,7 +59,7 @@ func inferPattern(ctx *InferenceContext, pat ast.Pattern, expectedType typesyste
 				return nil, inferErrorf(p, "type pattern %s does not match expected type %s", patternType, expectedType)
 			}
 		}
-		
+
 		// Bind the variable with the narrowed type
 		if p.Name != "_" {
 			table.Define(p.Name, patternType, "")
@@ -93,7 +102,7 @@ func inferPattern(ctx *InferenceContext, pat ast.Pattern, expectedType typesyste
 	case *ast.ConstructorPattern:
 		sym, ok := table.Find(p.Name.Value)
 		if !ok || sym.Kind != symbols.ConstructorSymbol {
-				return nil, inferErrorf(p, "undefined constructor: %s", p.Name.Value)
+			return nil, inferErrorf(p, "undefined constructor: %s", p.Name.Value)
 		}
 
 		freshCtorType := InstantiateWithContext(ctx, sym.Type)
@@ -141,10 +150,10 @@ func inferPattern(ctx *InferenceContext, pat ast.Pattern, expectedType typesyste
 
 		subst, err := typesystem.Unify(expectedType, listType)
 		if err != nil {
-				return nil, inferErrorf(p, "list pattern expects List, got %s", expectedType)
+			return nil, inferErrorf(p, "list pattern expects List, got %s", expectedType)
 		}
 		totalSubst := subst
-		
+
 		elemType = elemType.Apply(totalSubst)
 		listType = listType.Apply(totalSubst)
 
@@ -178,14 +187,14 @@ func inferPattern(ctx *InferenceContext, pat ast.Pattern, expectedType typesyste
 
 	case *ast.RecordPattern:
 		totalSubst := typesystem.Subst{}
-		
+
 		// Sort keys for deterministic type variable naming
 		patternKeys := make([]string, 0, len(p.Fields))
 		for k := range p.Fields {
 			patternKeys = append(patternKeys, k)
 		}
 		sort.Strings(patternKeys)
-		
+
 		if tRec, ok := expectedType.(typesystem.TRecord); ok {
 			for _, key := range patternKeys {
 				pat := p.Fields[key]
@@ -204,7 +213,7 @@ func inferPattern(ctx *InferenceContext, pat ast.Pattern, expectedType typesyste
 						}
 						totalSubst = s.Compose(totalSubst)
 					} else {
-							return nil, inferErrorf(p, "record pattern field '%s' not found in type %s", key, tRec)
+						return nil, inferErrorf(p, "record pattern field '%s' not found in type %s", key, tRec)
 					}
 				}
 			}
@@ -235,12 +244,12 @@ func inferPattern(ctx *InferenceContext, pat ast.Pattern, expectedType typesyste
 
 	case *ast.TuplePattern:
 		totalSubst := typesystem.Subst{}
-		
+
 		isList := false
 		var listElemType typesystem.Type
-		
+
 		checkType := expectedType.Apply(totalSubst)
-		
+
 		// Resolve TCon with UnderlyingType (type aliases)
 		checkType = typesystem.UnwrapUnderlying(checkType)
 
@@ -302,7 +311,7 @@ func inferPattern(ctx *InferenceContext, pat ast.Pattern, expectedType typesyste
 			if hasSpread {
 				fixedCount := len(p.Elements) - 1
 				if len(tTuple.Elements) < fixedCount {
-						return nil, inferErrorf(p, "tuple pattern length mismatch (variadic): expected at least %d, got %d", fixedCount, len(tTuple.Elements))
+					return nil, inferErrorf(p, "tuple pattern length mismatch (variadic): expected at least %d, got %d", fixedCount, len(tTuple.Elements))
 				}
 
 				for i := 0; i < fixedCount; i++ {
@@ -331,7 +340,7 @@ func inferPattern(ctx *InferenceContext, pat ast.Pattern, expectedType typesyste
 			}
 
 			if len(tTuple.Elements) != len(p.Elements) {
-					return nil, inferErrorf(p, "tuple pattern length mismatch: expected %d, got %d", len(tTuple.Elements), len(p.Elements))
+				return nil, inferErrorf(p, "tuple pattern length mismatch: expected %d, got %d", len(tTuple.Elements), len(p.Elements))
 			}
 			for i, el := range p.Elements {
 				s, err := inferPattern(ctx, el, tTuple.Elements[i].Apply(totalSubst), table)
@@ -357,7 +366,7 @@ func inferPattern(ctx *InferenceContext, pat ast.Pattern, expectedType typesyste
 					for i := 0; i < fixedCount; i++ {
 						elemTypes = append(elemTypes, ctx.FreshVar())
 					}
-					
+
 					for i := 0; i < fixedCount; i++ {
 						s, err := inferPattern(ctx, p.Elements[i], ctx.FreshVar(), table)
 						if err != nil {
@@ -399,7 +408,7 @@ func inferPattern(ctx *InferenceContext, pat ast.Pattern, expectedType typesyste
 				}
 			}
 
-				return nil, inferErrorf(p, "expected tuple type, got %s", checkType)
+			return nil, inferErrorf(p, "expected tuple type, got %s", checkType)
 		}
 	}
 	return nil, inferErrorf(pat, "unknown pattern type")
@@ -468,5 +477,16 @@ func (w *walker) VisitStringPattern(n *ast.StringPattern) {
 			}
 			w.symbolTable.Define(part.Value, stringType, "")
 		}
+	}
+}
+
+func (w *walker) VisitPinPattern(n *ast.PinPattern) {
+	// Pin pattern requires the variable to already exist
+	if !w.symbolTable.IsDefined(n.Name) {
+		w.addError(diagnostics.NewError(
+			diagnostics.ErrA006,
+			n.GetToken(),
+			n.Name,
+		))
 	}
 }

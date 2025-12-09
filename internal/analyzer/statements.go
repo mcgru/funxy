@@ -340,7 +340,9 @@ func (w *walker) VisitBlockStatement(block *ast.BlockStatement) {
 }
 
 func (w *walker) VisitIfExpression(expr *ast.IfExpression) {
-	expr.Condition.Accept(w)
+	if expr.Condition != nil {
+		expr.Condition.Accept(w)
+	}
 	if expr.Consequence != nil {
 		expr.Consequence.Accept(w)
 	}

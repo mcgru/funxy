@@ -1,0 +1,264 @@
+// Tests for escaped braces in string patterns
+// {{ matches literal {, }} matches literal }
+
+import "lib/test" (*)
+
+testRun("Escaped open brace", fun() {
+    s = "value {x}"
+    result = match s {
+        "value {{x}}" -> "literal match"
+        "value {captured}" -> "captured: " ++ captured
+        _ -> "no match"
+    }
+    assertEquals("literal match", result)
+})
+
+testRun("Escaped close brace", fun() {
+    s = "end }"
+    result = match s {
+        "end }}" -> "matched"
+        _ -> "no match"
+    }
+    assertEquals("matched", result)
+})
+
+testRun("Mixed escaped and capture", fun() {
+    s = "prefix {literal} suffix value"
+    result = match s {
+        "prefix {{literal}} suffix {val}" -> val
+        _ -> "no match"
+    }
+    assertEquals("value", result)
+})
+
+testRun("Double braces", fun() {
+    s = "{{double}}"
+    result = match s {
+        "{{{{double}}}}" -> "matched"
+        _ -> "no match"
+    }
+    assertEquals("matched", result)
+})
+
+testRun("Capture still works", fun() {
+    s = "/users/alice"
+    result = match s {
+        "/users/{name}" -> name
+        _ -> "no match"
+    }
+    assertEquals("alice", result)
+})
+
+// ============================================================================
+// Edge Cases
+// ============================================================================
+
+testRun("Triple open brace {{{ = literal { + capture", fun() {
+    s = "{value"
+    result = match s {
+        "{{{x}" -> x
+        _ -> "no match"
+    }
+    assertEquals("value", result)
+})
+
+testRun("Triple close brace }}} = literal } + literal }", fun() {
+    s = "}}"
+    result = match s {
+        "}}}}" -> "matched"
+        _ -> "no match"
+    }
+    assertEquals("matched", result)
+})
+
+testRun("Empty braces {{}} = literal {}", fun() {
+    s = "{}"
+    result = match s {
+        "{{}}" -> "matched"
+        _ -> "no match"
+    }
+    assertEquals("matched", result)
+})
+
+testRun("Nested-looking {{{{}}}}", fun() {
+    s = "{{}}"
+    result = match s {
+        "{{{{}}}}" -> "matched"
+        _ -> "no match"
+    }
+    assertEquals("matched", result)
+})
+
+testRun("Single } in middle", fun() {
+    s = "a}b"
+    result = match s {
+        "a}}b" -> "matched"
+        _ -> "no match"
+    }
+    assertEquals("matched", result)
+})
+
+testRun("Unclosed brace at end", fun() {
+    s = "end{"
+    result = match s {
+        "end{{" -> "matched"
+        _ -> "no match"
+    }
+    assertEquals("matched", result)
+})
+
+testRun("Multiple literal braces in text", fun() {
+    s = "a { b } c"
+    result = match s {
+        "a {{ b }} c" -> "matched"
+        _ -> "no match"
+    }
+    assertEquals("matched", result)
+})
+
+testRun("Literal brace before capture", fun() {
+    s = "{prefix}value"
+    result = match s {
+        "{{prefix}}{x}" -> x
+        _ -> "no match"
+    }
+    assertEquals("value", result)
+})
+
+testRun("Literal brace after capture", fun() {
+    s = "value{suffix}"
+    result = match s {
+        "{x}{{suffix}}" -> x
+        _ -> "no match"
+    }
+    assertEquals("value", result)
+})
+
+testRun("Only literal braces no capture", fun() {
+    s = "{ }"
+    result = match s {
+        "{{ }}" -> "matched"
+        _ -> "no match"
+    }
+    assertEquals("matched", result)
+})
+
+testRun("Four braces {{{{ = literal {{", fun() {
+    s = "{{"
+    result = match s {
+        "{{{{" -> "matched"
+        _ -> "no match"
+    }
+    assertEquals("matched", result)
+})
+
+testRun("Four close braces }}}} = literal }}", fun() {
+    s = "}}"
+    result = match s {
+        "}}}}" -> "matched"
+        _ -> "no match"
+    }
+    assertEquals("matched", result)
+})
+
+// ============================================================================
+// No False Positives - patterns should NOT match when they shouldn't
+// ============================================================================
+
+testRun("Literal pattern {{x}} does not match string without braces", fun() {
+    s = "abc"
+    result = match s {
+        "{{x}}" -> "wrong"
+        _ -> "correct"
+    }
+    assertEquals("correct", result)
+})
+
+testRun("Literal pattern {{}} does not match non-empty string", fun() {
+    s = "abc"
+    result = match s {
+        "{{}}" -> "wrong"
+        _ -> "correct"
+    }
+    assertEquals("correct", result)
+})
+
+testRun("Literal {{ does not match single char", fun() {
+    s = "a"
+    result = match s {
+        "{{" -> "wrong"
+        _ -> "correct"
+    }
+    assertEquals("correct", result)
+})
+
+testRun("Literal }} does not match single char", fun() {
+    s = "a"
+    result = match s {
+        "}}" -> "wrong"
+        _ -> "correct"
+    }
+    assertEquals("correct", result)
+})
+
+testRun("Literal {x} pattern matches literal string, not capture", fun() {
+    s = "{x}"
+    result = match s {
+        "{{x}}" -> "literal"   // This should match
+        "{y}" -> "capture"     // This would capture if first didn't match
+        _ -> "none"
+    }
+    assertEquals("literal", result)
+})
+
+testRun("Pattern order matters - literal before capture", fun() {
+    s = "{name}"
+    result = match s {
+        "{{name}}" -> "literal"
+        "{x}" -> "capture:" ++ x
+        _ -> "none"
+    }
+    assertEquals("literal", result)
+})
+
+testRun("Capture does not match when prefix differs", fun() {
+    s = "hello world"
+    result = match s {
+        "bye {x}" -> "wrong"
+        _ -> "correct"
+    }
+    assertEquals("correct", result)
+})
+
+testRun("Literal brace pattern with wrong content", fun() {
+    s = "{wrong}"
+    result = match s {
+        "{{right}}" -> "wrong"
+        _ -> "correct"
+    }
+    assertEquals("correct", result)
+})
+
+testRun("Empty string matches capture with empty value", fun() {
+    s = ""
+    result = match s {
+        "{{x}}" -> "wrong-literal"  // {x} literal won't match empty
+        "{y}" -> "capture:" ++ y    // captures empty string
+        "" -> "empty-literal"
+        _ -> "none"
+    }
+    assertEquals("capture:", result)  // {y} captures empty string
+})
+
+testRun("Partial brace match fails correctly", fun() {
+    s = "{"
+    result = match s {
+        "{{x}}" -> "wrong-literal"
+        "{{" -> "literal-open"
+        _ -> "other"
+    }
+    assertEquals("literal-open", result)
+})
+
+print("escaped_braces_test: all tests passed!")
+

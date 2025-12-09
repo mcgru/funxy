@@ -66,11 +66,11 @@ func (cd *ConstantDeclaration) GetToken() token.Token { return cd.Token }
 // ExportSpec represents a single export specification in package declaration.
 // Can be either a local symbol or a module re-export.
 type ExportSpec struct {
-	Token      token.Token   // Token for error reporting
-	Symbol     *Identifier   // For local exports: the symbol name (e.g., localFun)
-	ModuleName *Identifier   // For re-exports: module name/alias (e.g., shapes)
-	Symbols    []*Identifier // For re-exports: specific symbols (e.g., Circle, Square)
-	ReexportAll bool         // For re-exports: true if (*) is used
+	Token       token.Token   // Token for error reporting
+	Symbol      *Identifier   // For local exports: the symbol name (e.g., localFun)
+	ModuleName  *Identifier   // For re-exports: module name/alias (e.g., shapes)
+	Symbols     []*Identifier // For re-exports: specific symbols (e.g., Circle, Square)
+	ReexportAll bool          // For re-exports: true if (*) is used
 }
 
 func (es *ExportSpec) GetToken() token.Token { return es.Token }
@@ -95,12 +95,12 @@ func (pd *PackageDeclaration) GetToken() token.Token { return pd.Token }
 // ImportStatement represents an import declaration.
 // import "path/to/module" [as alias]
 type ImportStatement struct {
-	Token    token.Token // The 'import' token
-	Path     *StringLiteral
-	Alias    *Identifier   // Optional alias for the imported package
-	Symbols  []*Identifier // Specific symbols to import: (a, b, c)
-	Exclude  []*Identifier // Symbols to exclude: !(a, b, c)
-	ImportAll bool         // (*) import all
+	Token     token.Token // The 'import' token
+	Path      *StringLiteral
+	Alias     *Identifier   // Optional alias for the imported package
+	Symbols   []*Identifier // Specific symbols to import: (a, b, c)
+	Exclude   []*Identifier // Symbols to exclude: !(a, b, c)
+	ImportAll bool          // (*) import all
 }
 
 func (is *ImportStatement) Accept(v Visitor)      { v.VisitImportStatement(is) }
@@ -220,7 +220,7 @@ func (rl *RecordLiteral) GetToken() token.Token { return rl.Token }
 
 // MapLiteral represents a map literal, e.g. %{ "key" => value }
 type MapLiteral struct {
-	Token token.Token                 // The '%{' token
+	Token token.Token                       // The '%{' token
 	Pairs []struct{ Key, Value Expression } // Key-value pairs
 }
 
@@ -840,3 +840,15 @@ func (p *StringPattern) Accept(v Visitor)      { v.VisitStringPattern(p) }
 func (p *StringPattern) patternNode()          {}
 func (p *StringPattern) TokenLiteral() string  { return p.Token.Lexeme }
 func (p *StringPattern) GetToken() token.Token { return p.Token }
+
+// PinPattern: ^variable
+// Matches if value equals the existing variable's value (like Elixir's pin operator)
+type PinPattern struct {
+	Token token.Token // The '^' token
+	Name  string      // Variable name to compare against
+}
+
+func (p *PinPattern) Accept(v Visitor)      { v.VisitPinPattern(p) }
+func (p *PinPattern) patternNode()          {}
+func (p *PinPattern) TokenLiteral() string  { return p.Token.Lexeme }
+func (p *PinPattern) GetToken() token.Token { return p.Token }

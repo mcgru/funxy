@@ -901,12 +901,20 @@ func (p *Parser) parseRecordLiteralOrBlock() ast.Expression {
 
 	// 1. Check for {} (Empty Record)
 	if p.peekTokenIs(token.RBRACE) {
-		return p.parseRecordLiteral()
+		rec := p.parseRecordLiteral()
+		if rec == nil {
+			return nil
+		}
+		return rec
 	}
 
 	// 2. Check for { ...expr } (Record Spread) - this is always a record
 	if p.peekTokenIs(token.ELLIPSIS) {
-		return p.parseRecordLiteral()
+		rec := p.parseRecordLiteral()
+		if rec == nil {
+			return nil
+		}
+		return rec
 	}
 
 	// 3. Check for { key: val } (Non-empty Record) - single line
@@ -977,7 +985,11 @@ func (p *Parser) parseRecordLiteralOrBlock() ast.Expression {
 	}
 
 	if isRecord {
-		return p.parseRecordLiteral()
+		rec := p.parseRecordLiteral()
+		if rec == nil {
+			return nil // Return untyped nil for proper nil check
+		}
+		return rec
 	}
 
 	// 4. Default to Block
@@ -1027,6 +1039,7 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteral {
 		}
 
 		if !p.curTokenIs(token.IDENT_LOWER) && !p.curTokenIs(token.IDENT_UPPER) {
+			p.ctx.Errors = append(p.ctx.Errors, diagnostics.NewError(diagnostics.ErrP004, p.curToken, p.curToken.Type))
 			return nil // Expected identifier key
 		}
 		key := p.curToken.Literal.(string)
@@ -1042,6 +1055,9 @@ func (p *Parser) parseRecordLiteral() *ast.RecordLiteral {
 		}
 
 		val := p.parseExpression(LOWEST)
+		if val == nil {
+			return nil // Failed to parse value expression
+		}
 		rl.Fields[key] = val
 
 		// Skip newlines after value

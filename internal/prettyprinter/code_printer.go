@@ -102,7 +102,7 @@ func (p *CodePrinter) printExpr(expr ast.Expression, parentPrec int, isRight boo
 		if needParens {
 			p.write("(")
 		}
-		
+
 		// Special handling for pipe chains
 		if e.Operator == "|>" && countPipeSteps(e) >= 2 && parentPrec == 0 {
 			p.printPipeChain(e)
@@ -111,7 +111,7 @@ func (p *CodePrinter) printExpr(expr ast.Expression, parentPrec int, isRight boo
 			p.write(" " + e.Operator + " ")
 			p.printExpr(e.Right, prec, true)
 		}
-		
+
 		if needParens {
 			p.write(")")
 		}
@@ -142,15 +142,15 @@ func (p *CodePrinter) printPipeChain(expr *ast.InfixExpression) {
 		steps = append(steps, infix.Right)
 		current = infix.Left
 	}
-	
+
 	// Reverse to get [source, step1, step2, ...]
 	for i, j := 0, len(steps)-1; i < j; i, j = i+1, j-1 {
 		steps[i], steps[j] = steps[j], steps[i]
 	}
-	
+
 	// Print first step (source)
 	steps[0].Accept(p)
-	
+
 	// Print remaining steps on new lines
 	p.indent++
 	for i := 1; i < len(steps); i++ {
@@ -276,7 +276,7 @@ func (p *CodePrinter) VisitFunctionStatement(n *ast.FunctionStatement) {
 				maxNameLen = len(param.Name.Value)
 			}
 		}
-		
+
 		p.write("(\n")
 		p.indent++
 		for i, param := range n.Parameters {
@@ -593,10 +593,10 @@ func (p *CodePrinter) VisitAnnotatedExpression(n *ast.AnnotatedExpression) {
 func (p *CodePrinter) VisitCallExpression(n *ast.CallExpression) {
 	n.Function.Accept(p)
 	p.write("(")
-	
+
 	// If many args or long, format multiline
 	multiline := len(n.Arguments) > 4
-	
+
 	for i, arg := range n.Arguments {
 		if i > 0 {
 			p.write(", ")
@@ -732,7 +732,7 @@ func (p *CodePrinter) VisitMatchExpression(n *ast.MatchExpression) {
 	n.Expression.Accept(p)
 	p.write(" {\n")
 	p.indent++
-	
+
 	// Calculate max pattern width for alignment
 	maxPatLen := 0
 	patStrings := make([]string, len(n.Arms))
@@ -745,7 +745,7 @@ func (p *CodePrinter) VisitMatchExpression(n *ast.MatchExpression) {
 			maxPatLen = len(patStrings[i])
 		}
 	}
-	
+
 	for i, arm := range n.Arms {
 		p.writeIndent()
 		p.write(patStrings[i])
@@ -841,6 +841,11 @@ func (p *CodePrinter) VisitStringPattern(n *ast.StringPattern) {
 	p.write("\"")
 }
 
+func (p *CodePrinter) VisitPinPattern(n *ast.PinPattern) {
+	p.write("^")
+	p.write(n.Name)
+}
+
 func (p *CodePrinter) VisitSpreadExpression(n *ast.SpreadExpression) {
 	n.Expression.Accept(p)
 	p.write("...")
@@ -862,7 +867,7 @@ func (p *CodePrinter) VisitRecordLiteral(n *ast.RecordLiteral) {
 		}
 		return false
 	}
-	
+
 	// Check if all fields are shorthand
 	allShorthand := true
 	for k, v := range n.Fields {
@@ -871,7 +876,7 @@ func (p *CodePrinter) VisitRecordLiteral(n *ast.RecordLiteral) {
 			break
 		}
 	}
-	
+
 	// Multi-field records with alignment
 	if len(n.Fields) > 3 && !allShorthand {
 		// Find max key length for alignment
@@ -883,7 +888,7 @@ func (p *CodePrinter) VisitRecordLiteral(n *ast.RecordLiteral) {
 				maxKeyLen = len(k)
 			}
 		}
-		
+
 		p.write("{\n")
 		p.indent++
 		for i, k := range keys {
@@ -951,7 +956,7 @@ func (p *CodePrinter) VisitMapLiteral(n *ast.MapLiteral) {
 				maxKeyLen = len(keyStrings[i])
 			}
 		}
-		
+
 		p.write("%{\n")
 		p.indent++
 		for i, pair := range n.Pairs {
@@ -1014,4 +1019,3 @@ func (p *CodePrinter) VisitMemberExpression(n *ast.MemberExpression) {
 	p.write(".")
 	p.write(n.Member.Value)
 }
-

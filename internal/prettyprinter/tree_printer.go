@@ -724,6 +724,10 @@ func (p *TreePrinter) VisitStringPattern(n *ast.StringPattern) {
 	p.write(")")
 }
 
+func (p *TreePrinter) VisitPinPattern(n *ast.PinPattern) {
+	p.write("PinPattern(^" + n.Name + ")")
+}
+
 func (p *TreePrinter) VisitSpreadExpression(n *ast.SpreadExpression) {
 	p.write("Spread(")
 	n.Expression.Accept(p)
@@ -805,4 +809,3 @@ func (p *TreePrinter) VisitMemberExpression(n *ast.MemberExpression) {
 	p.write("Field: " + n.Member.Value + "\n")
 	p.indent--
 }
-

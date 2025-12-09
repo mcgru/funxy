@@ -270,4 +270,4 @@ match bitsExtract(packet, specs) {
 
 ## License
 
-See [LICENSE.md](LICENSE.md)
+[LICENSE.md](LICENSE.md)

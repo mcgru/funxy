@@ -345,6 +345,7 @@ type DataInstance struct {
 	Name     string
 	Fields   []Object
 	TypeName string
+	TypeArgs []typesystem.Type // Type arguments for generic types (e.g., [Int] for Option<Int>)
 }
 
 func (d *DataInstance) Type() ObjectType { return DATA_INSTANCE_OBJ }
@@ -364,6 +365,13 @@ func (d *DataInstance) Inspect() string {
 }
 
 func (d *DataInstance) RuntimeType() typesystem.Type {
+	if len(d.TypeArgs) > 0 {
+		return typesystem.TApp{
+			Constructor: typesystem.TCon{Name: d.TypeName},
+			Args:        d.TypeArgs,
+		}
+	}
+	// Don't infer type args from fields - they are constructor arguments, not type parameters
 	return typesystem.TCon{Name: d.TypeName}
 }
 
