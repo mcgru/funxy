@@ -361,8 +361,8 @@ func runPipeline(sourceCode string, filePath string, useTreeWalk bool, isTestMod
 		}
 		// If running a script (not test), exit with error code
 		if !isTestMode {
-		os.Exit(1)
-	}
+			os.Exit(1)
+		}
 	}
 }
 
@@ -428,18 +428,17 @@ func readInputFromArgs(args []string) (string, error) {
 	var input []byte
 	var err error
 
-	switch len(args) {
-	case 1:
+	if len(args) == 1 {
+		// Read from stdin
 		stat, _ := os.Stdin.Stat()
 		if (stat.Mode() & os.ModeCharDevice) != 0 {
 			return "", fmt.Errorf("Usage: %s <file> or pipe from stdin", args[0])
 		}
 		input, err = io.ReadAll(os.Stdin)
-	case 2:
-		filepath := args[1]
-		input, err = os.ReadFile(filepath)
-	default:
-		return "", fmt.Errorf("Usage: %s <file> or pipe from stdin", args[0])
+	} else if len(args) >= 2 {
+		// Read from file
+		path := args[1]
+		input, err = os.ReadFile(path)
 	}
 
 	if err != nil {
