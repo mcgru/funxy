@@ -1,4 +1,4 @@
-import "pkggroup" (*)
+import "./pkggroup" (*)
 
 print(double(5))
 print(triple(5))

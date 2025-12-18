@@ -1,0 +1,8 @@
+import "./pkg" (run)
+import "lib/test" (testRun, assert)
+
+testRun("VM Closure Import Capture", fun() {
+    res = run()
+    // fst((1,2)) is 1. map returns a list.
+    assert(res == [1], "should capture imported fst correctly")
+})

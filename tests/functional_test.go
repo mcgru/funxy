@@ -100,10 +100,9 @@ func TestFunctional(t *testing.T) {
 			}
 			want := strings.TrimSpace(string(wantBytes))
 
-			// Run binary from tests/ directory (for local imports)
-			testsDir, _ := filepath.Abs(".")
+			// Run binary from project root so that imports like "kit/..." work
 			cmd := exec.Command(binaryPath, absPath)
-			cmd.Dir = testsDir
+			cmd.Dir = projectRoot
 			var stdout, stderr bytes.Buffer
 			cmd.Stdout = &stdout
 			cmd.Stderr = &stderr

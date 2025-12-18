@@ -1,0 +1,24 @@
+import "./source" (Data, identity)
+import "lib/test" (assert, assertEquals, testRun)
+
+testExplicit = fun() {
+    // Check constructors are imported with Type
+    d1 = Con1(10)
+    d2 = Con2("hello")
+    d3 = Con3
+
+    assertEquals(d1, Con1(10), "Con1 eq")
+
+    // Check pattern matching works
+    res = match d1 {
+        Con1(x) -> x,
+        _ -> 0
+    }
+    assertEquals(res, 10, "Pattern match Con1")
+
+    // Check explicitly imported function
+    assertEquals(identity(5), 5, "identity func")
+}
+
+testRun("imports explicit", testExplicit)
+

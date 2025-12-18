@@ -45,7 +45,7 @@ type SymbolTable struct {
 	store    map[string]Symbol
 	types    map[string]typesystem.Type
 	outer    *SymbolTable
-	
+
 	// Trait methods registry: MethodName -> TraitName
 	// e.g. "show" -> "Show"
 	traitMethods map[string]string
@@ -53,26 +53,26 @@ type SymbolTable struct {
 	// Trait type parameter registry: TraitName -> TypeParamNames
 	// e.g. "Show" -> ["a"]
 	traitTypeParams map[string][]string
-	
+
 	// Trait inheritance registry: TraitName -> [SuperTraitName]
 	// e.g. "Order" -> ["Equal"]
 	traitSuperTraits map[string][]string
-	
+
 	// Trait default implementations: TraitName -> MethodName -> has default
 	// e.g. "Equal" -> "notEqual" -> true
 	traitDefaultMethods map[string]map[string]bool
-	
+
 	// All methods of a trait: TraitName -> [MethodNames]
 	// e.g. "Equal" -> ["equal", "notEqual"]
 	traitAllMethods map[string][]string
-	
+
 	// Operator -> Trait registry: Operator -> TraitName
 	// e.g. "+" -> "Add", "==" -> "Equal"
 	operatorTraits map[string]string
-	
+
 	// Implementations registry: TraitName -> [Type]
 	implementations map[string][]typesystem.Type
-	
+
 	// Instance method signatures: TraitName -> TypeName -> MethodName -> Type
 	// Stores specialized method signatures for each instance
 	instanceMethods map[string]map[string]map[string]typesystem.Type
@@ -96,7 +96,7 @@ type SymbolTable struct {
 	// Module alias to package name mapping: alias -> packageName
 	// Used for looking up extension methods in source modules
 	moduleAliases map[string]string
-	
+
 	// Type aliases: TypeName -> underlying type
 	// For type alias `type Vector = { x: Int, y: Int }`, stores Vector -> TRecord
 	// The main types map stores TCon{Name: "Vector"} for proper module tagging
@@ -138,7 +138,7 @@ func NewSymbolTable() *SymbolTable {
 
 func (st *SymbolTable) InitBuiltins() {
 	const prelude = "prelude" // Origin for built-in symbols
-	
+
 	// Define built-in types
 	st.DefineType("Int", typesystem.TCon{Name: "Int"}, prelude)
 	st.RegisterKind("Int", typesystem.Star)
@@ -159,7 +159,7 @@ func (st *SymbolTable) InitBuiltins() {
 	}
 	st.DefineType("String", stringType, prelude)
 	st.RegisterKind("String", typesystem.Star)
-	
+
 	// Built-in ADTs for error handling
 	// type Result e t = Ok t | Fail e  (like Haskell's Either e a)
 	// E is error type (first), T is success type (last) - so Functor/Monad operate on T
@@ -188,45 +188,6 @@ func (st *SymbolTable) InitBuiltins() {
 	st.DefineConstructor(config.ZeroCtorName, typesystem.TApp{Constructor: typesystem.TCon{Name: config.OptionTypeName}, Args: []typesystem.Type{typesystem.TVar{Name: "t"}}}, prelude)
 	st.RegisterVariant(config.OptionTypeName, config.SomeCtorName)
 	st.RegisterVariant(config.OptionTypeName, config.ZeroCtorName)
-
-	// type Json = JNull | JBool Bool | JNum Float | JStr String | JArr List<Json> | JObj List<(String, Json)>
-	jsonType := typesystem.TCon{Name: "Json"}
-	st.DefineType("Json", jsonType, prelude)
-	// JNull: Json
-	st.DefineConstructor("JNull", jsonType, prelude)
-	// JBool: Bool -> Json
-	st.DefineConstructor("JBool", typesystem.TFunc{
-		Params:     []typesystem.Type{typesystem.Bool},
-		ReturnType: jsonType,
-	}, prelude)
-	// JNum: Float -> Json
-	st.DefineConstructor("JNum", typesystem.TFunc{
-		Params:     []typesystem.Type{typesystem.Float},
-		ReturnType: jsonType,
-	}, prelude)
-	// JStr: String -> Json
-	st.DefineConstructor("JStr", typesystem.TFunc{
-		Params:     []typesystem.Type{typesystem.TApp{Constructor: typesystem.TCon{Name: config.ListTypeName}, Args: []typesystem.Type{typesystem.Char}}},
-		ReturnType: jsonType,
-	}, prelude)
-	// JArr: List<Json> -> Json
-	st.DefineConstructor("JArr", typesystem.TFunc{
-		Params:     []typesystem.Type{typesystem.TApp{Constructor: typesystem.TCon{Name: config.ListTypeName}, Args: []typesystem.Type{jsonType}}},
-		ReturnType: jsonType,
-	}, prelude)
-	// JObj: List<(String, Json)> -> Json
-	jsonStringType := typesystem.TApp{Constructor: typesystem.TCon{Name: config.ListTypeName}, Args: []typesystem.Type{typesystem.Char}}
-	pairType := typesystem.TTuple{Elements: []typesystem.Type{jsonStringType, jsonType}}
-	st.DefineConstructor("JObj", typesystem.TFunc{
-		Params:     []typesystem.Type{typesystem.TApp{Constructor: typesystem.TCon{Name: config.ListTypeName}, Args: []typesystem.Type{pairType}}},
-		ReturnType: jsonType,
-	}, prelude)
-	st.RegisterVariant("Json", "JNull")
-	st.RegisterVariant("Json", "JBool")
-	st.RegisterVariant("Json", "JNum")
-	st.RegisterVariant("Json", "JStr")
-	st.RegisterVariant("Json", "JArr")
-	st.RegisterVariant("Json", "JObj")
 
 	// Note: SqlValue, Uuid, Logger, Task, Date types are registered via virtual packages on import
 	// They are NOT available without importing the corresponding lib/* package
@@ -469,7 +430,7 @@ func (s *SymbolTable) GetOptionalUnwrapReturnType(t typesystem.Type) (typesystem
 	if typeName == "" {
 		return nil, false
 	}
-	
+
 	// Look for instance-specific unwrap signature
 	unwrapType, ok := s.GetInstanceMethodType("Optional", typeName, "unwrap")
 	if ok {
@@ -479,7 +440,7 @@ func (s *SymbolTable) GetOptionalUnwrapReturnType(t typesystem.Type) (typesystem
 			// Rename type vars to avoid conflicts
 			renamedParam := renameTypeVars(funcType.Params[0], "inst")
 			renamedReturn := renameTypeVars(funcType.ReturnType, "inst")
-			
+
 			// Unify concrete type with parameter
 			subst, err := typesystem.Unify(t, renamedParam)
 			if err == nil {
@@ -487,7 +448,7 @@ func (s *SymbolTable) GetOptionalUnwrapReturnType(t typesystem.Type) (typesystem
 			}
 		}
 	}
-	
+
 	// Fallback to generic trait method
 	genericUnwrap, ok := s.GetTraitMethodType("unwrap")
 	if ok {
@@ -495,19 +456,19 @@ func (s *SymbolTable) GetOptionalUnwrapReturnType(t typesystem.Type) (typesystem
 		if ok && len(funcType.Params) == 1 {
 			renamedParam := renameTypeVars(funcType.Params[0], "gen")
 			renamedReturn := renameTypeVars(funcType.ReturnType, "gen")
-			
+
 			subst, err := typesystem.Unify(t, renamedParam)
 			if err == nil {
 				return renamedReturn.Apply(subst), true
 			}
 		}
 	}
-	
+
 	// Last fallback: Args[0] for common cases
 	if tApp, ok := t.(typesystem.TApp); ok && len(tApp.Args) > 0 {
 		return tApp.Args[0], true
 	}
-	
+
 	return nil, false
 }
 
@@ -530,19 +491,19 @@ func (s *SymbolTable) GetTraitForOperator(operator string) (string, bool) {
 // GetAllOperatorTraits returns a copy of all operator -> trait mappings
 func (s *SymbolTable) GetAllOperatorTraits() map[string]string {
 	result := make(map[string]string)
-	
+
 	// Get from outer first (so inner scope overrides)
 	if s.outer != nil {
 		for k, v := range s.outer.GetAllOperatorTraits() {
 			result[k] = v
 		}
 	}
-	
+
 	// Overlay current scope
 	for k, v := range s.operatorTraits {
 		result[k] = v
 	}
-	
+
 	return result
 }
 
@@ -585,7 +546,7 @@ func (s *SymbolTable) RegisterImplementation(traitName string, t typesystem.Type
 			// To be safe, we should rename variables in one of them to be disjoint.
 			// e.g. "List a" vs "List a".
 			// renameVariables(t)
-			
+
 			tRenamed := renameTypeVars(t, "new")
 			_, err := typesystem.Unify(existing, tRenamed)
 			if err == nil {
@@ -606,25 +567,25 @@ func (s *SymbolTable) RegisterImplementation(traitName string, t typesystem.Type
 func (s *SymbolTable) IsImplementationExists(traitName string, t typesystem.Type) bool {
 	// Collect types to check: original type + resolved alias if applicable
 	typesToCheck := []typesystem.Type{t}
-	
+
 	// If t is a TCon, check if it's a type alias and add underlying type
 	if tCon, ok := t.(typesystem.TCon); ok {
 		if underlyingType, ok := s.GetTypeAlias(tCon.Name); ok {
 			typesToCheck = append(typesToCheck, underlyingType)
 		}
 	}
-	
+
 	// If t is a TRecord, try to find a type alias name for it
 	if tRec, ok := t.(typesystem.TRecord); ok {
 		if aliasName, ok := s.FindTypeAliasForRecord(tRec); ok && aliasName != "" {
 			typesToCheck = append(typesToCheck, typesystem.TCon{Name: aliasName})
 		}
 	}
-	
+
 	if impls, ok := s.implementations[traitName]; ok {
 		for _, impl := range impls {
 			implRenamed := renameTypeVars(impl, "exist")
-			
+
 			// Try to match against all collected types
 			for _, typeToCheck := range typesToCheck {
 				_, err := typesystem.Unify(implRenamed, typeToCheck)
@@ -632,7 +593,7 @@ func (s *SymbolTable) IsImplementationExists(traitName string, t typesystem.Type
 					return true
 				}
 			}
-			
+
 			// HKT: For type constructors like Result, check if t's constructor matches impl
 			if implCon, ok := impl.(typesystem.TCon); ok {
 				for _, typeToCheck := range typesToCheck {
@@ -763,7 +724,7 @@ func (s *SymbolTable) ResolveType(name string) (typesystem.Type, bool) {
 		if len(parts) == 2 {
 			moduleName := parts[0]
 			typeName := parts[1]
-			
+
 			// Look up module symbol
 			if sym, ok := s.Find(moduleName); ok {
 				// Check if it's a module and has exported type
@@ -852,13 +813,13 @@ func (s *SymbolTable) IsHKTTrait(traitName string) bool {
 	if !ok || len(typeParams) == 0 {
 		return false
 	}
-	
+
 	// Get trait's method names
 	methodNames := s.GetTraitAllMethods(traitName)
 	if len(methodNames) == 0 {
 		return false
 	}
-	
+
 	// Check each method's type signature for HKT pattern
 	for _, methodName := range methodNames {
 		if sym, ok := s.Find(methodName); ok {
@@ -867,7 +828,7 @@ func (s *SymbolTable) IsHKTTrait(traitName string) bool {
 			}
 		}
 	}
-	
+
 	return false
 }
 
@@ -877,7 +838,7 @@ func containsAppliedTypeParam(t typesystem.Type, typeParams []string) bool {
 	if t == nil {
 		return false
 	}
-	
+
 	switch typ := t.(type) {
 	case typesystem.TApp:
 		// Check if constructor is one of the type params
@@ -902,7 +863,7 @@ func containsAppliedTypeParam(t typesystem.Type, typeParams []string) bool {
 			}
 		}
 		return containsAppliedTypeParam(typ.Constructor, typeParams)
-		
+
 	case typesystem.TFunc:
 		// Check params and return type
 		for _, param := range typ.Params {
@@ -911,7 +872,7 @@ func containsAppliedTypeParam(t typesystem.Type, typeParams []string) bool {
 			}
 		}
 		return containsAppliedTypeParam(typ.ReturnType, typeParams)
-		
+
 	case typesystem.TTuple:
 		for _, elem := range typ.Elements {
 			if containsAppliedTypeParam(elem, typeParams) {
@@ -919,7 +880,7 @@ func containsAppliedTypeParam(t typesystem.Type, typeParams []string) bool {
 			}
 		}
 		return false
-		
+
 	default:
 		return false
 	}
@@ -948,7 +909,7 @@ func (s *SymbolTable) GetExtensionMethod(typeName, methodName string) (typesyste
 // Returns map[typeName]map[methodName]Type
 func (s *SymbolTable) GetAllExtensionMethods() map[string]map[string]typesystem.Type {
 	result := make(map[string]map[string]typesystem.Type)
-	
+
 	// Get from outer first
 	if s.outer != nil {
 		for typeName, methods := range s.outer.GetAllExtensionMethods() {
@@ -958,7 +919,7 @@ func (s *SymbolTable) GetAllExtensionMethods() map[string]map[string]typesystem.
 			}
 		}
 	}
-	
+
 	// Overlay current level
 	for typeName, methods := range s.extensionMethods {
 		if result[typeName] == nil {
@@ -968,7 +929,7 @@ func (s *SymbolTable) GetAllExtensionMethods() map[string]map[string]typesystem.
 			result[typeName][methodName] = t
 		}
 	}
-	
+
 	return result
 }
 
@@ -1024,14 +985,14 @@ func (s *SymbolTable) GetVariants(typeName string) ([]string, bool) {
 func (s *SymbolTable) GetAllNames() []string {
 	seen := make(map[string]bool)
 	var names []string
-	
+
 	for name := range s.store {
 		if !seen[name] {
 			names = append(names, name)
 			seen[name] = true
 		}
 	}
-	
+
 	if s.outer != nil {
 		for _, name := range s.outer.GetAllNames() {
 			if !seen[name] {

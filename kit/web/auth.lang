@@ -1,0 +1,109 @@
+package web
+
+import "lib/http" (httpPostJson)
+import "lib/json" (jsonDecode)
+import "lib/crypto" (hmacSha256, base64Encode, base64Decode)
+import "lib/list"
+import "lib/string" (stringJoin, stringSplit)
+
+// --- OAuth2 ---
+
+type OAuthConfig = {
+    clientId: String,
+    clientSecret: String,
+    redirectUri: String,
+    authUrl: String,
+    tokenUrl: String,
+    scopes: List<String>
+}
+
+fun oauthAuthUrl(config: OAuthConfig, state) {
+    scopeStr = stringJoin(config.scopes, " ")
+    // Manual query string building for now (need url lib helper ideally)
+    sprintf("%s?client_id=%s&redirect_uri=%s&scope=%s&state=%s&response_type=code",
+        config.authUrl,
+        config.clientId,
+        config.redirectUri,
+        scopeStr,
+        state
+    )
+}
+
+fun oauthExchange(config: OAuthConfig, code) {
+    // POST to tokenUrl
+    body = {
+        client_id: config.clientId,
+        client_secret: config.clientSecret,
+        code: code,
+        grant_type: "authorization_code",
+        redirect_uri: config.redirectUri
+    }
+
+    // Some providers want JSON, some want Form. Standard is Form.
+    // Let's try JSON first as it's easier with current helpers, or implement form encoding.
+    // GitHub accepts JSON if Accept header is set.
+
+    headers = [("Accept", "application/json")]
+
+    match httpPostJson(config.tokenUrl, body) {
+        Ok(res) -> {
+            if res.status == 200 {
+                match jsonDecode(res.body) {
+                    Ok(data) -> Ok(data) // Returns { access_token: "...", ... }
+                    Fail(e) -> Fail("JSON Decode Error: " ++ e)
+                }
+            } else {
+                Fail("OAuth Error: " ++ show(res.status) ++ " " ++ res.body)
+            }
+        }
+        Fail(e) -> Fail("HTTP Error: " ++ e)
+    }
+}
+
+// --- Session (Simple Cookie Signed) ---
+
+fun sessionSign(data, secret) {
+    // data is string
+    sig = hmacSha256(secret, data)
+    data ++ "." ++ sig
+}
+
+fun sessionVerify(cookieVal, secret) {
+    parts = stringSplit(cookieVal, ".")
+    // Need to handle if split returns < 2 parts.
+    // Assuming simple "data.sig"
+    // Limitations: split doesn't support "limit".
+    // If data contains '.', this breaks.
+    // Better: Base64 encode data first.
+
+    // Valid format: base64(data).sig
+
+    match parts {
+        [b64data, sig] -> {
+             expectedSig = hmacSha256(secret, b64data)
+             if sig == expectedSig {
+                 // Decode data
+                 // crypto.base64Decode returns String
+                 val = base64Decode(b64data)
+                 Some(val)
+             } else {
+                 Zero
+             }
+        }
+        _ -> Zero
+    }
+}
+
+fun setSession(ctx, data, secret, res) {
+    b64 = base64Encode(data)
+    cookieVal = sessionSign(b64, secret)
+    res |> setCookie("session", cookieVal)
+}
+
+fun getSession(ctx, secret) {
+    match cookie("session", ctx) {
+        Some(val) -> sessionVerify(val, secret)
+        Zero -> Zero
+    }
+}
+

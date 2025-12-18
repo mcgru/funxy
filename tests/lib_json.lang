@@ -1,4 +1,4 @@
-import "lib/json" (jsonEncode, jsonDecode, jsonParse, jsonFromValue, jsonGet, jsonKeys)
+import "lib/json" (Json, jsonEncode, jsonDecode, jsonParse, jsonFromValue, jsonGet, jsonKeys)
 
 // === Encode Tests ===
 

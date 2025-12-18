@@ -1,0 +1,9 @@
+import "tests/unit/bugs/handler_repro/pkg" (*)
+import "lib/test" (*)
+
+testRun("repro handler visibility", fun() {
+    h = fun(x) { x + 1 }
+    r = MkRoute(h)
+    assert(true, "Route created")
+})
+

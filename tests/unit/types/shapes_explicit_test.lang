@@ -1,0 +1,24 @@
+package test_shapes_explicit
+
+import "./shapes" (Shape, makeCircle, Circle, Point, Rectangle)
+import "lib/test" (assert, assertEquals, testRun)
+
+testExplicit = fun() {
+    c = makeCircle(10)
+    assertEquals(c, Circle(10), "makeCircle")
+
+    res = match c {
+        Circle(r) -> r,
+        _ -> 0
+    }
+    assertEquals(res, 10, "pattern matching")
+
+    p = Point
+    match p {
+        Point -> assert(true, "Point match"),
+        _ -> assert(false, "Point failed")
+    }
+}
+
+testRun("explicit import", testExplicit)
+

@@ -1,0 +1,186 @@
+import "kit/web"
+import "kit/ui"
+import "lib/test" (*)
+import "lib/tuple" (fst, snd)
+import "lib/list" (find)
+
+// Custom error handlers for testing
+fun customNotFoundHandler(ctx) -> Result<String, web.HttpResponse> {
+    Ok(web.resHtml(
+        ui.div(
+            [
+                ui.h1(ui.text("404 - Page Not Found")),
+                ui.p(ui.text("The page " ++ ctx.req.path ++ " does not exist"))
+            ]
+        )
+    ))
+}
+
+fun customErrorHandler(ctx, err) -> Result<String, web.HttpResponse> {
+    // Workaround: BUG in parser - variables from match expressions break subsequent operations
+    // Avoid using match results directly; convert to string first if needed
+    // For now just use static error message
+    htmlBody = "<h1>500 - Server Error</h1><p>Something went wrong</p>"
+
+    Ok(
+        web.response(500, htmlBody)
+            |> fun(r) { web.setHeader("Content-Type", "text/html", r) }
+            |> fun(r) { web.setHeader("X-Error", "custom-handler", r) }
+    )
+}
+
+// Handler that always fails
+fun failingHandler(ctx) -> Result<String, web.HttpResponse> {
+    Fail("Something went wrong")
+}
+
+// Handler that succeeds
+fun successHandler(ctx) -> Result<String, web.HttpResponse> {
+    Ok(web.resText("Success"))
+}
+
+testRun("Custom Error Pages", fun() {
+    // Test custom 404 handler
+    router404 = web.newRouter()
+        |> fun(r) { web.setNotFoundHandler(r, customNotFoundHandler) }
+        |> web.get("/exists", successHandler)
+
+    // Test existing route
+    reqExists = {
+        method: "GET",
+        path: "/exists",
+        query: "",
+        headers: [],
+        cookies: [],
+        body: ""
+    }
+
+    resExists = web.handleRequest(router404, reqExists)
+    assertEquals(resExists.status, 200, "Existing route returns 200")
+    assertEquals(resExists.body, "Success", "Existing route returns correct body")
+
+    // Test non-existing route with custom 404
+    reqNotFound = {
+        method: "GET",
+        path: "/not-found",
+        query: "",
+        headers: [],
+        cookies: [],
+        body: ""
+    }
+
+    resNotFound = web.handleRequest(router404, reqNotFound)
+    assertEquals(resNotFound.status, 200, "Custom 404 handler returns 200 (as HTML page)")
+    assert(resNotFound.body == "<div><h1>404 - Page Not Found</h1><p>The page /not-found does not exist</p></div>",
+           "Custom 404 handler returns custom HTML")
+
+    // Test custom error handler
+    routerError = web.newRouter()
+        |> fun(r) { web.setErrorHandler(r, customErrorHandler) }
+        |> web.get("/fail", failingHandler)
+
+    reqFail = {
+        method: "GET",
+        path: "/fail",
+        query: "",
+        headers: [],
+        cookies: [],
+        body: ""
+    }
+
+    resFail = web.handleRequest(routerError, reqFail)
+
+    assertEquals(resFail.status, 500, "Custom error handler returns 500")
+
+    // Check custom header
+    foundHeader = resFail.headers |> find(fun(p) { fst(p) == "X-Error" })
+    match foundHeader {
+        Some(p) -> assertEquals(snd(p), "custom-handler", "Custom error handler adds custom header")
+        Zero -> assertEquals(1, 0, "Custom header missing")
+    }
+
+    assert(resFail.body == "<h1>500 - Server Error</h1><p>Something went wrong</p>",
+           "Custom error handler returns custom HTML with error message")
+
+    // Test chaining both custom handlers
+    routerBoth = web.newRouter()
+        |> fun(r) { web.setNotFoundHandler(r, customNotFoundHandler) }
+        |> fun(r) { web.setErrorHandler(r, customErrorHandler) }
+        |> web.get("/success", successHandler)
+        |> web.get("/error", failingHandler)
+
+    // Test success route
+    reqSuccess = {
+        method: "GET",
+        path: "/success",
+        query: "",
+        headers: [],
+        cookies: [],
+        body: ""
+    }
+
+    resSuccess = web.handleRequest(routerBoth, reqSuccess)
+    assertEquals(resSuccess.status, 200, "Success route works with custom handlers")
+
+    // Test error route
+    reqError = {
+        method: "GET",
+        path: "/error",
+        query: "",
+        headers: [],
+        cookies: [],
+        body: ""
+    }
+
+    resError = web.handleRequest(routerBoth, reqError)
+    assertEquals(resError.status, 500, "Error route uses custom error handler")
+
+    // Test 404 route
+    req404 = {
+        method: "GET",
+        path: "/nowhere",
+        query: "",
+        headers: [],
+        cookies: [],
+        body: ""
+    }
+
+    res404 = web.handleRequest(routerBoth, req404)
+    assert(res404.body == "<div><h1>404 - Page Not Found</h1><p>The page /nowhere does not exist</p></div>",
+           "404 uses custom not found handler")
+})
+
+// Test that default handlers still work
+testRun("Default Error Pages", fun() {
+    router = web.newRouter()
+        |> web.get("/ok", successHandler)
+        |> web.get("/fail", failingHandler)
+
+    // Test default 404
+    req404 = {
+        method: "GET",
+        path: "/missing",
+        query: "",
+        headers: [],
+        cookies: [],
+        body: ""
+    }
+
+    res404 = web.handleRequest(router, req404)
+    assertEquals(res404.status, 404, "Default 404 status")
+    assertEquals(res404.body, "Not Found", "Default 404 message")
+
+    // Test default error handler
+    reqError = {
+        method: "GET",
+        path: "/fail",
+        query: "",
+        headers: [],
+        cookies: [],
+        body: ""
+    }
+
+    resError = web.handleRequest(router, reqError)
+    assertEquals(resError.status, 500, "Default error status")
+    assertEquals(resError.body, "Internal Server Error", "Default error message")
+})

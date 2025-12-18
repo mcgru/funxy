@@ -741,20 +741,15 @@ func RegisterBuiltins(env *Environment) {
 	env.Set("JArr", &Constructor{Name: "JArr", TypeName: "Json", Arity: 1})
 	env.Set("JObj", &Constructor{Name: "JObj", TypeName: "Json", Arity: 1})
 
-	// SqlValue ADT
-	env.Set("SqlValue", &TypeObject{TypeVal: typesystem.TCon{Name: "SqlValue"}})
-	env.Set("SqlNull", &DataInstance{Name: "SqlNull", Fields: []Object{}, TypeName: "SqlValue"})
-	env.Set("SqlInt", &Constructor{Name: "SqlInt", TypeName: "SqlValue", Arity: 1})
-	env.Set("SqlFloat", &Constructor{Name: "SqlFloat", TypeName: "SqlValue", Arity: 1})
-	env.Set("SqlString", &Constructor{Name: "SqlString", TypeName: "SqlValue", Arity: 1})
-	env.Set("SqlBool", &Constructor{Name: "SqlBool", TypeName: "SqlValue", Arity: 1})
-	env.Set("SqlBytes", &Constructor{Name: "SqlBytes", TypeName: "SqlValue", Arity: 1})
-	env.Set("SqlTime", &Constructor{Name: "SqlTime", TypeName: "SqlValue", Arity: 1})
-	env.Set("SqlBigInt", &Constructor{Name: "SqlBigInt", TypeName: "SqlValue", Arity: 1})
+	// SqlValue ADT (moved to lib/sql)
+	// env.Set("SqlValue", &TypeObject{TypeVal: typesystem.TCon{Name: "SqlValue"}})
+	// env.Set("SqlNull", &DataInstance{Name: "SqlNull", Fields: []Object{}, TypeName: "SqlValue"})
+	// env.Set("SqlInt", &Constructor{Name: "SqlInt", TypeName: "SqlValue", Arity: 1})
+	// ... (others removed)
 
-	// Bytes and Bits types
-	env.Set("Bytes", &TypeObject{TypeVal: typesystem.TCon{Name: "Bytes"}})
-	env.Set("Bits", &TypeObject{TypeVal: typesystem.TCon{Name: "Bits"}})
+	// Bytes and Bits types (moved to lib/bytes and lib/bits)
+	// env.Set("Bytes", &TypeObject{TypeVal: typesystem.TCon{Name: "Bytes"}})
+	// env.Set("Bits", &TypeObject{TypeVal: typesystem.TCon{Name: "Bits"}})
 
 	// Map type
 	env.Set("Map", &TypeObject{TypeVal: typesystem.TCon{Name: "Map"}})

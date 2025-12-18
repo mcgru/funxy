@@ -32,12 +32,12 @@ type LoadedModule interface {
 	GetName() string                                   // Returns package name
 	GetExportedSymbols() map[string]typesystem.Type    // Deprecated: Use GetExports()
 	GetExports() map[string]symbols.Symbol
-	
+
 	IsHeadersAnalyzed() bool
 	SetHeadersAnalyzed(bool)
 	IsHeadersAnalyzing() bool
 	SetHeadersAnalyzing(bool)
-	
+
 	IsBodiesAnalyzed() bool
 	SetBodiesAnalyzed(bool)
 	IsBodiesAnalyzing() bool
@@ -46,14 +46,18 @@ type LoadedModule interface {
 	GetFiles() []*ast.Program
 	GetSymbolTable() *symbols.SymbolTable
 	SetTypeMap(map[ast.Node]typesystem.Type)
-	
+
 	// Package group support
 	IsPackageGroupModule() bool
 	GetSubModulesRaw() map[string]interface{} // Returns sub-modules (cast to LoadedModule)
-	
+
 	// Re-export support
 	GetReexportSpecs() []*ast.ExportSpec
 	AddExport(name string)
+
+	// Trait defaults
+	SetTraitDefaults(map[string]*ast.FunctionStatement)
+	GetTraitDefaults() map[string]*ast.FunctionStatement
 }
 
 // New creates a new Analyzer with a given symbol table.
@@ -111,12 +115,12 @@ func (w *walker) getErrors() []*diagnostics.DiagnosticError {
 	for _, err := range w.errors {
 		w.addError(err)
 	}
-	
+
 	result := make([]*diagnostics.DiagnosticError, 0, len(w.errorSet))
 	for _, err := range w.errorSet {
 		result = append(result, err)
 	}
-	
+
 	// Sort by line, then column for deterministic output
 	sort.Slice(result, func(i, j int) bool {
 		if result[i].Token.Line != result[j].Token.Line {
@@ -124,7 +128,7 @@ func (w *walker) getErrors() []*diagnostics.DiagnosticError {
 		}
 		return result[i].Token.Column < result[j].Token.Column
 	})
-	
+
 	return result
 }
 
@@ -138,13 +142,13 @@ const (
 
 func (a *Analyzer) AnalyzeHeaders(node ast.Node) []*diagnostics.DiagnosticError {
 	typeMap := make(map[ast.Node]typesystem.Type)
-	
+
 	// Create shared InferenceContext if not exists
 	if a.inferCtx == nil {
 		a.inferCtx = NewInferenceContextWithLoader(a.loader)
 	}
 	a.inferCtx.TypeMap = typeMap
-	
+
 	w := &walker{
 		symbolTable:   a.symbolTable,
 		errorSet:      make(map[string]*diagnostics.DiagnosticError),
@@ -158,7 +162,7 @@ func (a *Analyzer) AnalyzeHeaders(node ast.Node) []*diagnostics.DiagnosticError 
 		TraitDefaults: a.TraitDefaults,
 	}
 	node.Accept(w)
-	
+
 	// Merge TypeMap
 	if a.TypeMap == nil {
 		a.TypeMap = make(map[ast.Node]typesystem.Type)
@@ -166,7 +170,7 @@ func (a *Analyzer) AnalyzeHeaders(node ast.Node) []*diagnostics.DiagnosticError 
 	for k, v := range w.TypeMap {
 		a.TypeMap[k] = v
 	}
-	
+
 	return w.getErrors()
 }
 
@@ -195,7 +199,7 @@ func (a *Analyzer) AnalyzeBodies(node ast.Node) []*diagnostics.DiagnosticError {
 		TraitDefaults: a.TraitDefaults,
 	}
 	node.Accept(w)
-	
+
 	return w.getErrors()
 }
 

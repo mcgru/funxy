@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/funvibe/funxy/internal/evaluator"
 	"github.com/funvibe/funxy/internal/modules"
+	"github.com/funvibe/funxy/internal/typesystem"
 	"path/filepath"
 )
 
@@ -49,7 +50,7 @@ func (vm *VM) importUserModule(imp PendingImport) error {
 	// Check cache first
 	if cachedObj := vm.moduleCache.Get(absPath); cachedObj != nil {
 		if cached, ok := cachedObj.(*evaluator.RecordInstance); ok {
-		return vm.applyModuleImport(imp, cached)
+			return vm.applyModuleImport(imp, cached)
 		}
 	}
 
@@ -145,6 +146,13 @@ func (vm *VM) compileAndExecuteModule(mod *modules.Module) (*evaluator.RecordIns
 	modVM.loadingModules = vm.loadingModules
 	modVM.RegisterBuiltins()
 
+	// Initialize trait defaults from analysis results
+	if mod.TraitDefaults != nil {
+		modVM.traitDefaults = mod.TraitDefaults
+	}
+
+
+
 	pendingImports := compiler.GetPendingImports()
 	if err := modVM.ProcessImports(pendingImports); err != nil {
 		return nil, fmt.Errorf("import error in module %s: %v", mod.Name, err)
@@ -194,11 +202,11 @@ func (vm *VM) compileAndExecuteModule(mod *modules.Module) (*evaluator.RecordIns
 
 			modMethodMap.Range(func(methodName string, closureObj evaluator.Object) bool {
 				closure := closureObj.(*ObjClosure)
-			// Attach module globals to trait methods
-			// ObjClosure.Globals is *PersistentMap, modVM.globals is *PersistentMap
+				// Attach module globals to trait methods
+				// ObjClosure.Globals is *PersistentMap, modVM.globals is *PersistentMap
 				closure.Globals = modVM.globals
 
-			parentMethodMap = parentMethodMap.Put(methodName, closure)
+				parentMethodMap = parentMethodMap.Put(methodName, closure)
 				return true
 			})
 			parentTypeMap = parentTypeMap.Put(typeName, parentMethodMap)
@@ -230,7 +238,23 @@ func (vm *VM) compileAndExecuteModule(mod *modules.Module) (*evaluator.RecordIns
 		return true
 	})
 
+	// Copy trait defaults from module VM to parent VM
+	for key, fn := range modVM.traitDefaults {
+		vm.traitDefaults[key] = fn
+	}
+
 	return evaluator.NewRecord(exports), nil
+}
+
+// Helper to check if a value is a constructor for a type
+func isConstructorForType(val evaluator.Object, typeName string) bool {
+	switch c := val.(type) {
+	case *evaluator.Constructor:
+		return c.TypeName == typeName
+	case *evaluator.DataInstance:
+		return c.TypeName == typeName
+	}
+	return false
 }
 
 // applyModuleImport applies the import specification to globals
@@ -266,6 +290,27 @@ func (vm *VM) applyModuleImport(imp PendingImport, modObj *evaluator.RecordInsta
 		for _, sym := range imp.Symbols {
 			if val := modObj.Get(sym); val != nil {
 				vm.globals = vm.globals.Put(sym, val)
+
+				// Implicit import of constructors for ADTs
+				if typeObj, ok := val.(*evaluator.TypeObject); ok {
+					typeName := ""
+					if tCon, ok := typeObj.TypeVal.(typesystem.TCon); ok {
+						typeName = tCon.Name
+					} else if tApp, ok := typeObj.TypeVal.(typesystem.TApp); ok {
+						if tCon, ok := tApp.Constructor.(typesystem.TCon); ok {
+							typeName = tCon.Name
+						}
+					}
+
+					if typeName != "" {
+						// Scan module exports for constructors of this type
+						for _, field := range modObj.Fields {
+							if isConstructorForType(field.Value, typeName) {
+								vm.globals = vm.globals.Put(field.Key, field.Value)
+							}
+						}
+					}
+				}
 			} else {
 				return fmt.Errorf("symbol '%s' not found in module", sym)
 			}
@@ -348,6 +393,17 @@ func (vm *VM) importVirtualModule(imp PendingImport) error {
 		for _, sym := range imp.Symbols {
 			if fn, ok := builtins[sym]; ok {
 				vm.globals = vm.globals.Put(sym, fn)
+
+				// Auto-import ADT constructors if present
+				if pkg := modules.GetVirtualPackage("lib/" + pkgName); pkg != nil {
+					if variants, ok := pkg.Variants[sym]; ok {
+						for _, variantName := range variants {
+							if variantFn, exists := builtins[variantName]; exists {
+								vm.globals = vm.globals.Put(variantName, variantFn)
+							}
+						}
+					}
+				}
 			} else {
 				return fmt.Errorf("symbol '%s' not found in module %s", sym, pkgName)
 			}

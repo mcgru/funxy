@@ -1,0 +1,164 @@
+package ui (*)
+
+import "lib/list" (map, filter, foldl, foldr)
+import "lib/string" (stringJoin, stringReplaceAll)
+import "lib/map" (mapFromRecord, mapItems)
+import "lib/tuple" (fst, snd)
+
+type VNode =
+    Element String Map<String, String> List<VNode>
+    | Text String
+    | Raw String
+    | Fragment List<VNode>
+
+fun showVNode(v) {
+    match v {
+        Element(tag, _, _) -> "Element(" ++ tag ++ ")"
+        Text(s) -> "Text(" ++ s ++ ")"
+        Raw(_) -> "Raw(...)"
+        Fragment(_) -> "Fragment(...)"
+    }
+}
+
+fun text(s) { Text(s) }
+fun raw(s) { Raw(s) }
+fun fragment(children) { Fragment(children) }
+
+fun element(tag, attrs, children) {
+    attrMap = mapFromRecord(attrs)
+    Element(tag, attrMap, children)
+}
+
+// Helper to handle optional attributes
+fun elem(tag, args...) {
+    argLen = len(args)
+    if argLen == 0 {
+        element(tag, {}, [])
+    } else {
+        attrs = if argLen > 1 { args[0] } else { {} }
+        childrenRaw = if argLen > 1 { args[1] } else { args[0] }
+
+        children = if typeOf(childrenRaw, List) { childrenRaw } else { [childrenRaw] }
+
+        element(tag, attrs, children)
+    }
+}
+
+// Helper for void tags (no children)
+fun voidElem(tag, args...) {
+    attrs = if len(args) > 0 { args[0] } else { {} }
+    element(tag, attrs, [])
+}
+
+// Document structure
+fun html(args...) { elem("html", args...) }
+fun head(args...) { elem("head", args...) }
+fun body(args...) { elem("body", args...) }
+fun title(args...) { elem("title", args...) }
+fun style(args...) { elem("style", args...) }
+fun script(args...) { elem("script", args...) }
+
+// Void tags
+fun meta(args...) { voidElem("meta", args...) }
+fun link(args...) { voidElem("link", args...) }
+fun img(args...) { voidElem("img", args...) }
+fun input(args...) { voidElem("input", args...) }
+fun hr(args...) { voidElem("hr", args...) }
+fun br(args...) { voidElem("br", args...) }
+
+// Semantic tags
+fun header(args...) { elem("header", args...) }
+fun footer(args...) { elem("footer", args...) }
+fun tagMain(args...) { elem("main", args...) }
+fun nav(args...) { elem("nav", args...) }
+fun section(args...) { elem("section", args...) }
+fun article(args...) { elem("article", args...) }
+fun aside(args...) { elem("aside", args...) }
+
+// Common tags
+fun div(args...) { elem("div", args...) }
+fun span(args...) { elem("span", args...) }
+fun p(args...) { elem("p", args...) }
+fun h1(args...) { elem("h1", args...) }
+fun h2(args...) { elem("h2", args...) }
+fun h3(args...) { elem("h3", args...) }
+fun h4(args...) { elem("h4", args...) }
+fun h5(args...) { elem("h5", args...) }
+fun h6(args...) { elem("h6", args...) }
+fun a(args...) { elem("a", args...) }
+fun button(args...) { elem("button", args...) }
+fun label(args...) { elem("label", args...) }
+fun ul(args...) { elem("ul", args...) }
+fun ol(args...) { elem("ol", args...) }
+fun li(args...) { elem("li", args...) }
+fun form(args...) { elem("form", args...) }
+fun textarea(args...) { elem("textarea", args...) }
+fun select(args...) { elem("select", args...) }
+fun option(args...) { elem("option", args...) }
+
+// Tables
+fun table(args...) { elem("table", args...) }
+fun tr(args...) { elem("tr", args...) }
+fun td(args...) { elem("td", args...) }
+fun th(args...) { elem("th", args...) }
+fun thead(args...) { elem("thead", args...) }
+fun tbody(args...) { elem("tbody", args...) }
+
+// HTML5 DOCTYPE helper
+fun html5(args...) {
+    // args should be children of html tag (head, body)
+    // We treat html5 as a Fragment containing DOCTYPE and the <html> tag
+    Fragment([
+        Raw("<!DOCTYPE html>"),
+        html(args...)
+    ])
+}
+
+fun render(node) {
+    match node {
+        Element(tag, attrs, children) -> {
+            attrList = attrs
+                |> mapItems
+                |> map(fun(pair) {
+                    k = fst(pair)
+                    v = snd(pair)
+                    k = stringReplaceAll(k, "_", "-")
+                    " " ++ k ++ "=\"" ++ v ++ "\""
+                })
+
+            attrStr = stringJoin(attrList, "")
+
+            childrenStrList = children |> map(render)
+            childrenStr = stringJoin(childrenStrList, "")
+
+            if isVoidTag(tag) {
+                "<" ++ tag ++ attrStr ++ " />"
+            } else {
+                "<" ++ tag ++ attrStr ++ ">" ++ childrenStr ++ "</" ++ tag ++ ">"
+            }
+        }
+        Text(s) -> escapeHtml(s)
+        Raw(s) -> s
+        Fragment(children) -> {
+            strList = children |> map(render)
+            stringJoin(strList, "")
+        }
+    }
+}
+
+fun isVoidTag(tag) {
+    tag == "img" || tag == "input" || tag == "br" || tag == "hr" ||
+    tag == "meta" || tag == "link"
+}
+
+fun replace(old, new, s) {
+    stringReplaceAll(s, old, new)
+}
+
+fun escapeHtml(s) {
+    s |> replace("&", "&amp;")
+      |> replace("<", "&lt;")
+      |> replace(">", "&gt;")
+      |> replace("\"", "&quot;")
+      |> replace("'", "&#39;")
+}

@@ -62,10 +62,10 @@ func (p *Parser) hasContinuationOperator() bool {
 // isContinuationOperator returns true for operators that can continue on next line
 func isContinuationOperator(t token.TokenType) bool {
 	switch t {
-	case token.PIPE_GT,      // |>
-		token.CONCAT,        // ++
-		token.COMPOSE,       // ,,
-		token.USER_OP_APP:   // $
+	case token.PIPE_GT, // |>
+		token.CONCAT,      // ++
+		token.COMPOSE,     // ,,
+		token.USER_OP_APP: // $
 		return true
 	}
 	return false
@@ -198,7 +198,11 @@ func (p *Parser) parseIfExpression() ast.Expression {
 	expression := &ast.IfExpression{Token: p.curToken}
 
 	p.nextToken() // consume 'if'
+
+	prev := p.disallowTrailingLambda
+	p.disallowTrailingLambda = true
 	expression.Condition = p.parseExpression(LOWEST)
+	p.disallowTrailingLambda = prev
 
 	if !p.expectPeek(token.LBRACE) {
 		return nil
@@ -246,10 +250,16 @@ func (p *Parser) parseForExpression() ast.Expression {
 		p.nextToken() // consume ident
 		p.nextToken() // consume in
 
+		prev := p.disallowTrailingLambda
+		p.disallowTrailingLambda = true
 		expr.Iterable = p.parseExpression(LOWEST)
+		p.disallowTrailingLambda = prev
 	} else {
 		// Standard condition loop
+		prev := p.disallowTrailingLambda
+		p.disallowTrailingLambda = true
 		expr.Condition = p.parseExpression(LOWEST)
+		p.disallowTrailingLambda = prev
 	}
 
 	if !p.expectPeek(token.LBRACE) {
@@ -264,7 +274,11 @@ func (p *Parser) parseMatchExpression() ast.Expression {
 	ce := &ast.MatchExpression{Token: p.curToken}
 
 	p.nextToken() // consume 'match'
+
+	prev := p.disallowTrailingLambda
+	p.disallowTrailingLambda = true
 	ce.Expression = p.parseExpression(LOWEST)
+	p.disallowTrailingLambda = prev
 
 	if !p.expectPeek(token.LBRACE) {
 		return nil
@@ -730,91 +744,200 @@ func (p *Parser) parseAnnotatedExpression(left ast.Expression) ast.Expression {
 func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 	exp := &ast.CallExpression{Token: p.curToken, Function: function}
 
-	// Check for type application (MyType<T>)
-	// This is tricky. p.curToken is LPAREN? No, parseCallExpression is infix.
-	// The precedence table says LPAREN is CALL.
-	// But what about `<`?
-	// We need to handle `Identifier < Type > ( Args )`.
-	// `Identifier` is `function`.
-	// But `<` is infix LESSGREATER.
-	// If we want `id<Int>(5)`, we need `<` to be treated as TypeApplication?
-	// The parser structure here is Pratt.
-	// If we encounter `<` after an identifier, it's treated as LESSGREATER unless we intervene.
-	// But `id<Int>` is not a standard expression. It's a "Type Applied Identifier".
-	// But `id < 5` is boolean.
-	// How to distinguish?
-	// 1. `id<T>`: T is a Type. `id < 5`: 5 is Expression.
-	// 2. Lookahead.
-	// If we see `IDENT <`, we can check if what follows is a Type and then `>`.
-	// But types can be expressions too (identifiers).
+	// Parse arguments (handling Named Args sugar)
+	exp.Arguments = p.parseCallArguments()
 
-	// Simplification: Explicitly applied types are rare in expressions if inference works.
-	// But `makeBox<Int>(5)` might be needed.
-	// If we treat it as function call `f(...)`.
+	// Handle Block Syntax (Trailing Lambda/List)
+	// If followed by { ... }, treat as list of expressions and append as last argument
+	if !p.disallowTrailingLambda && p.peekTokenIs(token.LBRACE) {
+		// Only if no newline before brace? RFC doesn't specify, but usually yes for trailing blocks.
+		// Check for newline
+		if !p.peekTokenIs(token.NEWLINE) {
+			p.nextToken() // consume {
+			blockExprs := p.parseBlockAsList()
+			exp.Arguments = append(exp.Arguments, blockExprs)
+		}
+	}
 
-	// Maybe `f(Type, arg)`? No, syntax is `f<T>(a)`.
-
-	// If we parse `id < Int` as infix expression `(id < Int)`.
-	// Then `(id < Int) > (5)`? No `id<Int>(5)`.
-	// `(id < Int) > (5)` would be `((id < Int) > 5)`.
-	// `(id < Int)` is a boolean.
-	// So `id<Int>(5)` parses as `((id < Int) > (5))`? No `(5)` is not expression start? `(5)` is tuple/group.
-	// `id < Int > (5)` -> `((id < Int) > 5)` (assuming `(5)` is group `5`).
-	// Boolean > Integer? Type error.
-
-	// We need to parse `id<Int>` as a single unit (CallTarget).
-	// This usually requires unbounded lookahead or specific context.
-	// Or we can restrict generic args in calls?
-
-	// In `parser/parser.go`, we registered `LT` as Infix `LESSGREATER`.
-	// We can change `parseInfixExpression` for `LT`.
-	// Check if `left` is Identifier.
-	// Check if valid Type follows.
-	// If so, try to parse as TypeApplicationExpression (new AST node?).
-	// But `TypeApplication` usually wraps the identifier.
-	// `TApp(id, [Int])`.
-
-	// Let's add `parseTypeApplicationExpression` for `LT` token in `infixParseFns`.
-	// But `LT` is also Less Than.
-	// `a < b`. `b` is expression.
-	// `f < T > (a)`.
-
-	// Heuristic: If `parseType` succeeds and is followed by `>`, it's likely type args.
-	// But `a < b` where `b` is Identifier (which is also a Type).
-	// `a < b > c` -> `(a < b) > c`.
-	// `f < Int > (c)` -> `f` called with type `Int`, then called with `c`.
-	// If `b` is `Int` (Uppercase), it is likely a Type.
-	// If `b` is `x` (Lowercase), it is likely a variable.
-	// Our convention: Types are PascalCase. Variables are camelCase/snake_case.
-	// So if we see `<` followed by Uppercase Ident, it's likely Type Application.
-	// If we see `<` followed by Lowercase Ident, it's likely Less Than.
-
-	// What about `f<T>(x)`? `T` is uppercase.
-	// `a < B`? Comparison with Constant?
-	// `a < B` is valid comparison if B is constant.
-	// But `B` is also a Type.
-	// If `B` is used as value, it's identifier expression.
-	// Ambiguity exists.
-	// `f<T>(x)` vs `f < T > (x)` (compare f less than T, then result greater than x?? No `>` is greater than).
-	// `(f < T) > (x)`.
-	// If `f` is function, `f < T` is invalid.
-	// So semantically we can distinguish, but syntax wise...
-
-	// Many languages (Rust, C#) struggle with this.
-	// Rust uses `::` (turbofish) `f::<T>(x)` to disambiguate.
-	// Typescript uses `f<T>(x)` but has issues with JSX `<div...`.
-	// Java `f<T>(x)` ok.
-
-	// Let's try the Uppercase rule first.
-	// If `LT` is followed by `IDENT_UPPER`, parse as Type Application.
-	// Else, parse as Less Than.
-	// This prevents `x < Y` comparison (Y as constant). User must use `x < (Y)`.
-
-	// Modify `parser/parser.go` to register a specific function for `LT`.
-	// That function decides.
-
-	exp.Arguments = p.parseExpressionList(token.RPAREN)
 	return exp
+}
+
+// parseCallArguments parses arguments for a function call, handling Named Args sugar
+// func(a: 1, b: 2) -> func({a: 1, b: 2})
+// func(1, b: 2) -> func(1, {b: 2})
+func (p *Parser) parseCallArguments() []ast.Expression {
+	args := []ast.Expression{}
+	namedArgs := make(map[string]ast.Expression)
+	var namedArgsOrder []string
+	isNamedMode := false
+
+	// Move past LPAREN
+	p.nextToken()
+
+	// Skip leading newlines
+	for p.curTokenIs(token.NEWLINE) {
+		p.nextToken()
+	}
+
+	// Check for empty call )
+	if p.curTokenIs(token.RPAREN) {
+		return args
+	}
+
+	for {
+		// Skip newlines before argument
+		for p.curTokenIs(token.NEWLINE) {
+			p.nextToken()
+		}
+
+		// Check if we hit RPAREN (trailing comma case or just newlines)
+		if p.curTokenIs(token.RPAREN) {
+			break
+		}
+
+		// Check if this is a named argument: IDENT : ...
+		isNamed := false
+		if (p.curTokenIs(token.IDENT_LOWER) || p.curTokenIs(token.IDENT_UPPER)) && p.peekTokenIs(token.COLON) {
+			isNamed = true
+		}
+
+		if isNamed {
+			isNamedMode = true
+			key := p.curToken.Literal.(string)
+			p.nextToken() // consume key
+			p.nextToken() // consume :
+
+			// Skip newlines after :
+			for p.curTokenIs(token.NEWLINE) {
+				p.nextToken()
+			}
+
+			val := p.parseExpression(LOWEST)
+			namedArgs[key] = val
+			namedArgsOrder = append(namedArgsOrder, key)
+		} else {
+			if isNamedMode {
+				// Error: Positional argument after named argument
+				p.ctx.Errors = append(p.ctx.Errors, diagnostics.NewError(
+					diagnostics.ErrP005,
+					p.curToken,
+					"positional argument cannot follow named arguments",
+				))
+				return nil
+			}
+			expr := p.parseExpression(LOWEST)
+
+			// Handle spread arguments: args...
+			if p.peekTokenIs(token.ELLIPSIS) {
+				p.nextToken() // consume ...
+				expr = &ast.SpreadExpression{Token: p.curToken, Expression: expr}
+			}
+
+			args = append(args, expr)
+		}
+
+		// Skip newlines before checking for comma
+		for p.peekTokenIs(token.NEWLINE) {
+			p.nextToken()
+		}
+
+		// Check for comma
+		if p.peekTokenIs(token.COMMA) {
+			p.nextToken() // move to comma
+			p.nextToken() // move past comma
+
+			// Skip newlines after comma
+			for p.curTokenIs(token.NEWLINE) {
+				p.nextToken()
+			}
+
+			// Check for trailing comma
+			if p.curTokenIs(token.RPAREN) {
+				goto Done
+			}
+		} else {
+			// If no comma, we expect RPAREN (possibly after newlines)
+			break
+		}
+	}
+
+	// Skip trailing newlines before RPAREN
+	for p.peekTokenIs(token.NEWLINE) {
+		p.nextToken()
+	}
+
+	if !p.expectPeek(token.RPAREN) {
+		return nil
+	}
+
+Done:
+	// If we collected named args, bundle them into a RecordLiteral
+	if len(namedArgs) > 0 {
+		rec := &ast.RecordLiteral{
+			Token:  token.Token{Type: token.LBRACE, Lexeme: "{", Line: p.curToken.Line, Column: p.curToken.Column},
+			Fields: namedArgs,
+		}
+		args = append(args, rec)
+	}
+
+	return args
+}
+
+// parseBlockAsList parses { expr1 \n expr2 } as [expr1, expr2]
+func (p *Parser) parseBlockAsList() *ast.ListLiteral {
+	list := &ast.ListLiteral{
+		Token: p.curToken, // The { token
+	}
+	elements := []ast.Expression{}
+
+	p.nextToken() // consume {
+
+	// Skip leading newlines
+	for p.curTokenIs(token.NEWLINE) {
+		p.nextToken()
+	}
+
+	for !p.curTokenIs(token.RBRACE) && !p.curTokenIs(token.EOF) {
+		stmt := p.parseExpressionStatementOrConstDecl()
+		if stmt != nil {
+			if exprStmt, ok := stmt.(*ast.ExpressionStatement); ok {
+				elements = append(elements, exprStmt.Expression)
+			} else {
+				// Error: Block syntax only supports expressions
+				var tok token.Token
+				if prov, ok := stmt.(ast.TokenProvider); ok {
+					tok = prov.GetToken()
+				} else {
+					tok = p.curToken
+				}
+
+				p.ctx.Errors = append(p.ctx.Errors, diagnostics.NewError(
+					diagnostics.ErrP005,
+					tok,
+					"block syntax in arguments only supports expressions",
+				))
+			}
+		}
+
+		p.nextToken()
+		// Skip newlines
+		for p.curTokenIs(token.NEWLINE) {
+			p.nextToken()
+		}
+	}
+
+	// We are at RBRACE or EOF.
+	// If EOF, it's an error (missing }) but we'll return what we have or let expectation fail?
+	// The loop terminates on RBRACE. So curToken is RBRACE.
+
+	// Check if we actually ended with RBRACE (loop could end on EOF)
+	if p.curTokenIs(token.EOF) {
+		// Error: expected }
+		return nil
+	}
+
+	list.Elements = elements
+	return list
 }
 
 func (p *Parser) parseExpressionList(end token.TokenType) []ast.Expression {

@@ -1,0 +1,19 @@
+package source (*)
+
+// ADT with constructors
+type Data = Con1(Int) | Con2(String) | Con3
+
+// Record type
+type Config = {
+    id: Int,
+    enabled: Bool
+}
+
+// Type alias
+type alias ID = Int
+
+// Function
+identity = fun(x: Int) -> Int { x }
+
+// Constructor helper
+makeCon1 = fun(x: Int) -> Data { Con1(x) }

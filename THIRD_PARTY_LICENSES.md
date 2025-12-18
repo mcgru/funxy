@@ -14,16 +14,16 @@ All licenses are permissive and compatible with MIT.
 - **Copyright:** Copyright (c) 2017 The Memory Authors. All rights reserved.
 - **Source:** https://gitlab.com/cznic/sqlite
 
----
-
-## Indirect Dependencies (via modernc.org/sqlite)
-
 ### github.com/google/uuid
 
 - **Version:** v1.6.0
 - **License:** BSD-3-Clause
 - **Copyright:** Copyright (c) 2009,2014 Google Inc. All rights reserved.
 - **Source:** https://github.com/google/uuid
+
+---
+
+## Indirect Dependencies (via modernc.org/sqlite)
 
 ### github.com/dustin/go-humanize
 

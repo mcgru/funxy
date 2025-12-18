@@ -1,0 +1,11 @@
+package pkg (run)
+
+import "lib/tuple" (fst)
+import "lib/list" (map)
+
+fun run() {
+    // This failed before: fst is imported, used inside map's lambda which is nested in run
+    // The VM compiler was failing to capture fst from the module scope into the lambda
+    [(1, 2)] |> map(fun(x) { fst(x) })
+}
+

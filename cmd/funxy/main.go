@@ -67,6 +67,9 @@ func evaluateModule(mod *modules.Module, loader *modules.Loader) (evaluator.Obje
 
 	eval := evaluator.New()
 	evaluator.RegisterFPTraits(eval, env) // Register FP traits
+	if mod.TraitDefaults != nil {
+		eval.TraitDefaults = mod.TraitDefaults
+	}
 
 	// Process imports for this module
 	for _, file := range mod.Files {

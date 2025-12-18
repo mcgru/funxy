@@ -163,7 +163,7 @@ func (c *Compiler) compileFunctionStatement(stmt *ast.FunctionStatement) error {
 		// Wait, OP_SET_GLOBAL pops? Yes, it consumes value.
 		// But we did OP_DUP before SET_GLOBAL.
 		// So stack has: [..., closure]
-		
+
 		// Need to resolve receiver type name
 		receiverType := stmt.Receiver.Type
 		typeName := ""
@@ -180,14 +180,14 @@ func (c *Compiler) compileFunctionStatement(stmt *ast.FunctionStatement) error {
 			// Fallback or error?
 			// Just skip registration if type is complex/unknown
 		}
-		
+
 		if typeName != "" {
 			c.emit(OP_DUP, line) // Duplicate closure again for registration
 			c.slotCount++
-			
+
 			typeNameIdx := c.currentChunk().AddConstant(&stringConstant{Value: typeName})
 			methodNameIdx := c.currentChunk().AddConstant(&stringConstant{Value: name})
-			
+
 			c.emit(OP_REGISTER_EXTENSION, line)
 			c.currentChunk().Write(byte(typeNameIdx>>8), line)
 			c.currentChunk().Write(byte(typeNameIdx), line)
@@ -374,12 +374,9 @@ func (c *Compiler) compileImportStatement(stmt *ast.ImportStatement) error {
 	path := stmt.Path.Value
 	line := stmt.Token.Line
 
-	if c.importedModules[path] {
-		c.emit(OP_NIL, line)
-		c.slotCount++
-		return nil
-	}
-	c.importedModules[path] = true
+	// We allow multiple imports of the same path because they might have different aliases or symbol lists.
+	// The VM is responsible for caching loaded modules to avoid re-execution.
+	// c.importedModules[path] = true
 
 	var symbols []string
 	for _, sym := range stmt.Symbols {

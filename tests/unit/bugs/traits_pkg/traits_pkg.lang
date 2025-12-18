@@ -1,0 +1,72 @@
+package traits_pkg (*)
+
+import "lib/string" (*)
+
+// 1. Basic Trait
+trait SimpleTrait<T> {
+    fun simpleMethod(val: T) -> String
+}
+
+// 2. Trait with Operator
+trait OpTrait<T> {
+    fun plus(a: T, b: T) -> T
+}
+
+// 3. Trait with Default Method
+trait DefaultTrait<T> {
+    fun required(val: T) -> String
+    fun optional(val: T) -> String {
+        "default: " ++ required(val)
+    }
+}
+
+// 4. Inheritance Chain
+trait GrandParent<T> {
+    fun gpMethod(val: T) -> String { "gp" }
+    fun overrideMe(val: T) -> String { "gp_orig" }
+}
+
+trait Parent<T>: GrandParent<T> {
+    fun pMethod(val: T) -> String { "p" }
+    fun overrideMe(val: T) -> String { "p_overridden" }
+}
+
+trait Child<T>: Parent<T> {
+    fun cMethod(val: T) -> String { "c" }
+}
+
+// 5. Box struct (ADT with named fields)
+type MyBox = Box { val: String }
+
+// Implementations
+instance SimpleTrait MyBox {
+    fun simpleMethod(b) {
+        match b { Box(r) -> "simple:" ++ r.val }
+    }
+}
+
+instance DefaultTrait MyBox {
+    fun required(b) {
+        match b { Box(r) -> r.val }
+    }
+}
+
+instance OpTrait MyBox {
+    fun plus(a, b) {
+        match (a, b) {
+            (Box(r1), Box(r2)) -> Box({ val: r1.val ++ r2.val })
+            _ -> Box({ val: "error" })
+        }
+    }
+}
+// ...
+// 6. Deep Inheritance Test Type
+type DeepBoxType = DeepBoxVal(String)
+
+instance GrandParent DeepBoxType {
+    fun gpMethod(d) { "deep_gp" }
+}
+instance Parent DeepBoxType {}
+instance Child DeepBoxType {
+    fun cMethod(d) { "deep_c" }
+}

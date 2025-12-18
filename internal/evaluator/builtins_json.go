@@ -199,6 +199,27 @@ func makeOkJson(value Object) *DataInstance {
 	return &DataInstance{Name: "Ok", TypeName: "Result", Fields: []Object{value}}
 }
 
+// RegisterJsonBuiltins registers JSON types and functions into an environment
+func RegisterJsonBuiltins(env *Environment) {
+	// Types
+	env.Set("Json", &TypeObject{TypeVal: typesystem.TCon{Name: "Json"}})
+
+	// Constructors
+	env.Set("JNull", &DataInstance{Name: "JNull", Fields: []Object{}, TypeName: "Json"})
+	env.Set("JBool", &Constructor{Name: "JBool", TypeName: "Json", Arity: 1})
+	env.Set("JNum", &Constructor{Name: "JNum", TypeName: "Json", Arity: 1})
+	env.Set("JStr", &Constructor{Name: "JStr", TypeName: "Json", Arity: 1})
+	env.Set("JArr", &Constructor{Name: "JArr", TypeName: "Json", Arity: 1})
+	env.Set("JObj", &Constructor{Name: "JObj", TypeName: "Json", Arity: 1})
+
+	// Functions
+	builtins := JsonBuiltins()
+	SetJsonBuiltinTypes(builtins)
+	for name, fn := range builtins {
+		env.Set(name, fn)
+	}
+}
+
 // JsonBuiltins returns built-in functions for lib/json virtual package
 func JsonBuiltins() map[string]*Builtin {
 	return map[string]*Builtin{

@@ -1,0 +1,13 @@
+import "lib/uuid" (Uuid, uuidNew, uuidToString)
+import "lib/test" (assert, testRun)
+
+testUuidExport = fun() {
+    // Check explicit import of Uuid type
+    uuid: Uuid = uuidNew()
+
+    str = uuidToString(uuid)
+    assert(str != "", "Uuid to string")
+}
+
+testRun("uuid export", testUuidExport)
+

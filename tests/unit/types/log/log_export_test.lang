@@ -1,0 +1,14 @@
+import "lib/log" (Logger, logWithPrefix, loggerInfo)
+import "lib/test" (assert, testRun)
+
+testLogExport = fun() {
+    // Check explicit import of Logger type
+    l: Logger = logWithPrefix("[TEST] ")
+    
+    // Check usage
+    loggerInfo(l, "Test message")
+    assert(true, "Logger usage")
+}
+
+testRun("log export", testLogExport)
+

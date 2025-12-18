@@ -82,6 +82,18 @@ func (e *Evaluator) evalImportStatement(node *ast.ImportStatement, env *Environm
 			for _, sym := range node.Symbols {
 				if val := record.Get(sym.Value); val != nil {
 					env.Set(sym.Value, val)
+
+					// Auto-import ADT constructors if present
+					if mod.SymbolTable != nil {
+						if variants, ok := mod.SymbolTable.GetVariants(sym.Value); ok {
+							for _, variantName := range variants {
+								// Only import if the variant is actually exported by the module
+								if variantVal := record.Get(variantName); variantVal != nil {
+									env.Set(variantName, variantVal)
+								}
+							}
+						}
+					}
 				} else {
 					return newError("symbol '%s' not found in module %s", sym.Value, mod.Name)
 				}
@@ -143,6 +155,18 @@ func (e *Evaluator) importVirtualModule(node *ast.ImportStatement, mod *modules.
 		for _, sym := range node.Symbols {
 			if fn, ok := builtins[sym.Value]; ok {
 				env.Set(sym.Value, fn)
+
+				// Auto-import ADT constructors if present
+				// For virtual modules, we need to check the VirtualPackage definition
+				if pkg := modules.GetVirtualPackage("lib/" + mod.Name); pkg != nil {
+					if variants, ok := pkg.Variants[sym.Value]; ok {
+						for _, variantName := range variants {
+							if variantFn, exists := builtins[variantName]; exists {
+								env.Set(variantName, variantFn)
+							}
+						}
+					}
+				}
 			} else {
 				return newError("symbol '%s' not found in module %s", sym.Value, mod.Name)
 			}
@@ -182,12 +206,13 @@ func (e *Evaluator) importVirtualModule(node *ast.ImportStatement, mod *modules.
 }
 
 // getVirtualModuleBuiltins returns builtins for a virtual module by name
-func (e *Evaluator) getVirtualModuleBuiltins(name string) map[string]*Builtin {
+func (e *Evaluator) getVirtualModuleBuiltins(name string) map[string]Object {
 	return GetVirtualModuleBuiltins(name)
 }
 
 // GetVirtualModuleBuiltins returns builtins for a virtual module by name (exported for VM use)
-func GetVirtualModuleBuiltins(name string) map[string]*Builtin {
+func GetVirtualModuleBuiltins(name string) map[string]Object {
+	env := NewEnvironment()
 	var builtins map[string]*Builtin
 
 	switch name {
@@ -228,8 +253,8 @@ func GetVirtualModuleBuiltins(name string) map[string]*Builtin {
 		builtins = CharBuiltins()
 		SetCharBuiltinTypes(builtins)
 	case "json":
-		builtins = JsonBuiltins()
-		SetJsonBuiltinTypes(builtins)
+		RegisterJsonBuiltins(env)
+		return env.GetStore()
 	case "crypto":
 		builtins = CryptoBuiltins()
 		SetCryptoBuiltinTypes(builtins)
@@ -246,14 +271,14 @@ func GetVirtualModuleBuiltins(name string) map[string]*Builtin {
 		builtins = RandBuiltins()
 		SetRandBuiltinTypes(builtins)
 	case "date":
-		builtins = DateBuiltins()
-		SetDateBuiltinTypes(builtins)
+		RegisterDateBuiltins(env)
+		return env.GetStore()
 	case "ws":
 		builtins = WsBuiltins()
 		SetWsBuiltinTypes(builtins)
 	case "sql":
-		builtins = SqlBuiltins()
-		SetSqlBuiltinTypes(builtins)
+		RegisterSqlBuiltins(env)
+		return env.GetStore()
 	case "url":
 		builtins = UrlBuiltins()
 		SetUrlBuiltinTypes(builtins)
@@ -282,13 +307,31 @@ func GetVirtualModuleBuiltins(name string) map[string]*Builtin {
 	default:
 		return nil
 	}
-	return builtins
+
+	if builtins != nil {
+		for name, fn := range builtins {
+			env.Set(name, fn)
+		}
+
+		// Inject exported types for specific modules that don't use Register...Builtins
+		if name == "task" {
+			env.Set("Task", &TypeObject{TypeVal: typesystem.TCon{Name: "Task"}})
+		} else if name == "log" {
+			env.Set("Logger", &TypeObject{TypeVal: typesystem.TCon{Name: "Logger"}})
+		} else if name == "uuid" {
+			env.Set("Uuid", &TypeObject{TypeVal: typesystem.TCon{Name: "Uuid"}})
+		}
+
+		return env.GetStore()
+	}
+
+	return nil
 }
 
 // importAllLibPackages handles import "lib" - imports all lib/* packages
 func (e *Evaluator) importAllLibPackages(node *ast.ImportStatement, env *Environment) Object {
 	// Collect all builtins from all lib/* packages
-	allBuiltins := make(map[string]*Builtin)
+	allBuiltins := make(map[string]Object)
 
 	for _, pkgName := range modules.GetLibSubPackages() {
 		builtins := e.getVirtualModuleBuiltins(pkgName)
@@ -573,6 +616,15 @@ func (e *Evaluator) evalTraitDeclaration(node *ast.TraitDeclaration, env *Enviro
 		// Arity from parameter count - used to determine if auto-call in type context
 		arity := len(sig.Parameters)
 		env.Set(methodName, &ClassMethod{Name: methodName, ClassName: node.Name.Value, Arity: arity})
+
+		// Register default implementation if body exists
+		if sig.Body != nil {
+			key := node.Name.Value + "." + methodName
+			if e.TraitDefaults == nil {
+				e.TraitDefaults = make(map[string]*ast.FunctionStatement)
+			}
+			e.TraitDefaults[key] = sig
+		}
 	}
 
 	if _, ok := e.ClassImplementations[node.Name.Value]; !ok {
@@ -901,4 +953,3 @@ func (e *Evaluator) evalBreakStatement(node *ast.BreakStatement, env *Environmen
 func (e *Evaluator) evalContinueStatement(node *ast.ContinueStatement, env *Environment) Object {
 	return &ContinueSignal{}
 }
-

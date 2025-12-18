@@ -21,6 +21,9 @@ type Parser struct {
 	// splitRshift tracks when we've consumed one > from >>
 	// When true, the next nextToken() call will return > instead of reading from stream
 	splitRshift bool
+
+	// disallowTrailingLambda allows disabling trailing lambda syntax in contexts like if/match conditions
+	disallowTrailingLambda bool
 }
 
 type (

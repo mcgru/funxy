@@ -1,0 +1,78 @@
+import "kit/web"
+import "lib/test" (*)
+import "lib/json" (jsonEncode)
+import "lib/crypto" (base64Encode)
+import "lib/string" (stringIndexOf)
+import "lib/map" (mapFromRecord, mapGet)
+
+// Helper
+fun containsStr(haystack, needle) {
+    match stringIndexOf(haystack, needle) {
+        Some(_) -> true
+        Zero -> false
+    }
+}
+
+testRun("Web Auth - OAuth Flow", fun() {
+    config = {
+        clientId: "client123",
+        clientSecret: "secret456",
+        redirectUri: "http://localhost:8080/callback",
+        authUrl: "https://example.com/auth",
+        tokenUrl: "https://example.com/token",
+        scopes: ["user", "email"]
+    }
+
+    // Test auth URL generation
+    url = web.oauthAuthUrl(config, "state123")
+    assert(containsStr(url, "client_id=client123"), "client_id present")
+    assert(containsStr(url, "scope=user email"), "scope present")
+
+    // Test Token Exchange (Mock HTTP)
+    mockResp = {
+        status: 200,
+        headers: [("Content-Type", "application/json")],
+        body: "{\"access_token\": \"token789\", \"token_type\": \"bearer\"}"
+    }
+
+    // We mock the token URL
+    mockHttp("https://example.com/token", mockResp)
+
+    match web.oauthExchange(config, "code123") {
+        Ok(data) -> {
+             m = mapFromRecord(data)
+             match mapGet(m, "access_token") {
+                Some(t) -> {
+                     // t is Json value, likely JStr("token789")
+                     // Use jsonEncode to verify content
+                     assertEquals(jsonEncode(t), "\"token789\"", "access_token correct")
+                }
+                Zero -> assertFail(Ok(0), "access_token missing in JSON")
+            }
+        }
+        Fail(e) -> assertFail(Fail(e), "Exchange failed: " ++ e)
+    }
+
+    mockHttpOff()
+})
+
+testRun("Web Auth - Session Signature", fun() {
+    secret = "secret-key"
+    data = "user_id:123"
+
+    // Test Sign
+    signed = web.sessionSign(base64Encode(data), secret)
+
+    // Test Verify
+    match web.sessionVerify(signed, secret) {
+        Some(val) -> assertEquals(val, data, "Verified data matches")
+        Zero -> assertFail(Ok(0), "Verification failed")
+    }
+
+    // Test Tamper
+    tampered = signed ++ "x"
+    match web.sessionVerify(tampered, secret) {
+        Some(_) -> assertFail(Ok(0), "Tampered signature verified!")
+        Zero -> assert(true, "Tampered signature rejected")
+    }
+})

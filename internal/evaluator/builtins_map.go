@@ -8,17 +8,46 @@ import (
 // GetMapBuiltins returns the map of map-related built-in functions
 func GetMapBuiltins() map[string]*Builtin {
 	return map[string]*Builtin{
-		"mapGet":      {Fn: builtinMapGet, Name: "mapGet"},
-		"mapGetOr":    {Fn: builtinMapGetOr, Name: "mapGetOr"},
-		"mapPut":      {Fn: builtinMapPut, Name: "mapPut"},
-		"mapRemove":   {Fn: builtinMapRemove, Name: "mapRemove"},
-		"mapKeys":     {Fn: builtinMapKeys, Name: "mapKeys"},
-		"mapValues":   {Fn: builtinMapValues, Name: "mapValues"},
-		"mapItems":    {Fn: builtinMapItems, Name: "mapItems"},
-		"mapContains": {Fn: builtinMapContains, Name: "mapContains"},
-		"mapSize":     {Fn: builtinMapSize, Name: "mapSize"},
-		"mapMerge":    {Fn: builtinMapMerge, Name: "mapMerge"},
+		"mapNew":        {Fn: builtinMapNew, Name: "mapNew"},
+		"mapFromRecord": {Fn: builtinMapFromRecord, Name: "mapFromRecord"},
+		"mapGet":        {Fn: builtinMapGet, Name: "mapGet"},
+		"mapGetOr":      {Fn: builtinMapGetOr, Name: "mapGetOr"},
+		"mapPut":        {Fn: builtinMapPut, Name: "mapPut"},
+		"mapRemove":     {Fn: builtinMapRemove, Name: "mapRemove"},
+		"mapKeys":       {Fn: builtinMapKeys, Name: "mapKeys"},
+		"mapValues":     {Fn: builtinMapValues, Name: "mapValues"},
+		"mapItems":      {Fn: builtinMapItems, Name: "mapItems"},
+		"mapContains":   {Fn: builtinMapContains, Name: "mapContains"},
+		"mapSize":       {Fn: builtinMapSize, Name: "mapSize"},
+		"mapMerge":      {Fn: builtinMapMerge, Name: "mapMerge"},
 	}
+}
+
+// mapNew: () -> Map<K, V>
+func builtinMapNew(e *Evaluator, args ...Object) Object {
+	if len(args) != 0 {
+		return newError("mapNew expects 0 arguments")
+	}
+	return newMap()
+}
+
+// mapFromRecord: (Record) -> Map<String, Any>
+func builtinMapFromRecord(e *Evaluator, args ...Object) Object {
+	if len(args) != 1 {
+		return newError("mapFromRecord expects 1 argument")
+	}
+	rec, ok := args[0].(*RecordInstance)
+	if !ok {
+		return newError("mapFromRecord expects a Record, got %s", args[0].Type())
+	}
+
+	m := newMap()
+	for _, field := range rec.Fields {
+		// Key is string, convert to List<Char>
+		key := stringToList(field.Key)
+		m = m.put(key, field.Value)
+	}
+	return m
 }
 
 // mapGet: (Map<K, V>, K) -> Option<V>
@@ -173,6 +202,20 @@ func SetMapBuiltinTypes(builtins map[string]*Builtin) {
 		Args:        []typesystem.Type{K, V},
 	}
 
+	// For mapFromRecord: Map<String, V>
+	stringType := typesystem.TApp{
+		Constructor: typesystem.TCon{Name: config.ListTypeName},
+		Args:        []typesystem.Type{typesystem.Char},
+	}
+	mapStringV := typesystem.TApp{
+		Constructor: typesystem.TCon{Name: config.MapTypeName},
+		Args:        []typesystem.Type{stringType, V},
+	}
+	// We don't have a specific Record type in Type system that matches "any record",
+	// so we might use a generic or a special check. For now, use Any or specific Record logic in analyzer.
+	// Using TVar "R" for record.
+	recordType := typesystem.TVar{Name: "R"}
+
 	optionV := typesystem.TApp{
 		Constructor: typesystem.TCon{Name: config.OptionTypeName},
 		Args:        []typesystem.Type{V},
@@ -195,16 +238,18 @@ func SetMapBuiltinTypes(builtins map[string]*Builtin) {
 	}
 
 	types := map[string]typesystem.Type{
-		"mapGet":      typesystem.TFunc{Params: []typesystem.Type{mapKV, K}, ReturnType: optionV},
-		"mapGetOr":    typesystem.TFunc{Params: []typesystem.Type{mapKV, K, V}, ReturnType: V},
-		"mapPut":      typesystem.TFunc{Params: []typesystem.Type{mapKV, K, V}, ReturnType: mapKV},
-		"mapRemove":   typesystem.TFunc{Params: []typesystem.Type{mapKV, K}, ReturnType: mapKV},
-		"mapKeys":     typesystem.TFunc{Params: []typesystem.Type{mapKV}, ReturnType: listK},
-		"mapValues":   typesystem.TFunc{Params: []typesystem.Type{mapKV}, ReturnType: listV},
-		"mapItems":    typesystem.TFunc{Params: []typesystem.Type{mapKV}, ReturnType: listPairs},
-		"mapContains": typesystem.TFunc{Params: []typesystem.Type{mapKV, K}, ReturnType: typesystem.Bool},
-		"mapSize":     typesystem.TFunc{Params: []typesystem.Type{mapKV}, ReturnType: typesystem.Int},
-		"mapMerge":    typesystem.TFunc{Params: []typesystem.Type{mapKV, mapKV}, ReturnType: mapKV},
+		"mapNew":        typesystem.TFunc{Params: []typesystem.Type{}, ReturnType: mapKV},
+		"mapFromRecord": typesystem.TFunc{Params: []typesystem.Type{recordType}, ReturnType: mapStringV},
+		"mapGet":        typesystem.TFunc{Params: []typesystem.Type{mapKV, K}, ReturnType: optionV},
+		"mapGetOr":      typesystem.TFunc{Params: []typesystem.Type{mapKV, K, V}, ReturnType: V},
+		"mapPut":        typesystem.TFunc{Params: []typesystem.Type{mapKV, K, V}, ReturnType: mapKV},
+		"mapRemove":     typesystem.TFunc{Params: []typesystem.Type{mapKV, K}, ReturnType: mapKV},
+		"mapKeys":       typesystem.TFunc{Params: []typesystem.Type{mapKV}, ReturnType: listK},
+		"mapValues":     typesystem.TFunc{Params: []typesystem.Type{mapKV}, ReturnType: listV},
+		"mapItems":      typesystem.TFunc{Params: []typesystem.Type{mapKV}, ReturnType: listPairs},
+		"mapContains":   typesystem.TFunc{Params: []typesystem.Type{mapKV, K}, ReturnType: typesystem.Bool},
+		"mapSize":       typesystem.TFunc{Params: []typesystem.Type{mapKV}, ReturnType: typesystem.Int},
+		"mapMerge":      typesystem.TFunc{Params: []typesystem.Type{mapKV, mapKV}, ReturnType: mapKV},
 	}
 
 	for name, typ := range types {

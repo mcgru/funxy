@@ -1,0 +1,22 @@
+import "lib/test" (*)
+
+fun add(a, b) { a + b }
+
+fun pipeFn(x) {
+    // This pipe call is in tail position
+    // If TCO is broken, this might fail to call `add` and return `10` instead
+    x |> add(5)
+}
+
+testRun("pipe operator tail call optimization", fun() {
+    res = pipeFn(10)
+    // Should be 10 + 5 = 15
+    // If TCO bug exists, it might return 5 (arg) or 10 (input) depending on stack
+    // Based on debugging, it returned arg (5)
+
+    // Actually, in debugging "HtmlResponse" (arg) was returned.
+    // So here `5` would be returned.
+
+    assertEquals(res, 15, "pipe in tail position should execute function")
+})
+

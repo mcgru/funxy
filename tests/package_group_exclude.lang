@@ -1,4 +1,4 @@
-import "pkggroup" !(double, greet)
+import "./pkggroup" !(double, greet)
 
 print(triple(3))
 print(exclaim("Excluded"))

@@ -104,14 +104,14 @@ func (w *walker) VisitImportStatement(n *ast.ImportStatement) {
 			// Recursive Analysis based on Mode for regular modules
 			w.analyzeRegularModule(loadedMod, pathToCheck)
 		}
-		
+
 		// Store mapping alias -> packageName for extension method/trait lookup
 		packageName := loadedMod.GetName()
 		w.symbolTable.RegisterModuleAlias(name, packageName)
-		
+
 		// Get Exports (Symbols with Kinds)
 		exportSymbols := loadedMod.GetExports()
-		
+
 		// Identify exported Types to tag TCon (sorted for deterministic order)
 		exportedTypes := make(map[string]bool)
 		exportKeys := make([]string, 0, len(exportSymbols))
@@ -119,10 +119,10 @@ func (w *walker) VisitImportStatement(n *ast.ImportStatement) {
 			exportKeys = append(exportKeys, k)
 		}
 		sort.Strings(exportKeys)
-		
+
 		for _, expName := range exportKeys {
 			sym := exportSymbols[expName]
-			if sym.Kind == symbols.TypeSymbol || sym.Kind == symbols.ConstructorSymbol { 
+			if sym.Kind == symbols.TypeSymbol || sym.Kind == symbols.ConstructorSymbol {
 				// Only tag TypeSymbol? ConstructorSymbol usually not TCon (TFunc or TApp)
 				// But if we export Type, we want TCon{Name: Type} to be tagged.
 				if sym.Kind == symbols.TypeSymbol {
@@ -135,7 +135,7 @@ func (w *walker) VisitImportStatement(n *ast.ImportStatement) {
 		if n.ImportAll || len(n.Symbols) > 0 || len(n.Exclude) > 0 {
 			// Import symbols directly into current scope
 			symbolsToImport := make(map[string]bool)
-			
+
 			if n.ImportAll {
 				// Import all (using already sorted exportKeys)
 				for _, expName := range exportKeys {
@@ -166,7 +166,7 @@ func (w *walker) VisitImportStatement(n *ast.ImportStatement) {
 					}
 				}
 			}
-			
+
 			// Register each symbol directly (sorted for deterministic order)
 			importKeys := make([]string, 0, len(symbolsToImport))
 			for k := range symbolsToImport {
@@ -174,60 +174,115 @@ func (w *walker) VisitImportStatement(n *ast.ImportStatement) {
 			}
 			sort.Strings(importKeys)
 
-		for _, symName := range importKeys {
-			sym := exportSymbols[symName]
-			taggedType := tagModule(sym.Type, packageName, exportedTypes)
-			
-			// Use OriginModule from source symbol, or packageName if not set
-			origin := sym.OriginModule
-			if origin == "" {
-				origin = packageName
-			}
-			
-			// Check for duplicate import - allow if same origin (same symbol re-exported via different paths)
-			if existing, exists := w.symbolTable.Find(symName); exists {
-				if existing.OriginModule == origin {
-					// Same symbol from same origin - OK, skip
+			for _, symName := range importKeys {
+				sym := exportSymbols[symName]
+				taggedType := tagModule(sym.Type, packageName, exportedTypes)
+
+				// Use OriginModule from source symbol, or packageName if not set
+				origin := sym.OriginModule
+				if origin == "" {
+					origin = packageName
+				}
+
+				// Check for duplicate import - allow if same origin (same symbol re-exported via different paths)
+				if existing, exists := w.symbolTable.Find(symName); exists {
+					if existing.OriginModule == origin {
+						// Same symbol from same origin - OK, skip
+						continue
+					}
+					// Different origins - conflict
+					w.addError(diagnostics.NewError(
+						diagnostics.ErrA004,
+						n.GetToken(),
+						fmt.Sprintf("%s' (already defined from %s, cannot import from %s)",
+							symName, existing.OriginModule, origin),
+					))
 					continue
 				}
-				// Different origins - conflict
-				w.addError(diagnostics.NewError(
-					diagnostics.ErrA004,
-					n.GetToken(),
-					fmt.Sprintf("%s' (already defined from %s, cannot import from %s)", 
-						symName, existing.OriginModule, origin),
-				))
-				continue
-			}
-			
-			if sym.Kind == symbols.TypeSymbol {
-				// Check if it's a type alias with underlying type
-				if sym.IsTypeAlias() {
-					// Copy both nominal type and underlying type
-					w.symbolTable.DefineTypeAlias(symName, taggedType, sym.UnderlyingType, origin)
-				} else {
-					w.symbolTable.DefineType(symName, taggedType, origin)
-				}
-			} else if sym.Kind == symbols.ConstructorSymbol {
-				w.symbolTable.DefineConstructor(symName, taggedType, origin)
-			} else {
-				w.symbolTable.Define(symName, taggedType, origin)
-			}
-		}
-		
-		// Copy trait implementations and extension methods for imported types
-		if loadedMod, ok := modInterface.(LoadedModule); ok {
-			if modSymTable := loadedMod.GetSymbolTable(); modSymTable != nil {
-				importedTypes := make(map[string]bool)
-				for _, symName := range importKeys {
-					if exportedTypes[symName] {
-						importedTypes[symName] = true
+
+				if sym.Kind == symbols.TypeSymbol {
+					// Check if it's a type alias with underlying type
+					if sym.IsTypeAlias() {
+						// Copy both nominal type and underlying type
+						w.symbolTable.DefineTypeAlias(symName, taggedType, sym.UnderlyingType, origin)
+					} else {
+						w.symbolTable.DefineType(symName, taggedType, origin)
 					}
+
+					// Automatically import constructors for ADTs
+					if loadedModSymTable := loadedMod.GetSymbolTable(); loadedModSymTable != nil {
+						if variants, ok := loadedModSymTable.GetVariants(symName); ok {
+							for _, variantName := range variants {
+								// Only import if the variant is actually exported by the module
+								if variantSym, ok := exportSymbols[variantName]; ok {
+									// Check for conflict/redefinition logic similar to main loop?
+									// Since it's implicit, maybe we should be softer or just overwrite?
+									// Main loop checks "existing.OriginModule == origin".
+									// Let's do the same check.
+									if existing, exists := w.symbolTable.Find(variantName); exists {
+										if existing.OriginModule != origin {
+											// Conflict - but since this is implicit, maybe we just skip importing the constructor?
+											// Or should we error?
+											// If I import "Shape", I expect "Circle". If "Circle" is taken, that's an error.
+											w.addError(diagnostics.NewError(
+												diagnostics.ErrA004,
+												n.GetToken(),
+												fmt.Sprintf("implicit import of '%s' (constructor of %s) conflicts with existing symbol from %s",
+													variantName, symName, existing.OriginModule),
+											))
+										}
+										continue
+									}
+
+									variantTaggedType := tagModule(variantSym.Type, packageName, exportedTypes)
+									w.symbolTable.DefineConstructor(variantName, variantTaggedType, origin)
+								}
+							}
+						}
+					}
+				} else if sym.Kind == symbols.ConstructorSymbol {
+					w.symbolTable.DefineConstructor(symName, taggedType, origin)
+				} else if sym.Kind == symbols.TraitSymbol {
+					// Import Trait definition
+					var typeParams, superTraits []string
+					if modSymTable := loadedMod.GetSymbolTable(); modSymTable != nil {
+						typeParams, _ = modSymTable.GetTraitTypeParams(symName)
+						superTraits, _ = modSymTable.GetTraitSuperTraits(symName)
+					}
+					w.symbolTable.DefineTrait(symName, typeParams, superTraits, origin)
+
+					// Import trait methods linkage
+					if modSymTable := loadedMod.GetSymbolTable(); modSymTable != nil {
+						methods := modSymTable.GetTraitAllMethods(symName)
+						for _, methodName := range methods {
+							w.symbolTable.RegisterTraitMethod2(symName, methodName)
+
+							// Register method linkage (methodName -> traitName)
+							if methodSym, ok := modSymTable.Find(methodName); ok {
+								// Tag method type with module for consistency
+								taggedMethodType := tagModule(methodSym.Type, packageName, exportedTypes)
+								w.symbolTable.RegisterTraitMethod(methodName, symName, taggedMethodType, origin)
+							}
+						}
+					}
+				} else {
+					w.symbolTable.Define(symName, taggedType, origin)
 				}
-				w.importTraitImplementations(modSymTable, importedTypes, "")
-				w.importExtensionMethods(modSymTable, importedTypes)
 			}
-		}
+
+			// Copy trait implementations and extension methods for imported types
+			if loadedMod, ok := modInterface.(LoadedModule); ok {
+				if modSymTable := loadedMod.GetSymbolTable(); modSymTable != nil {
+					importedTypes := make(map[string]bool)
+					for _, symName := range importKeys {
+						if exportedTypes[symName] {
+							importedTypes[symName] = true
+						}
+					}
+					w.importTraitImplementations(modSymTable, importedTypes, "")
+					w.importExtensionMethods(modSymTable, importedTypes)
+				}
+			}
 		} else {
 			// Default: Create TRecord for the module (using already sorted exportKeys)
 			fields := make(map[string]typesystem.Type)
@@ -281,7 +336,7 @@ func (w *walker) analyzePackageGroup(loadedMod LoadedModule, pathToCheck string)
 		}
 		w.analyzeRegularModule(subMod, pathToCheck)
 	}
-	
+
 	// Mark the package group as analyzed
 	loadedMod.SetHeadersAnalyzed(true)
 	loadedMod.SetBodiesAnalyzed(true)
@@ -292,21 +347,21 @@ func (w *walker) analyzePackageGroup(loadedMod LoadedModule, pathToCheck string)
 // Returns errors if re-export references a module that wasn't imported.
 func resolveReexports(mod LoadedModule) []*diagnostics.DiagnosticError {
 	var errors []*diagnostics.DiagnosticError
-	
+
 	specs := mod.GetReexportSpecs()
 	if len(specs) == 0 {
 		return errors
 	}
-	
+
 	symbolTable := mod.GetSymbolTable()
-	
+
 	for _, spec := range specs {
 		if spec.ModuleName == nil {
 			continue
 		}
-		
+
 		moduleName := spec.ModuleName.Value
-		
+
 		// Validate that the module was actually imported
 		// Check if moduleName is a registered module alias
 		_, isImported := symbolTable.GetPackageNameByAlias(moduleName)
@@ -318,7 +373,7 @@ func resolveReexports(mod LoadedModule) []*diagnostics.DiagnosticError {
 			))
 			continue
 		}
-		
+
 		if spec.ReexportAll {
 			// shapes(*) — re-export all symbols with OriginModule == moduleName
 			// We iterate through all symbols and find those that came from this module
@@ -338,8 +393,64 @@ func resolveReexports(mod LoadedModule) []*diagnostics.DiagnosticError {
 			}
 		}
 	}
-	
+
 	return errors
+}
+
+// preRegisterModuleNames pre-registers all type and function names from all files in the module
+// This ensures that cross-file references within the same module work correctly
+func preRegisterModuleNames(modAnalyzer *Analyzer, files []*ast.Program) {
+	var typeErrors []*diagnostics.DiagnosticError
+
+	// First pass: Register all types as pending
+	for _, file := range files {
+		if file == nil {
+			continue
+		}
+		for _, stmt := range file.Statements {
+			if stmt == nil {
+				continue
+			}
+			switch s := stmt.(type) {
+			case *ast.TypeDeclarationStatement:
+				// Register TCon (skip if parsing failed)
+				if s == nil || s.Name == nil {
+					continue
+				}
+				modAnalyzer.symbolTable.DefineTypePending(s.Name.Value, typesystem.TCon{Name: s.Name.Value}, "")
+				// Register Kind
+				kind := typesystem.Star
+				if len(s.TypeParameters) > 0 {
+					kinds := make([]typesystem.Kind, len(s.TypeParameters)+1)
+					for i := range s.TypeParameters {
+						kinds[i] = typesystem.Star
+					}
+					kinds[len(s.TypeParameters)] = typesystem.Star
+					kind = typesystem.MakeArrow(kinds...)
+				}
+				modAnalyzer.symbolTable.RegisterKind(s.Name.Value, kind)
+			case *ast.FunctionStatement:
+				// Register Function Name with placeholder (skip if parsing failed)
+				if s == nil || s.Name == nil {
+					continue
+				}
+				modAnalyzer.symbolTable.DefinePending(s.Name.Value, typesystem.TCon{Name: "PendingFunction"}, "")
+			}
+		}
+	}
+
+	// Second pass: Fully analyze type aliases so they're available for ADT constructors
+	for _, file := range files {
+		if file == nil {
+			continue
+		}
+		for _, stmt := range file.Statements {
+			if typeDecl, ok := stmt.(*ast.TypeDeclarationStatement); ok && typeDecl.IsAlias {
+				errs := RegisterTypeDeclaration(typeDecl, modAnalyzer.symbolTable, "")
+				typeErrors = append(typeErrors, errs...)
+			}
+		}
+	}
 }
 
 // analyzeRegularModule handles analysis for a regular (non-package-group) module
@@ -357,15 +468,20 @@ func (w *walker) analyzeRegularModule(loadedMod LoadedModule, pathToCheck string
 			modAnalyzer.RegisterBuiltins()
 			modAnalyzer.BaseDir = utils.GetModuleDir(pathToCheck)
 
+			// Pre-register all type and function names from all files in the module
+			// This ensures cross-file dependencies work (e.g., type A used in type B)
+			preRegisterModuleNames(modAnalyzer, loadedMod.GetFiles())
+
 			for _, file := range loadedMod.GetFiles() {
 				errs := modAnalyzer.AnalyzeHeaders(file)
 				w.addErrors(errs)
 			}
 
 			loadedMod.SetTypeMap(modAnalyzer.TypeMap)
+			loadedMod.SetTraitDefaults(modAnalyzer.TraitDefaults)
 			loadedMod.SetHeadersAnalyzing(false)
 			loadedMod.SetHeadersAnalyzed(true)
-			
+
 			// Resolve re-exports after headers analysis (imports are processed)
 			reexportErrs := resolveReexports(loadedMod)
 			w.addErrors(reexportErrs)
@@ -389,6 +505,7 @@ func (w *walker) analyzeRegularModule(loadedMod LoadedModule, pathToCheck string
 			}
 
 			loadedMod.SetTypeMap(modAnalyzer.TypeMap)
+			// loadedMod.SetTraitDefaults(modAnalyzer.TraitDefaults)
 			loadedMod.SetBodiesAnalyzing(false)
 			loadedMod.SetBodiesAnalyzed(true)
 		}
@@ -411,9 +528,10 @@ func (w *walker) analyzeRegularModule(loadedMod LoadedModule, pathToCheck string
 			}
 
 			loadedMod.SetTypeMap(modAnalyzer.TypeMap)
+			loadedMod.SetTraitDefaults(modAnalyzer.TraitDefaults)
 			loadedMod.SetBodiesAnalyzing(false)
 			loadedMod.SetBodiesAnalyzed(true)
-			
+
 			// Resolve re-exports after full analysis
 			reexportErrs := resolveReexports(loadedMod)
 			w.addErrors(reexportErrs)
@@ -511,16 +629,16 @@ func (w *walker) VisitFunctionStatement(n *ast.FunctionStatement) {
 	if n == nil || n.Name == nil {
 		return
 	}
-	
+
 	// 0. Check naming convention (function name must start with lowercase)
 	if n.Receiver == nil { // Only for regular functions, not extension methods
 		if !checkValueName(n.Name.Value, n.Name.Token, &w.errors) {
 			return
 		}
 	}
-	
+
 	// 1. Register Signature in Outer Scope
-	
+
 	// 1. Prepare types
 	var retType typesystem.Type
 	if n.ReturnType != nil {
@@ -579,7 +697,7 @@ func (w *walker) VisitFunctionStatement(n *ast.FunctionStatement) {
 	}
 
 	if n.Receiver != nil {
-		typeName := resolveReceiverTypeName(n.Receiver.Type, outer) 
+		typeName := resolveReceiverTypeName(n.Receiver.Type, outer)
 		if typeName == "" {
 			w.addError(diagnostics.NewError(
 				diagnostics.ErrA003,
@@ -604,9 +722,9 @@ func (w *walker) VisitFunctionStatement(n *ast.FunctionStatement) {
 		if n.Receiver != nil {
 			idx++
 		}
-		
+
 		paramType := params[idx]
-		
+
 		if param.IsVariadic {
 			// Wrap in List
 			paramType = typesystem.TApp{
@@ -635,7 +753,7 @@ func (w *walker) VisitFunctionStatement(n *ast.FunctionStatement) {
 		} else {
 			// Apply accumulated substitution from body to return type before unification
 			retType = retType.Apply(sBody)
-			
+
 			subst, err := typesystem.Unify(retType, bodyType)
 			if err != nil {
 				w.addError(diagnostics.NewError(
@@ -644,10 +762,10 @@ func (w *walker) VisitFunctionStatement(n *ast.FunctionStatement) {
 					"function return type mismatch: declared "+retType.String()+", got "+bodyType.String(),
 				))
 			}
-			
+
 			// Compose all substitutions
 			finalSubst := subst.Compose(sBody)
-			
+
 			// Apply to function type
 			fnType = fnType.Apply(finalSubst).(typesystem.TFunc)
 
@@ -655,7 +773,7 @@ func (w *walker) VisitFunctionStatement(n *ast.FunctionStatement) {
 			w.applySubstToNode(n.Body, finalSubst)
 		}
 	}
-	
+
 	// 6. Store Function Type in TypeMap for Compiler
 	w.TypeMap[n] = fnType
 }
@@ -742,7 +860,7 @@ func (w *walker) applySubstToNode(node ast.Node, subst typesystem.Subst) {
 		w.applySubstToNode(n.Condition, subst)
 		w.applySubstToNode(n.Consequence, subst)
 		if n.Alternative != nil {
-		w.applySubstToNode(n.Alternative, subst)
+			w.applySubstToNode(n.Alternative, subst)
 		}
 
 	case *ast.ForExpression:
@@ -936,7 +1054,7 @@ func RegisterTypeDeclaration(stmt *ast.TypeDeclarationStatement, table *symbols.
 			if !checkTypeName(c.Name.Value, c.Name.GetToken(), &errors) {
 				continue
 			}
-			
+
 			var resultType typesystem.Type = typesystem.TCon{Name: stmt.Name.Value}
 			if len(stmt.TypeParameters) > 0 {
 				args := []typesystem.Type{}
@@ -1004,12 +1122,12 @@ func (w *walker) VisitTraitDeclaration(n *ast.TraitDeclaration) {
 	if n == nil || n.Name == nil {
 		return
 	}
-	
+
 	// 0. Check naming convention (trait name must start with uppercase)
 	if !checkTypeName(n.Name.Value, n.Token, &w.errors) {
 		return
 	}
-	
+
 	// 0.1. Check for redefinition of existing trait (including built-ins)
 	if sym, ok := w.symbolTable.Find(n.Name.Value); ok && sym.Kind == symbols.TraitSymbol {
 		w.addError(diagnostics.NewError(
@@ -1019,7 +1137,7 @@ func (w *walker) VisitTraitDeclaration(n *ast.TraitDeclaration) {
 		))
 		return
 	}
-	
+
 	// 1. Extract super trait names and verify they exist
 	superTraitNames := make([]string, 0, len(n.SuperTraits))
 	for _, st := range n.SuperTraits {
@@ -1089,10 +1207,10 @@ func (w *walker) VisitTraitDeclaration(n *ast.TraitDeclaration) {
 		// Register in Global Scope (outer) so it can be called
 		// And associate with Trait
 		outer.RegisterTraitMethod(method.Name.Value, n.Name.Value, methodType, w.currentModuleName)
-		
+
 		// Register method name in trait's method list
 		outer.RegisterTraitMethod2(n.Name.Value, method.Name.Value)
-		
+
 		// If this is an operator method, register the operator -> trait mapping
 		if method.Operator != "" {
 			// Check if operator is already defined in another trait
@@ -1106,7 +1224,7 @@ func (w *walker) VisitTraitDeclaration(n *ast.TraitDeclaration) {
 				outer.RegisterOperatorTrait(method.Operator, n.Name.Value)
 			}
 		}
-		
+
 		// If method has a body, it's a default implementation
 		if method.Body != nil {
 			outer.RegisterTraitDefaultMethod(n.Name.Value, method.Name.Value)
@@ -1136,13 +1254,22 @@ func (w *walker) VisitInstanceDeclaration(n *ast.InstanceDeclaration) {
 	if n == nil || n.TraitName == nil {
 		return
 	}
-	
+
 	// 1. Check if Trait exists
-	if !w.symbolTable.IsDefined(n.TraitName.Value) {
+	sym, ok := w.symbolTable.Find(n.TraitName.Value)
+	if !ok {
 		w.addError(diagnostics.NewError(
 			diagnostics.ErrA001, // Undeclared identifier
 			n.TraitName.GetToken(),
 			n.TraitName.Value,
+		))
+		return
+	}
+	if sym.Kind != symbols.TraitSymbol {
+		w.addError(diagnostics.NewError(
+			diagnostics.ErrA003, // Type error (or kind error)
+			n.TraitName.GetToken(),
+			n.TraitName.Value+" is not a trait",
 		))
 		return
 	}
@@ -1158,33 +1285,33 @@ func (w *walker) VisitInstanceDeclaration(n *ast.InstanceDeclaration) {
 		return
 	}
 	targetType := BuildType(n.Target, w.symbolTable, &w.errors)
-	
+
 	// Kind check: For HKT traits like Functor<F>, F must be a type constructor
 	// Use registered kinds (from symbol table) to verify
 	// Automatically detect HKT traits by checking if type param is applied in method signatures
 	isHKT := w.symbolTable.IsHKTTrait(n.TraitName.Value)
-	
+
 	// Extra type params in instance declaration count as partial application
 	hasExtraParams := len(n.TypeParams) > 0
-	
+
 	if isHKT && !hasExtraParams {
 		// Get type name directly from AST (before BuildType resolves aliases)
 		var typeName string
 		if namedType, ok := n.Target.(*ast.NamedType); ok {
 			typeName = namedType.Name.Value
 		}
-		
+
 		if typeName != "" {
 			// Get target's kind from symbol table
 			targetKind, hasKind := w.symbolTable.GetKind(typeName)
-			
+
 			isTypeConstructor := false
 			if hasKind {
 				// Kind * -> * or * -> * -> * etc means type constructor
 				_, isArrow := targetKind.(typesystem.KArrow)
 				isTypeConstructor = isArrow
 			}
-			
+
 			if !isTypeConstructor {
 				w.addError(diagnostics.NewError(
 					diagnostics.ErrA003,
@@ -1196,7 +1323,7 @@ func (w *walker) VisitInstanceDeclaration(n *ast.InstanceDeclaration) {
 			}
 		}
 	}
-	
+
 	superTraits, _ := w.symbolTable.GetTraitSuperTraits(n.TraitName.Value)
 	for _, superTrait := range superTraits {
 		if !w.symbolTable.IsImplementationExists(superTrait, targetType) {
@@ -1295,6 +1422,15 @@ func (w *walker) VisitInstanceDeclaration(n *ast.InstanceDeclaration) {
 		return
 	}
 
+	if len(typeParamNames) == 0 {
+		w.addError(diagnostics.NewError(
+			diagnostics.ErrA003,
+			n.TraitName.GetToken(),
+			"trait "+n.TraitName.Value+" has no type parameters",
+		))
+		return
+	}
+
 	// Create substitution: TraitTypeParam[0] -> TargetType
 	// Important: If targetType contains type variables with the same name as the trait's
 	// type parameter (e.g., instance UserOpChoose Box<T> where trait has parameter T),
@@ -1363,23 +1499,23 @@ func (w *walker) VisitConstantDeclaration(n *ast.ConstantDeclaration) {
 	if n == nil {
 		return
 	}
-	
+
 	// Handle pattern destructuring: (a, b) :- pair
 	if n.Pattern != nil {
 		w.visitPatternDeclaration(n)
 		return
 	}
-	
+
 	// Simple binding: x :- expr
 	if n.Name == nil {
 		return
 	}
-	
+
 	// 0. Check naming convention (must start with lowercase)
 	if !checkValueName(n.Name.Value, n.Name.GetToken(), &w.errors) {
 		return
 	}
-	
+
 	// 1. Check for redefinition - constants can NEVER be redefined
 	if w.symbolTable.IsDefined(n.Name.Value) {
 		sym, ok := w.symbolTable.Find(n.Name.Value)
@@ -1418,7 +1554,7 @@ func (w *walker) VisitConstantDeclaration(n *ast.ConstantDeclaration) {
 	w.symbolTable.DefineConstant(n.Name.Value, valType, w.currentModuleName)
 }
 
-// visitPatternDeclaration handles pattern destructuring in constant bindings (:-) 
+// visitPatternDeclaration handles pattern destructuring in constant bindings (:-)
 func (w *walker) visitPatternDeclaration(n *ast.ConstantDeclaration) {
 	// 1. Infer Value Type
 	valType, s1, err := InferWithContext(w.inferCtx, n.Value, w.symbolTable)
@@ -1427,7 +1563,7 @@ func (w *walker) visitPatternDeclaration(n *ast.ConstantDeclaration) {
 		return
 	}
 	valType = valType.Apply(s1)
-	
+
 	// 2. Bind pattern variables with inferred types as CONSTANTS
 	w.bindPatternVariablesAsConstant(n.Pattern, valType, n.Token)
 }
@@ -1463,7 +1599,7 @@ func (w *walker) bindPatternVariablesWithConstFlag(pat ast.Pattern, valType type
 		} else {
 			w.symbolTable.Define(p.Value, valType, "")
 		}
-		
+
 	case *ast.TuplePattern:
 		// valType should be TTuple
 		if tuple, ok := valType.(typesystem.TTuple); ok {
@@ -1485,7 +1621,7 @@ func (w *walker) bindPatternVariablesWithConstFlag(pat ast.Pattern, valType type
 				"cannot destructure non-tuple value with tuple pattern",
 			))
 		}
-		
+
 	case *ast.ListPattern:
 		// valType should be TApp List<T>
 		if app, ok := valType.(typesystem.TApp); ok {
@@ -1508,14 +1644,14 @@ func (w *walker) bindPatternVariablesWithConstFlag(pat ast.Pattern, valType type
 				"cannot destructure non-list value with list pattern",
 			))
 		}
-		
+
 	case *ast.WildcardPattern:
 		// Ignore - don't bind anything
-		
+
 	case *ast.RecordPattern:
 		// Handle both TRecord and named record types
 		var fields map[string]typesystem.Type
-		
+
 		switch t := valType.(type) {
 		case typesystem.TRecord:
 			fields = t.Fields
@@ -1527,7 +1663,7 @@ func (w *walker) bindPatternVariablesWithConstFlag(pat ast.Pattern, valType type
 				}
 			}
 		}
-		
+
 		if fields == nil {
 			w.addError(diagnostics.NewError(
 				diagnostics.ErrA003,
@@ -1536,7 +1672,7 @@ func (w *walker) bindPatternVariablesWithConstFlag(pat ast.Pattern, valType type
 			))
 			return
 		}
-		
+
 		for fieldName, fieldPat := range p.Fields {
 			fieldType, ok := fields[fieldName]
 			if !ok {
@@ -1549,7 +1685,7 @@ func (w *walker) bindPatternVariablesWithConstFlag(pat ast.Pattern, valType type
 			}
 			w.bindPatternVariablesWithConstFlag(fieldPat, fieldType, tok, isConstant)
 		}
-		
+
 	default:
 		w.addError(diagnostics.NewError(
 			diagnostics.ErrA003,
@@ -1594,14 +1730,14 @@ func renameConflictingTypeVars(t typesystem.Type, conflictNames []string, ctx *I
 	if t == nil || ctx == nil {
 		return t
 	}
-	
+
 	// Find conflicting type variables in t
 	freeVars := t.FreeTypeVariables()
 	conflictSet := make(map[string]bool)
 	for _, name := range conflictNames {
 		conflictSet[name] = true
 	}
-	
+
 	// Create renaming substitution for conflicting vars
 	renameSubst := typesystem.Subst{}
 	for _, tv := range freeVars {
@@ -1611,11 +1747,11 @@ func renameConflictingTypeVars(t typesystem.Type, conflictNames []string, ctx *I
 			renameSubst[tv.Name] = fresh
 		}
 	}
-	
+
 	if len(renameSubst) == 0 {
 		return t // No conflicts
 	}
-	
+
 	return t.Apply(renameSubst)
 }
 
@@ -1667,13 +1803,13 @@ func (w *walker) shouldImportTraitImplementation(implType typesystem.Type, expor
 // from imported module's symbol table to current symbol table
 func (w *walker) importExtensionMethods(importedTable *symbols.SymbolTable, exportedTypes map[string]bool) {
 	allExtMethods := importedTable.GetAllExtensionMethods()
-	
+
 	for typeName, methods := range allExtMethods {
 		// Only import extension methods for exported types
 		if !exportedTypes[typeName] {
 			continue
 		}
-		
+
 		for methodName, methodType := range methods {
 			w.symbolTable.RegisterExtensionMethod(typeName, methodName, methodType)
 		}

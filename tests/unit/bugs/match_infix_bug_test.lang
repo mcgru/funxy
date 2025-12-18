@@ -1,0 +1,100 @@
+import "lib/test" (*)
+
+// Fixed Bug: Match variable in string concatenation
+//
+// The bug was caused by incorrect stack slot tracking in the compiler during pattern matching failures,
+// which led to stack misalignment in the success path. This caused subsequent variable assignments
+// to read the wrong stack slot (the match subject instead of the result).
+
+testRun("Match variable in string concatenation", fun() {
+    // Assign variable from match expression
+    val = match "hello" {
+        s: String -> s
+        _ -> "Unknown"
+    }
+
+    // Concatenate with another string
+    result = val ++ " world"
+
+    // Should be "hello world"
+    assertEquals("hello world", result, "Match variable should work in concatenation")
+})
+
+testRun("Match variable in function call", fun() {
+    // Function that uses its argument
+    fun echo(msg) {
+        "Echo: " ++ msg
+    }
+
+    // Assign variable from match expression
+    msg = match "test" {
+        s: String -> s
+        _ -> "Unknown"
+    }
+
+    // Call function with match variable
+    result = echo(msg)
+
+    // Should be "Echo: test"
+    assertEquals("Echo: test", result, "Match variable should work as function argument")
+})
+
+testRun("Multiple operations on match variable", fun() {
+    // Assign variable from match expression
+    x = match "x" {
+        s: String -> s
+        _ -> "Unknown"
+    }
+
+    y = match "y" {
+        s: String -> s
+        _ -> "Unknown"
+    }
+
+    // Concatenate two match variables
+    result = x ++ y
+
+    // Should be "xy"
+    assertEquals("xy", result, "Multiple match variables should concatenate correctly")
+})
+
+testRun("Match variable in sprintf", fun() {
+    // Assign variable from match expression
+    val = match "test" {
+        s: String -> s
+        _ -> "Unknown"
+    }
+
+    // Use match variable in sprintf
+    result = sprintf("<p>%s</p>", val)
+
+    // Should be "<p>test</p>"
+    assertEquals("<p>test</p>", result, "Match variable should work in sprintf")
+})
+
+// This test shows the bug persists even with reassignment
+testRun("Reassign match result before use", fun() {
+    // Assign variable from match expression
+    temp = match "hello" {
+        s: String -> s
+        _ -> "Unknown"
+    }
+
+    // Reassign to new variable
+    val = temp
+
+    // Concatenation should work
+    result = val ++ " world"
+
+    // Should be "hello world"
+    assertEquals("hello world", result, "Reassigning should work")
+})
+
+// This test should PASS - demonstrating another workaround
+testRun("Workaround: Avoid match in assignment chain", fun() {
+    // Directly use match without assigning to variable
+    result = "hello" ++ " world"
+
+    // Without going through match assignment
+    assertEquals("hello world", result, "Direct concatenation without match works")
+})

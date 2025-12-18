@@ -1,0 +1,37 @@
+import "./traits_pkg" (*)
+import "lib/test" (*)
+
+testRun("Traits Import Test", fun() {
+    b = Box({ val: "test" })
+
+    // 1. Basic Method
+    assert(simpleMethod(b) == "simple:test", "basic trait method call failed")
+
+    // 2. Default Method
+    assert(required(b) == "test", "required method failed")
+    assert(optional(b) == "default: test", "default method failed")
+
+    // 3. Inheritance Chain (Defaults)
+    assert(gpMethod(b) == "gp", "grandparent method failed")
+    assert(pMethod(b) == "p", "parent method failed")
+    assert(cMethod(b) == "c", "child method failed")
+
+    // Overridden method in chain
+    assert(overrideMe(b) == "p_overridden", "overrideMe failed (expected Parent impl)")
+
+    // 4. Operator
+    b2 = Box({ val: "2" })
+    b3 = plus(b, b2)
+    match b3 {
+        Box(r) -> assert(r.val == "test2", "operator method failed")
+        _ -> assert(false, "match failed")
+    }
+
+    // 5. Deep Inheritance with partial overrides
+    d = DeepBoxVal("deep")
+    assert(gpMethod(d) == "deep_gp", "DeepBox gpMethod failed (should be overridden)")
+    assert(pMethod(d) == "p", "DeepBox pMethod failed (should be inherited from Parent default)")
+    assert(cMethod(d) == "deep_c", "DeepBox cMethod failed (should be overridden)")
+    // overrideMe not implemented in DeepBox or its instances, should take from Parent (closest with impl)
+    assert(overrideMe(d) == "p_overridden", "DeepBox overrideMe failed")
+})

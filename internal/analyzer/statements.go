@@ -9,6 +9,14 @@ import (
 )
 
 func (w *walker) VisitProgram(program *ast.Program) {
+	// Detect package name
+	for _, stmt := range program.Statements {
+		if pkg, ok := stmt.(*ast.PackageDeclaration); ok {
+			w.currentModuleName = pkg.Name.Value
+			break
+		}
+	}
+
 	if w.mode == ModeHeaders {
 		// Pass 1: Headers (Imports, Declarations)
 		// Strategy for Cyclic Dependencies:

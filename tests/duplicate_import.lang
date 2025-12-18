@@ -1,0 +1,4 @@
+import "lib/math"
+import "lib/math"
+
+print(math.sqrt(4.0))

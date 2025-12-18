@@ -1,0 +1,62 @@
+import "kit/ui" (*)
+import "lib/test" (*)
+import "lib/string" (stringIndexOf)
+import "lib/tuple" (fst, snd)
+
+// Helper for string containment check
+fun containsStr(needle, haystack) {
+    match stringIndexOf(haystack, needle) {
+        Some(_) -> true
+        Zero -> false
+    }
+}
+
+testRun("UI Package - Types", fun() {
+    t = text("Hello")
+    s = showVNode(t)
+    assert(s |> containsStr("Text"), "contains Text constructor")
+    assert(s |> containsStr("Hello"), "contains content")
+})
+
+testRun("UI Package - Render", fun() {
+    node = div(class: "container", id: "main") {
+        h1() { text("Title") }
+        p(style: "color: red") { text("Content") }
+        raw("<span>Raw HTML</span>")
+    }
+
+    html = render(node)
+
+    assert(html |> containsStr("<div"), "contains <div")
+    assert(html |> containsStr("class=\"container\""), "contains class")
+    assert(html |> containsStr("id=\"main\""), "contains id")
+    assert(html |> containsStr("<h1>Title</h1>"), "contains h1")
+    assert(html |> containsStr("<p style=\"color: red\">Content</p>"), "contains p")
+    assert(html |> containsStr("<span>Raw HTML</span>"), "contains raw")
+    assert(html |> containsStr("</div>"), "contains closing div")
+})
+
+testRun("UI Package - Void Tags", fun() {
+    imgNode = img(src: "pic.jpg", alt: "Pic")
+    html = render(imgNode)
+
+    assert(html |> containsStr("<img"), "contains <img")
+    assert(html |> containsStr("src=\"pic.jpg\""), "contains src")
+    assert(html |> containsStr(" />"), "self-closing")
+})
+
+testRun("UI Package - Attributes Normalization", fun() {
+    btn = button(hx_post: "/api/click", data_val: "123") { text("Click") }
+    html = render(btn)
+
+    assert(html |> containsStr("hx-post=\"/api/click\""), "hx-post present")
+    assert(html |> containsStr("data-val=\"123\""), "data-val present")
+    assert(html |> containsStr("Click"), "contains text")
+    assert(!(html |> containsStr("'")), "no extra quotes")
+})
+
+testRun("UI Package - Empty Element", fun() {
+    empty = div()
+    html = render(empty)
+    assert(html |> containsStr("<div></div>"), "empty div")
+})

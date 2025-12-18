@@ -1,0 +1,25 @@
+// Case 1: Explicit import of ADT (should bring constructors) and function
+import "lib/json" (Json, jsonEncode)
+import "lib/test" (assert, assertEquals, testRun)
+
+testVirtual = fun() {
+    // 1. Constructor from explicit import
+    val = JNum(123.0)
+
+    // 2. Pattern matching
+    res = match val {
+        JNum(x) -> x,
+        _ -> 0.0
+    }
+    assertEquals(res, 123.0, "Virtual ADT pattern match")
+
+    // 3. Function access
+    encoded = jsonEncode(val)
+    // We don't check exact string as implementation details vary, just that it runs
+
+    // 4. Check that JNull is available (0-ary constructor)
+    nullVal = JNull
+    assertEquals(nullVal, JNull, "JNull check")
+}
+
+testRun("imports virtual", testVirtual)

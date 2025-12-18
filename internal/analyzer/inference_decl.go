@@ -92,7 +92,7 @@ func inferAssignExpression(ctx *InferenceContext, n *ast.AssignExpression, table
 		if err := wrapBuildTypeError(errs); err != nil {
 			return nil, nil, err
 		}
-		
+
 		// Unify: TCon with UnderlyingType will automatically unify with TRecord
 		subst, err := typesystem.UnifyAllowExtra(explicitType, valType)
 		if err != nil {
@@ -104,11 +104,11 @@ func inferAssignExpression(ctx *InferenceContext, n *ast.AssignExpression, table
 		}
 		totalSubst = subst.Compose(totalSubst)
 		valType = valType.Apply(totalSubst)
-		
+
 		// Use explicit type (nominal TCon) for variable declaration
 		// This preserves TCon{Name, Module} for extension method lookup
 		declaredType = explicitType.Apply(totalSubst)
-		
+
 		if typeMap != nil && n.Value != nil {
 			typeMap[n.Value] = valType
 		}
@@ -188,15 +188,15 @@ func inferFunctionLiteral(ctx *InferenceContext, n *ast.FunctionLiteral, table *
 		} else {
 			pt = ctx.FreshVar()
 		}
-		
+
 		// Store element type in signature
 		paramTypes = append(paramTypes, pt)
-		
+
 		// Count defaults
 		if p.Default != nil {
 			defaultCount++
 		}
-		
+
 		// For variadic, the local variable is wrapped in List
 		localType := pt
 		if p.IsVariadic {
@@ -206,7 +206,7 @@ func inferFunctionLiteral(ctx *InferenceContext, n *ast.FunctionLiteral, table *
 				Args:        []typesystem.Type{pt},
 			}
 		}
-		
+
 		enclosedTable.Define(p.Name.Value, localType, "")
 	}
 
@@ -236,7 +236,7 @@ func inferFunctionLiteral(ctx *InferenceContext, n *ast.FunctionLiteral, table *
 			return nil, nil, inferErrorf(n, "lambda return type mismatch: expected %s, got %s", retType, bodyType)
 		}
 		totalSubst = subst.Compose(totalSubst)
-		
+
 		bodyType = bodyType.Apply(totalSubst)
 		for i := range paramTypes {
 			paramTypes[i] = paramTypes[i].Apply(totalSubst)
@@ -262,13 +262,13 @@ func inferPatternAssignExpression(ctx *InferenceContext, n *ast.PatternAssignExp
 	if err != nil {
 		return nil, nil, err
 	}
-	
+
 	// Bind pattern variables to the symbol table
 	err = bindPatternToType(n.Pattern, valType, table, ctx)
 	if err != nil {
 		return nil, nil, err
 	}
-	
+
 	// Pattern assignment expressions return unit/nil type
 	return typesystem.TCon{Name: "Unit"}, subst, nil
 }
@@ -279,7 +279,7 @@ func bindPatternToType(pat ast.Pattern, valType typesystem.Type, table *symbols.
 	case *ast.IdentifierPattern:
 		table.Define(p.Value, valType, "")
 		return nil
-		
+
 	case *ast.TuplePattern:
 		tuple, ok := valType.(typesystem.TTuple)
 		if !ok {
@@ -294,7 +294,7 @@ func bindPatternToType(pat ast.Pattern, valType typesystem.Type, table *symbols.
 			}
 		}
 		return nil
-		
+
 	case *ast.ListPattern:
 		// Extract element type from List<T>
 		if app, ok := valType.(typesystem.TApp); ok {
@@ -309,15 +309,15 @@ func bindPatternToType(pat ast.Pattern, valType typesystem.Type, table *symbols.
 			}
 		}
 		return inferErrorf(pat, "cannot destructure non-list value with list pattern")
-		
+
 	case *ast.WildcardPattern:
 		// Ignore - don't bind anything
 		return nil
-		
+
 	case *ast.RecordPattern:
 		// Handle both TRecord and named record types
 		var fields map[string]typesystem.Type
-		
+
 		switch t := valType.(type) {
 		case typesystem.TRecord:
 			fields = t.Fields
@@ -329,11 +329,11 @@ func bindPatternToType(pat ast.Pattern, valType typesystem.Type, table *symbols.
 				}
 			}
 		}
-		
+
 		if fields == nil {
 			return inferErrorf(pat, "cannot destructure non-record value with record pattern")
 		}
-		
+
 		for fieldName, fieldPat := range p.Fields {
 			fieldType, ok := fields[fieldName]
 			if !ok {
@@ -344,7 +344,7 @@ func bindPatternToType(pat ast.Pattern, valType typesystem.Type, table *symbols.
 			}
 		}
 		return nil
-		
+
 	default:
 		return inferErrorf(pat, "unsupported pattern in destructuring")
 	}

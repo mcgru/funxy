@@ -77,9 +77,9 @@ func hasAnySourceFiles(dirPath string) bool {
 
 // Loader handles loading modules and their dependencies.
 type Loader struct {
-	LoadedModules  map[string]*Module // Cache of loaded modules by path
-	ModulesByName  map[string]*Module // Index by package name for quick lookup
-	Processing     map[string]bool    // Cycle detection during loading
+	LoadedModules map[string]*Module // Cache of loaded modules by path
+	ModulesByName map[string]*Module // Index by package name for quick lookup
+	Processing    map[string]bool    // Cycle detection during loading
 }
 
 func NewLoader() *Loader {
@@ -101,14 +101,14 @@ func (l *Loader) GetModuleByPackageName(name string) interface{} {
 	if mod, ok := l.ModulesByName[name]; ok {
 		return mod
 	}
-	
+
 	// Check virtual packages
 	if vp := GetVirtualPackage("lib/" + name); vp != nil {
 		if mod, ok := l.LoadedModules["virtual:lib/"+name]; ok {
 			return mod
 		}
 	}
-	
+
 	return nil
 }
 
@@ -127,23 +127,23 @@ func (l *Loader) GetModule(path string) (interface{}, error) {
 		l.ModulesByName[mod.Name] = mod // Index by package name
 		return mod, nil
 	}
-	
+
 	// Normalize path to absolute for lookup
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Check cache
 	if mod, ok := l.LoadedModules[absPath]; ok {
 		return mod, nil
 	}
-	
+
 	// Check if this is a parent directory containing sub-packages
 	if mod, err := l.tryLoadPackageGroup(absPath); err == nil && mod != nil {
 		return mod, nil
 	}
-	
+
 	// Otherwise try loading as regular module
 	return l.Load(path)
 }
@@ -155,11 +155,11 @@ func (l *Loader) tryLoadPackageGroup(absPath string) (*Module, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Check if directory has subdirectories with source files (sub-packages)
 	var subPackages []string
 	hasDirectFiles := false
-	
+
 	for _, f := range files {
 		if f.IsDir() {
 			// Check if subdirectory has any source files
@@ -171,20 +171,20 @@ func (l *Loader) tryLoadPackageGroup(absPath string) (*Module, error) {
 			hasDirectFiles = true
 		}
 	}
-	
+
 	// If no sub-packages found, return nil (will be handled as regular module)
 	if len(subPackages) == 0 {
 		return nil, nil
 	}
-	
+
 	// If has both direct files and sub-packages, treat as regular module
 	if hasDirectFiles {
 		return nil, nil
 	}
-	
+
 	// Create combined module from all sub-packages
 	sort.Strings(subPackages)
-	
+
 	combinedMod := &Module{
 		Name:           filepath.Base(absPath),
 		Dir:            absPath,
@@ -195,7 +195,7 @@ func (l *Loader) tryLoadPackageGroup(absPath string) (*Module, error) {
 		IsPackageGroup: true, // Mark as package group for special handling
 		SubPackages:    subPackages,
 	}
-	
+
 	// Load each sub-package and combine exports
 	for _, subName := range subPackages {
 		subPath := filepath.Join(absPath, subName)
@@ -203,16 +203,16 @@ func (l *Loader) tryLoadPackageGroup(absPath string) (*Module, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to load sub-package %s: %v", subName, err)
 		}
-		
+
 		// Add sub-module exports to combined module
 		for expName := range subMod.Exports {
 			combinedMod.Exports[expName] = true
 		}
-		
+
 		// Store sub-module reference
 		combinedMod.Imports[subName] = subMod
 	}
-	
+
 	l.LoadedModules[absPath] = combinedMod
 	l.ModulesByName[combinedMod.Name] = combinedMod // Index by package name
 	return combinedMod, nil
@@ -259,7 +259,7 @@ func (l *Loader) Load(path string) (*Module, error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to load dependency '%s' in module '%s': %v", importPath, mod.Name, err)
 			}
-			
+
 			// Map import to module
 			alias := ""
 			if imp.Alias != nil {
@@ -311,12 +311,15 @@ func (l *Loader) loadDir(absPath string) (*Module, error) {
 	}
 
 	var packageName string
+	var entryFileExportAll bool
+	var entryFileExports []string
+	var entryFileIndex int = -1
 
 	// Setup parsing components
 	// We can't easily reuse pipeline.NewPipelineContext for multiple files merged into one logic context yet.
 	// But we can parse each file individually.
 
-	for _, file := range sourceFiles {
+	for i, file := range sourceFiles {
 		content, err := os.ReadFile(file)
 		if err != nil {
 			return nil, err
@@ -324,14 +327,14 @@ func (l *Loader) loadDir(absPath string) (*Module, error) {
 
 		// Parse file manually to avoid dependency cycles with processors if any,
 		// and to have fine-grained control.
-		
+
 		// Use LexerProcessor to get a buffered TokenStream
 		ctx := pipeline.NewPipelineContext(string(content))
 		lexerProc := &lexer.LexerProcessor{}
 		ctx = lexerProc.Process(ctx)
-		
+
 		pPar := parser.New(ctx.TokenStream, ctx)
-		
+
 		root := pPar.ParseProgram()
 
 		if len(ctx.Errors) > 0 {
@@ -385,38 +388,69 @@ func (l *Loader) loadDir(absPath string) (*Module, error) {
 			}
 		}
 
-		// Collect exports
-		if isExportAll {
-			// Wildcard export means everything defined in this file is exported.
-			// We need to traverse top-level definitions to find them.
-			// This requires a pass over the AST.
-			// For now, let's handle explicit exports first, or defer AST traversal.
-			// Let's mark a flag on the module? Or handle it during analysis?
-			// We'll scan top-level nodes here.
-			for _, stmt := range root.Statements {
-				switch n := stmt.(type) {
-				case *ast.FunctionStatement:
-					module.Exports[n.Name.Value] = true
-				case *ast.TypeDeclarationStatement:
-					module.Exports[n.Name.Value] = true
-					// ADT Constructors are also exported if type is exported?
-					// Usually yes.
-					for _, c := range n.Constructors {
-						module.Exports[c.Name.Value] = true
-					}
-				case *ast.TraitDeclaration:
-					module.Exports[n.Name.Value] = true
-				case *ast.ExpressionStatement:
-					if assign, ok := n.Expression.(*ast.AssignExpression); ok {
-						if ident, ok := assign.Left.(*ast.Identifier); ok {
-							module.Exports[ident.Value] = true
+		// Check if this is the entry file (packagename.lang)
+		baseName := filepath.Base(file)
+		expectedEntryName := packageName + pkgExt
+		if baseName == expectedEntryName {
+			// This is the entry file - save its export spec for processing after all files are loaded
+			entryFileIndex = i
+			entryFileExportAll = isExportAll
+			entryFileExports = currentExports
+		}
+	}
+
+	// Process exports ONLY from the entry file for the entire package
+	// Entry file controls what the whole package exports
+	if entryFileIndex >= 0 {
+		if entryFileExportAll {
+			// (*) means export everything from ALL files in the package
+			for _, file := range module.Files {
+				for _, stmt := range file.Statements {
+					switch n := stmt.(type) {
+					case *ast.FunctionStatement:
+						module.Exports[n.Name.Value] = true
+					case *ast.TypeDeclarationStatement:
+						module.Exports[n.Name.Value] = true
+						// ADT Constructors are also exported if type is exported
+						for _, c := range n.Constructors {
+							module.Exports[c.Name.Value] = true
+						}
+					case *ast.TraitDeclaration:
+						module.Exports[n.Name.Value] = true
+						// Also export trait methods as they become global functions
+						for _, method := range n.Signatures {
+							module.Exports[method.Name.Value] = true
+						}
+					case *ast.InstanceDeclaration:
+						// Instances are exported implicitly with their types
+					case *ast.ExpressionStatement:
+						if assign, ok := n.Expression.(*ast.AssignExpression); ok {
+							if ident, ok := assign.Left.(*ast.Identifier); ok {
+								module.Exports[ident.Value] = true
+							}
 						}
 					}
 				}
 			}
 		} else {
-			for _, exp := range currentExports {
+			// Explicit export list - export specified symbols from ALL files
+			for _, exp := range entryFileExports {
 				module.Exports[exp] = true
+			}
+
+			// Also export constructors for any exported types
+			for _, file := range module.Files {
+				for _, stmt := range file.Statements {
+					if typeDecl, ok := stmt.(*ast.TypeDeclarationStatement); ok {
+						// Check if this type is in the export list
+						if module.Exports[typeDecl.Name.Value] {
+							// Export all constructors of this type
+							for _, c := range typeDecl.Constructors {
+								module.Exports[c.Name.Value] = true
+							}
+						}
+					}
+				}
 			}
 		}
 	}

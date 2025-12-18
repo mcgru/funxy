@@ -1,6 +1,5 @@
-package helpers (format)
+package helpers
 
-// Mock format function until a proper string formatting solution is agreed upon
 fun format(s: String) -> String {
     s
 }

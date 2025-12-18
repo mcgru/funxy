@@ -1,4 +1,4 @@
-package utils (add)
+package utils
 
 fun add(a: Int, b: Int) -> Int {
     a + b
@@ -7,4 +7,3 @@ fun add(a: Int, b: Int) -> Int {
 fun sub(a: Int, b: Int) -> Int {
     a - b
 }
-

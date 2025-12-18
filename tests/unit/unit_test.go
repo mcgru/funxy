@@ -42,12 +42,22 @@ func trimTestExt(name string) string {
 
 // TestUnitTests recursively finds and runs all test files in tests/unit
 func TestUnitTests(t *testing.T) {
+	// Change working directory to project root so imports like "kit/..." work
+	// tests/unit -> ../.. -> project root
+	wd, _ := os.Getwd()
+	if !strings.HasSuffix(wd, "parser") { // Avoid double chdir if running from root
+		if err := os.Chdir("../.."); err != nil {
+			t.Fatalf("Failed to change working directory to project root: %v", err)
+		}
+	}
+
 	// Initialize virtual packages
 	modules.InitVirtualPackages()
 
-	// Find all *_test.{lang,funxy,fx} files recursively (only test files, not library modules)
+	// Find all *_test.{lang,funxy,fx} files recursively in tests/unit
+	// Since we are now in root, we walk "tests/unit"
 	var testFiles []string
-	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk("tests/unit", func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}

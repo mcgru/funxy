@@ -1,0 +1,20 @@
+import "lib/json" (Json)
+import "lib/test" (assert, testRun)
+
+testJsonExport = fun() {
+    // Check type usage
+    v: Json = JNull
+
+    // Check constructor access (implicit import)
+    v2 = JNum(123.0)
+
+    // Check pattern matching
+    res = match v2 {
+        JNum(n) -> n
+        _ -> 0.0
+    }
+
+    assert(res == 123.0, "Pattern matching failed")
+}
+
+testRun("json export", testJsonExport)

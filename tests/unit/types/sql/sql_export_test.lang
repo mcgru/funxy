@@ -1,0 +1,23 @@
+import "lib/sql" (SqlValue, SqlString)
+import "lib/test" (assert, testRun)
+
+testSqlExport = fun() {
+    // Check type alias usage
+    v: SqlValue = SqlNull
+
+    // Check constructor access (implicit import)
+    v2 = SqlInt(123)
+
+    // Check pattern matching
+    res = match v2 {
+        SqlInt(i) -> i
+        _ -> 0
+    }
+
+    // Check qualified access
+    v3 = SqlString("test")
+
+    assert(res == 123, "Pattern matching failed")
+}
+
+testRun("sql export", testSqlExport)

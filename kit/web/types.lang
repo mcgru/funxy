@@ -1,0 +1,32 @@
+package web
+
+import "kit/ui"
+import "lib/json" as JsonLib
+
+type HttpRequest = {
+    method: String,
+    path: String,
+    query: String,
+    headers: List<(String, String)>,
+    cookies: List<(String, String)>,
+    body: String
+}
+
+type HttpResponse = {
+    status: Int,
+    headers: List<(String, String)>,
+    body: String
+}
+
+type Context = {
+    req: HttpRequest,
+    // res удаляем, так как ответ мы возвращаем, а не накапливаем в контексте
+    params: Map<String, String>,
+    store: Map<String, JsonLib.Json> // Для передачи данных между middleware и handler (например, user)
+}
+
+// Handler теперь возвращает Result
+// Ошибка типа String по умолчанию
+type Handler = (Context) -> Result<String, HttpResponse>
+
+type Middleware = (Handler) -> Handler

@@ -1137,6 +1137,53 @@ func (c *Compiler) compileLogicalOp(expr *ast.InfixExpression) error {
 
 // Compile pipe operator: x |> f → f(x)
 func (c *Compiler) compilePipeOp(expr *ast.InfixExpression) error {
+	// Save tail position - operands are not in tail position, but the pipe call itself might be
+	wasTail := c.inTailPosition
+	c.inTailPosition = false
+
+	// Check if right side is a call expression: x |> f(a, b) -> f(a, b, x)
+	if call, ok := expr.Right.(*ast.CallExpression); ok {
+		// Compile function
+		if err := c.compileExpression(call.Function); err != nil {
+			return err
+		}
+
+		// Compile existing arguments
+		for _, arg := range call.Arguments {
+			if err := c.compileExpression(arg); err != nil {
+				return err
+			}
+		}
+
+		// Compile pipe input (left side) as the last argument
+		if err := c.compileExpression(expr.Left); err != nil {
+			return err
+		}
+
+		line := expr.Token.Line
+
+		// Restore tail position for the final call
+		if wasTail && c.funcType == TYPE_FUNCTION {
+			c.emit(OP_TAIL_CALL, line)
+		} else {
+			c.emit(OP_CALL, line)
+		}
+
+		// Total args = existing args + 1 (the piped value)
+		argCount := len(call.Arguments) + 1
+		c.currentChunk().Write(byte(argCount), line)
+
+		// Adjust slot count:
+		// We pushed: Function (1) + Args (N) + Input (1) = N + 2
+		// Call consumes N + 2 and pushes Result (1)
+		// Net change: 1 - (N + 2) = -N - 1
+		c.slotCount -= (len(call.Arguments) + 1)
+
+		c.inTailPosition = wasTail
+		return nil
+	}
+
+	// Default behavior: x |> f becomes f(x)
 	// Compile function first (for call)
 	if err := c.compileExpression(expr.Right); err != nil {
 		return err
@@ -1148,10 +1195,18 @@ func (c *Compiler) compilePipeOp(expr *ast.InfixExpression) error {
 	}
 
 	line := expr.Token.Line
-	c.emit(OP_CALL, line)
-	c.currentChunk().Write(byte(1), line) // 1 argument
-	c.slotCount--                         // call consumes fn+arg, pushes result
 
+	// Restore tail position for the final call
+	if wasTail && c.funcType == TYPE_FUNCTION {
+		c.emit(OP_TAIL_CALL, line)
+	} else {
+		c.emit(OP_CALL, line)
+	}
+
+	c.currentChunk().Write(byte(1), line) // 1 argument
+	c.slotCount--                         // call consumes fn+arg (2), pushes result (1). Delta -1
+
+	c.inTailPosition = wasTail
 	return nil
 }
 
@@ -1279,11 +1334,15 @@ func (c *Compiler) compileMatchExpression(expr *ast.MatchExpression) error {
 	line := expr.Token.Line
 
 	// Compile the matched value - clear context as it's the subject, not result
+	// Also clear tail position - the subject is not a tail call even if match is!
+	wasTail := c.inTailPosition
+	c.inTailPosition = false
 	if err := c.withTypeContext("", func() error {
 		return c.compileExpression(expr.Expression)
 	}); err != nil {
 		return err
 	}
+	c.inTailPosition = wasTail
 	// Value is now on stack
 
 	slotsBefore := c.slotCount - 1 // excluding the matched value

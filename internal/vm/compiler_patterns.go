@@ -581,7 +581,6 @@ func (c *Compiler) compileTypePattern(p *ast.TypePattern, line int) (int, error)
 	c.patchJump(typeJump)
 	c.emit(OP_POP, line)
 	c.emit(OP_POP, line)
-	c.slotCount -= 2
 
 	failJump := c.emitJump(OP_JUMP, line)
 	c.patchJump(successJump)

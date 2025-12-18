@@ -1,0 +1,45 @@
+package web
+
+import "kit/ui"
+import "lib/json" as JsonLib
+
+// --- Response Factory ---
+
+fun response(status, body) {
+    { status: status, headers: [], body: body }
+}
+
+fun resText(s) {
+    { status: 200, headers: [("Content-Type", "text/plain")], body: s }
+}
+
+fun resHtml(node) {
+    body = ui.render(node)
+    { status: 200, headers: [("Content-Type", "text/html")], body: body }
+}
+
+fun resJson(data) {
+    body = JsonLib.jsonEncode(JsonLib.jsonFromValue(data))
+    { status: 200, headers: [("Content-Type", "application/json")], body: body }
+}
+
+fun redirect(url) {
+    { status: 302, headers: [("Location", url)], body: "" }
+}
+
+// --- Response Modifiers ---
+
+fun withStatus(code, res: HttpResponse) {
+    { status: code, headers: res.headers, body: res.body }
+}
+
+fun setHeader(key, value, res: HttpResponse) {
+    newHeaders = res.headers ++ [(key, value)]
+    { status: res.status, headers: newHeaders, body: res.body }
+}
+
+fun setCookie(name, value, res: HttpResponse) {
+    // Simple cookie serialization for now
+    cookieStr = sprintf("%s=%s", name, value)
+    setHeader("Set-Cookie", cookieStr, res)
+}

@@ -336,9 +336,32 @@ func initMapPackage() {
 		Args:        []typesystem.Type{pairKV},
 	}
 
+	// For mapFromRecord: Map<String, V>
+	stringType := typesystem.TApp{
+		Constructor: typesystem.TCon{Name: config.ListTypeName},
+		Args:        []typesystem.Type{typesystem.Char},
+	}
+	// Use V as the value type placeholder. This assumes generic/mixed values unify to V.
+	// Since we don't have Any, we rely on V being inferred or treated as generic.
+	mapStringV := typesystem.TApp{
+		Constructor: typesystem.TCon{Name: config.MapTypeName},
+		Args:        []typesystem.Type{stringType, V},
+	}
+	recordType := typesystem.TVar{Name: "R"}
+
 	pkg := &VirtualPackage{
 		Name: "map",
 		Symbols: map[string]typesystem.Type{
+			// mapNew: () -> Map<K, V>
+			"mapNew": typesystem.TFunc{
+				Params:     []typesystem.Type{},
+				ReturnType: mapKV,
+			},
+			// mapFromRecord: (Record) -> Map<String, V>
+			"mapFromRecord": typesystem.TFunc{
+				Params:     []typesystem.Type{recordType},
+				ReturnType: mapStringV,
+			},
 			// mapGet: (Map<K, V>, K) -> Option<V>
 			"mapGet": typesystem.TFunc{
 				Params:     []typesystem.Type{mapKV, K},
@@ -541,9 +564,9 @@ func initBitsPackage() {
 			"bitsGet":   typesystem.TFunc{Params: []typesystem.Type{bitsType, intType}, ReturnType: optionInt},
 
 			// Modification
-			"bitsConcat":  typesystem.TFunc{Params: []typesystem.Type{bitsType, bitsType}, ReturnType: bitsType},
-			"bitsSet":     typesystem.TFunc{Params: []typesystem.Type{bitsType, intType, intType}, ReturnType: bitsType},
-			"bitsPadLeft": typesystem.TFunc{Params: []typesystem.Type{bitsType, intType}, ReturnType: bitsType},
+			"bitsConcat":   typesystem.TFunc{Params: []typesystem.Type{bitsType, bitsType}, ReturnType: bitsType},
+			"bitsSet":      typesystem.TFunc{Params: []typesystem.Type{bitsType, intType, intType}, ReturnType: bitsType},
+			"bitsPadLeft":  typesystem.TFunc{Params: []typesystem.Type{bitsType, intType}, ReturnType: bitsType},
 			"bitsPadRight": typesystem.TFunc{Params: []typesystem.Type{bitsType, intType}, ReturnType: bitsType},
 
 			// Numeric operations
@@ -555,7 +578,6 @@ func initBitsPackage() {
 			"bitsInt":     typesystem.TFunc{Params: []typesystem.Type{stringType, intType, stringType}, ReturnType: specType},
 			"bitsBytes":   typesystem.TFunc{Params: []typesystem.Type{stringType, intType}, ReturnType: specType},
 			"bitsRest":    typesystem.TFunc{Params: []typesystem.Type{stringType}, ReturnType: specType},
-
 		},
 	}
 	RegisterVirtualPackage("lib/bits", pkg)
@@ -966,6 +988,20 @@ func initJsonPackage() {
 
 	pkg := &VirtualPackage{
 		Name: "json",
+		Types: map[string]typesystem.Type{
+			"Json": jsonType,
+		},
+		Constructors: map[string]typesystem.Type{
+			"JNull": jsonType,
+			"JBool": typesystem.TFunc{Params: []typesystem.Type{typesystem.Bool}, ReturnType: jsonType},
+			"JNum":  typesystem.TFunc{Params: []typesystem.Type{typesystem.Float}, ReturnType: jsonType},
+			"JStr":  typesystem.TFunc{Params: []typesystem.Type{stringType}, ReturnType: jsonType},
+			"JArr":  typesystem.TFunc{Params: []typesystem.Type{typesystem.TApp{Constructor: typesystem.TCon{Name: "List"}, Args: []typesystem.Type{jsonType}}}, ReturnType: jsonType},
+			"JObj":  typesystem.TFunc{Params: []typesystem.Type{typesystem.TApp{Constructor: typesystem.TCon{Name: "List"}, Args: []typesystem.Type{typesystem.TTuple{Elements: []typesystem.Type{stringType, jsonType}}}}}, ReturnType: jsonType},
+		},
+		Variants: map[string][]string{
+			"Json": {"JNull", "JBool", "JNum", "JStr", "JArr", "JObj"},
+		},
 		Symbols: map[string]typesystem.Type{
 			// jsonEncode(value) -> String
 			// Encodes any value to JSON string
@@ -1548,6 +1584,9 @@ func initDatePackage() {
 
 	pkg := &VirtualPackage{
 		Name: "date",
+		Types: map[string]typesystem.Type{
+			"Date": dateType,
+		},
 		Symbols: map[string]typesystem.Type{
 			// Creation (dateNew and dateNewTime have optional offset, default = local)
 			"dateNow":           typesystem.TFunc{Params: []typesystem.Type{}, ReturnType: dateType},
@@ -1689,18 +1728,19 @@ func initSqlPackage() {
 	// Option<SqlValue>
 	optionSqlValue := typesystem.TApp{Constructor: typesystem.TCon{Name: config.OptionTypeName}, Args: []typesystem.Type{sqlValueType}}
 
-	// Date type for SqlTime
-	dateType := typesystem.TRecord{
-		Fields: map[string]typesystem.Type{
-			"year":   typesystem.Int,
-			"month":  typesystem.Int,
-			"day":    typesystem.Int,
-			"hour":   typesystem.Int,
-			"minute": typesystem.Int,
-			"second": typesystem.Int,
-			"offset": typesystem.Int,
-		},
+	// Date type for SqlTime - reuse from lib/date
+	var dateType typesystem.Type
+	if datePkg := GetVirtualPackage("lib/date"); datePkg != nil {
+		if t, ok := datePkg.Types["Date"]; ok {
+			dateType = t
+		}
 	}
+
+	if dateType == nil {
+		// Should not happen as lib/date is initialized before lib/sql
+		panic("lib/sql depends on lib/date, but Date type was not found")
+	}
+
 	bytesType := typesystem.TCon{Name: "Bytes"}
 	bigIntType := typesystem.TCon{Name: "BigInt"}
 
@@ -1710,7 +1750,7 @@ func initSqlPackage() {
 			"SqlValue": sqlValueType,
 			"SqlDB":    sqlDBType,
 			"SqlTx":    sqlTxType,
-			"Date":     dateType,
+			// Date is NOT exported here, user must import lib/date
 		},
 		Constructors: map[string]typesystem.Type{
 			"SqlNull":   sqlValueType,

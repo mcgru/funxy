@@ -4,6 +4,8 @@ Records are structural types with named fields.
 
 ## Record Type Definition
 
+You can define a record type using the `type` keyword:
+
 ```rust
 // Named record type
 type Point = { x: Int, y: Int }
@@ -90,6 +92,62 @@ print(updated.y)  // 2 (from base)
 print(base.x)     // 1
 ```
 
+## Argument Shorthand Sugar
+
+Funxy supports a convenient shorthand for record arguments in functions, similar to named parameters.
+
+If you have a function that accepts a record:
+
+```rust
+type Config = { host: String, port: Int }
+
+fun connect(config: Config) {
+    // ...
+}
+```
+
+You can call it passing a record literal:
+
+```rust
+connect({ host: "localhost", port: 8080 })
+```
+
+### Implicit Record Construction
+
+If the **last argument** of a function is expected to be a record, you can pass the fields directly as named arguments without the enclosing braces.
+
+```rust
+// Definition
+fun createUser(name, options: { age: Int, active: Bool }) { ... }
+
+// Call with shorthand
+createUser("Bob", age: 25, active: true)
+
+// Equivalent to:
+createUser("Bob", { age: 25, active: true })
+```
+
+This works particularly well for configuration objects or optional parameters.
+
+**Rules:**
+1. The record argument must be the last one.
+2. You use `key: value` syntax separated by commas.
+3. The keys must match the fields of the expected record type.
+
+Example with UI components:
+
+```rust
+// ui.div takes a list of children and a record of attributes
+fun div(children, attrs: { class: String, id: String }) { ... }
+
+// Usage
+ui.div(
+    [ui.text("Hello")],
+    class: "container",
+    id: "main"
+)
+```
+
 ## Record Destructuring
 
 Records support destructuring to extract fields into variables:
@@ -128,7 +186,7 @@ print(n)  // Alice
 ### Nested Destructuring
 
 ```rust
-data = { 
+data = {
     user: { name: "Bob", role: "admin" },
     count: 42
 }

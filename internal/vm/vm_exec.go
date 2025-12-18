@@ -367,6 +367,10 @@ func (vm *VM) executeOneOp(op Opcode) error {
 			Function: fn,
 			Upvalues: make([]*ObjUpvalue, fn.UpvalueCount),
 		}
+		// Inherit module globals from parent closure (for nested lambdas in module functions)
+		if vm.frame.closure != nil && vm.frame.closure.Globals != nil {
+			closure.Globals = vm.frame.closure.Globals
+		}
 		for i := 0; i < fn.UpvalueCount; i++ {
 			isLocal := vm.readByte()
 			index := int(vm.readByte())

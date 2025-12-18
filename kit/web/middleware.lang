@@ -1,0 +1,61 @@
+package web
+
+import "lib/list" (map, foldl)
+import "lib/tuple" (fst, snd)
+
+// --- Recover Middleware ---
+
+fun recover(next) {
+    fun(ctx) {
+        // В Funxy пока нет try/catch в явном виде для паник рантайма,
+        // но мы можем перехватывать Fail от хендлеров.
+        // Если хендлер возвращает Fail, мы превращаем его в 500 ответ.
+        match next(ctx) {
+            Ok(res) -> Ok(res)
+            Fail(err) -> {
+                // Логируем ошибку (можно добавить зависимость от логгера)
+                // Используем встроенный print или logger если доступен
+                // print("Recovered from error: " ++ show(err)) -- show может быть недоступен
+
+                Ok({
+                    status: 500,
+                    headers: [("Content-Type", "text/plain")],
+                    body: "Internal Server Error"
+                })
+            }
+        }
+    }
+}
+
+// --- CORS Middleware ---
+
+fun cors(next) {
+    // Default permissive CORS
+    fun(ctx) {
+        // Обработка Preflight OPTIONS
+        if ctx.req.method == "OPTIONS" {
+            Ok({
+                status: 204,
+                headers: [
+                    ("Access-Control-Allow-Origin", "*"),
+                    ("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS"),
+                    ("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+                ],
+                body: ""
+            })
+        } else {
+            match next(ctx) {
+                Ok(res) -> {
+                    headers = res.headers ++ [
+                        ("Access-Control-Allow-Origin", "*"),
+                        ("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS"),
+                        ("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+                    ]
+                    Ok({ status: res.status, headers: headers, body: res.body })
+                }
+                Fail(e) -> Fail(e)
+            }
+        }
+    }
+}
+

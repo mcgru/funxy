@@ -1,0 +1,21 @@
+import "./source" as s
+import "lib/test" (assert, assertEquals, testRun)
+
+testAlias = fun() {
+    // Check constructors via alias
+    // Note: In some languages alias.Constructor works.
+    // In Funxy, we expect `s.Con1` to work if Con1 is exported.
+    d1 = s.Con1(10)
+
+    // Check function via alias
+    res = s.identity(5)
+    assertEquals(res, 5, "Qualified function call")
+
+    // Pattern matching with qualified names might be tricky or not supported syntax-wise
+    // usually: match d1 { s.Con1(x) -> ... }
+    // Let's test equality instead if pattern match syntax is uncertain
+    // But checking if s.Con1 constructs the value correctly
+}
+
+testRun("imports alias", testAlias)
+

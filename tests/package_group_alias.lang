@@ -1,4 +1,4 @@
-import "pkggroup" as pkg
+import "./pkggroup" as pkg
 
 print(pkg.double(4))
 print(pkg.triple(4))

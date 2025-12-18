@@ -1,0 +1,320 @@
+import "kit/web"
+import "kit/ui"
+import "lib/test" (*)
+import "lib/list" (find, foldl)
+import "lib/tuple" (fst, snd)
+import "lib/map" (mapGet)
+
+// Helper handlers
+fun staticHandler(ctx) {
+    Ok(web.resText("static"))
+}
+
+fun paramHandler(ctx) {
+    // Check for common param names
+    paramNames = ["id", "name"]
+    found = paramNames |> foldl(fun(acc, name) {
+        match acc {
+            Some(_) -> acc
+            Zero -> mapGet(ctx.params, name)
+        }
+    }, Zero)
+
+    match found {
+        Some(val) -> Ok(web.resText("param:" ++ val))
+        Zero -> Ok(web.resText("param:none"))
+    }
+}
+
+fun wildcardHandler(ctx) {
+    match mapGet(ctx.params, "_wildcard") {
+        Some(val) -> Ok(web.resText("wildcard:" ++ val))
+        Zero -> Ok(web.resText("wildcard:none"))
+    }
+}
+
+fun multiParamHandler(ctx) {
+    // Check for different parameter combinations
+    pid_cid = (mapGet(ctx.params, "pid"), mapGet(ctx.params, "cid"))
+    version_id = (mapGet(ctx.params, "version"), mapGet(ctx.params, "id"))
+
+    match pid_cid {
+        (Some(p), Some(c)) -> Ok(web.resText("post:" ++ p ++ ":comment:" ++ c))
+        _ -> match version_id {
+            (Some(v), Some(i)) -> Ok(web.resText("api:" ++ v ++ ":user:" ++ i))
+            _ -> Ok(web.resText("multi:none"))
+        }
+    }
+}
+
+fun rootHandler(ctx) {
+    Ok(web.resText("root"))
+}
+
+fun usersHandler(ctx) {
+    Ok(web.resText("users"))
+}
+
+testRun("Router Priority: Static vs Param", fun() {
+    // Test that static routes take priority over param routes
+    router = web.newRouter()
+        |> web.get("/users/new", staticHandler)
+        |> web.get("/users/:id", paramHandler)
+
+    // Test static route wins
+    reqStatic = {
+        method: "GET",
+        path: "/users/new",
+        query: "",
+        headers: [],
+        cookies: [],
+        body: ""
+    }
+
+    resStatic = web.handleRequest(router, reqStatic)
+    assertEquals(resStatic.status, 200, "Static route /users/new works")
+    assertEquals(resStatic.body, "static", "Static route takes priority")
+
+    // Test param route still works for other paths
+    reqParam = {
+        method: "GET",
+        path: "/users/123",
+        query: "",
+        headers: [],
+        cookies: [],
+        body: ""
+    }
+
+    resParam = web.handleRequest(router, reqParam)
+    assertEquals(resParam.status, 200, "Param route /users/:id works")
+    assertEquals(resParam.body, "param:123", "Param route captures id")
+})
+
+testRun("Router Priority: Param vs Wildcard", fun() {
+    // Test that param routes take priority over wildcard routes
+    router = web.newRouter()
+        |> web.get("/files/:name", paramHandler)
+        |> web.get("/files/*", wildcardHandler)
+
+    // Test param route wins
+    reqParam = {
+        method: "GET",
+        path: "/files/style.css",
+        query: "",
+        headers: [],
+        cookies: [],
+        body: ""
+    }
+
+    resParam = web.handleRequest(router, reqParam)
+    assertEquals(resParam.status, 200, "Param route /files/:name works")
+    assertEquals(resParam.body, "param:style.css", "Param route takes priority over wildcard")
+
+    // Test wildcard route works for paths without param match
+    reqWildcard = {
+        method: "GET",
+        path: "/files/css/style.css",
+        query: "",
+        headers: [],
+        cookies: [],
+        body: ""
+    }
+
+    resWildcard = web.handleRequest(router, reqWildcard)
+    assertEquals(resWildcard.status, 200, "Wildcard route /files/* works")
+    assertEquals(resWildcard.body, "wildcard:css/style.css", "Wildcard captures remaining path")
+})
+
+testRun("Router Multiple Parameters", fun() {
+    // Test multiple parameters in one route
+    router = web.newRouter()
+        |> web.get("/posts/:pid/comments/:cid", multiParamHandler)
+
+    req = {
+        method: "GET",
+        path: "/posts/42/comments/7",
+        query: "",
+        headers: [],
+        cookies: [],
+        body: ""
+    }
+
+    res = web.handleRequest(router, req)
+    assertEquals(res.status, 200, "Multi-param route works")
+    assertEquals(res.body, "post:42:comment:7", "Both parameters captured correctly")
+})
+
+testRun("Router Parameters in Middle and End", fun() {
+    // Test params at different positions
+    router = web.newRouter()
+        |> web.get("/api/v1/users/:id/profile", paramHandler)
+        |> web.get("/api/:version/users/:id", multiParamHandler)
+
+    // Test param at end
+    req1 = {
+        method: "GET",
+        path: "/api/v1/users/123/profile",
+        query: "",
+        headers: [],
+        cookies: [],
+        body: ""
+    }
+
+    res1 = web.handleRequest(router, req1)
+    assertEquals(res1.status, 200, "Param at end works")
+    assertEquals(res1.body, "param:123", "Param id captured")
+
+    // Test params in middle and end
+    req2 = {
+        method: "GET",
+        path: "/api/42/users/456",
+        query: "",
+        headers: [],
+        cookies: [],
+        body: ""
+    }
+
+    res2 = web.handleRequest(router, req2)
+    assertEquals(res2.status, 200, "Multiple params work")
+    assertEquals(res2.body, "api:42:user:456", "Both version and id captured")
+})
+
+testRun("Router Edge Cases: Root and Trailing Slash", fun() {
+    router = web.newRouter()
+        |> web.get("/", rootHandler)
+        |> web.get("/users", usersHandler)
+
+    // Test root path
+    reqRoot = {
+        method: "GET",
+        path: "/",
+        query: "",
+        headers: [],
+        cookies: [],
+        body: ""
+    }
+
+    resRoot = web.handleRequest(router, reqRoot)
+    assertEquals(resRoot.status, 200, "Root path / works")
+    assertEquals(resRoot.body, "root", "Root handler called")
+
+    // Test /users without trailing slash
+    reqUsers = {
+        method: "GET",
+        path: "/users",
+        query: "",
+        headers: [],
+        cookies: [],
+        body: ""
+    }
+
+    resUsers = web.handleRequest(router, reqUsers)
+    assertEquals(resUsers.status, 200, "Path /users works")
+    assertEquals(resUsers.body, "users", "Users handler called")
+
+    // Test that /users/ (with trailing slash) matches /users (trailing slash ignored)
+    reqUsersSlash = {
+        method: "GET",
+        path: "/users/",
+        query: "",
+        headers: [],
+        cookies: [],
+        body: ""
+    }
+
+    resUsersSlash = web.handleRequest(router, reqUsersSlash)
+    assertEquals(resUsersSlash.status, 200, "Trailing slash /users/ matches /users")
+    assertEquals(resUsersSlash.body, "users", "Trailing slash ignored correctly")
+})
+
+testRun("Router Method Specificity", fun() {
+    // Test that routes are method-specific
+    router = web.newRouter()
+        |> web.get("/api/data", fun(_) { Ok(web.resText("GET")) })
+        |> web.post("/api/data", fun(_) { Ok(web.resText("POST")) })
+
+    // Test GET
+    reqGet = {
+        method: "GET",
+        path: "/api/data",
+        query: "",
+        headers: [],
+        cookies: [],
+        body: ""
+    }
+
+    resGet = web.handleRequest(router, reqGet)
+    assertEquals(resGet.status, 200, "GET method works")
+    assertEquals(resGet.body, "GET", "GET handler called")
+
+    // Test POST
+    reqPost = {
+        method: "POST",
+        path: "/api/data",
+        query: "",
+        headers: [],
+        cookies: [],
+        body: ""
+    }
+
+    resPost = web.handleRequest(router, reqPost)
+    assertEquals(resPost.status, 200, "POST method works")
+    assertEquals(resPost.body, "POST", "POST handler called")
+
+    // Test unmatched method
+    reqPut = {
+        method: "PUT",
+        path: "/api/data",
+        query: "",
+        headers: [],
+        cookies: [],
+        body: ""
+    }
+
+    resPut = web.handleRequest(router, reqPut)
+    assertEquals(resPut.status, 404, "PUT method 404s when not defined")
+})
+
+testRun("Router Complex Priority Chain", fun() {
+    // Test full priority chain: static > param > wildcard
+    router = web.newRouter()
+        |> web.get("/files/text.txt", staticHandler)        // static
+        |> web.get("/files/:name", paramHandler)            // param
+        |> web.get("/files/*", wildcardHandler)             // wildcard
+
+    // Static should win
+    req1 = {
+        method: "GET",
+        path: "/files/text.txt",
+        query: "",
+        headers: [],
+        cookies: [],
+        body: ""
+    }
+    res1 = web.handleRequest(router, req1)
+    assertEquals(res1.body, "static", "Static route wins")
+
+    // Param should win over wildcard
+    req2 = {
+        method: "GET",
+        path: "/files/image.png",
+        query: "",
+        headers: [],
+        cookies: [],
+        body: ""
+    }
+    res2 = web.handleRequest(router, req2)
+    assertEquals(res2.body, "param:image.png", "Param route wins over wildcard")
+
+    // Wildcard catches everything else
+    req3 = {
+        method: "GET",
+        path: "/files/docs/readme.md",
+        query: "",
+        headers: [],
+        cookies: [],
+        body: ""
+    }
+    res3 = web.handleRequest(router, req3)
+    assertEquals(res3.body, "wildcard:docs/readme.md", "Wildcard catches nested paths")
+})

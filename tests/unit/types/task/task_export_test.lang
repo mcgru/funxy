@@ -1,0 +1,15 @@
+import "lib/task" (Task, taskResolve, await)
+import "lib/test" (assert, assertEquals, testRun)
+
+testTaskExport = fun() {
+    // Check explicit import of Task type
+    t = taskResolve(42)
+
+    res = await(t)
+    match res {
+        Ok(val) -> assertEquals(val, 42, "Task result"),
+        Fail(e) -> assert(false, "Task failed: " ++ e)
+    }
+}
+
+testRun("task export", testTaskExport)

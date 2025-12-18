@@ -1,0 +1,66 @@
+import "lib/test" (*)
+
+testRun("Reproduction: Match with function returning record", fun() {
+    // 1. Setup mimic of the failing scenario
+
+    // Function that returns a Result wrapping a Record
+    fun handler() {
+        Ok({ status: 200, body: "Original" })
+    }
+
+    // Function that modifies the record (like setHeader)
+    fun modify(rec) {
+        { status: rec.status, body: "Modified" }
+    }
+
+    // Middleware-like function
+    fun middleware(next) {
+        fun() {
+            match next() {
+                Ok(res) -> {
+                    // This logic mirrors headerMiddleware
+                    mod = modify(res)
+                    Ok(mod)
+                }
+                Fail(e) -> Fail(e)
+            }
+        }
+    }
+
+    // Execute
+    wrapped = middleware(handler)
+    result = wrapped()
+
+    match result {
+        Ok(res) -> assertEquals(res.body, "Modified", "Body should be modified")
+        _ -> assertEquals(1, 0, "Expected Ok result")
+    }
+})
+
+testRun("Reproduction: Match arm returning record literal directly", fun() {
+    res = match Ok(1) {
+        Ok(_) -> { x: 1, y: 2 }
+        _ -> { x: 0, y: 0 }
+    }
+    assertEquals(res.x, 1, "Should return record from match")
+})
+
+testRun("Reproduction: Trailing record sugar in match", fun() {
+    fun returnsRecord(val) {
+        { value: val }
+    }
+
+    // Scenario: function call with named args (sugar for record) inside match
+    // func(a: 1) -> func({a: 1})
+    fun withNamed(opts) {
+        opts.val
+    }
+
+    res = match Ok(10) {
+        Ok(v) -> withNamed(val: v) // Syntax sugar here
+        _ -> 0
+    }
+
+    assertEquals(res, 10, "Should handle named args sugar inside match arm")
+})
+

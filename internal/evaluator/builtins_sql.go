@@ -656,6 +656,32 @@ func SqlBuiltins() map[string]*Builtin {
 	}
 }
 
+// RegisterSqlBuiltins registers SQL types and functions into an environment
+func RegisterSqlBuiltins(env *Environment) {
+	// Types
+	env.Set("SqlValue", &TypeObject{TypeVal: typesystem.TCon{Name: "SqlValue"}})
+	env.Set("SqlDB", &TypeObject{TypeVal: typesystem.TCon{Name: "SqlDB"}})
+	env.Set("SqlTx", &TypeObject{TypeVal: typesystem.TCon{Name: "SqlTx"}})
+
+	// Constructors
+	env.Set("SqlNull", &DataInstance{Name: "SqlNull", Fields: []Object{}, TypeName: "SqlValue"})
+	env.Set("SqlInt", &Constructor{Name: "SqlInt", TypeName: "SqlValue", Arity: 1})
+	env.Set("SqlFloat", &Constructor{Name: "SqlFloat", TypeName: "SqlValue", Arity: 1})
+	env.Set("SqlString", &Constructor{Name: "SqlString", TypeName: "SqlValue", Arity: 1})
+	env.Set("SqlBool", &Constructor{Name: "SqlBool", TypeName: "SqlValue", Arity: 1})
+	env.Set("SqlBytes", &Constructor{Name: "SqlBytes", TypeName: "SqlValue", Arity: 1})
+	env.Set("SqlTime", &Constructor{Name: "SqlTime", TypeName: "SqlValue", Arity: 1})
+	env.Set("SqlBigInt", &Constructor{Name: "SqlBigInt", TypeName: "SqlValue", Arity: 1})
+
+	// Functions
+	builtins := SqlBuiltins()
+	SetSqlBuiltinTypes(builtins)
+	for name, fn := range builtins {
+		env.Set(name, fn)
+	}
+}
+
+
 // SetSqlBuiltinTypes sets TypeInfo for SQL builtins
 func SetSqlBuiltinTypes(builtins map[string]*Builtin) {
 	stringType := typesystem.TApp{Constructor: typesystem.TCon{Name: "List"}, Args: []typesystem.Type{typesystem.Char}}

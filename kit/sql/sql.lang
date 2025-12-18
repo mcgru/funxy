@@ -1,0 +1,39 @@
+package sql (*)
+
+import "lib/sql" (sqlQuery, sqlQueryRow, SqlValue)
+import "lib/list" (map)
+
+// --- ORM-like Helpers ---
+
+trait Model<T> {
+    fun tableName(val: T) -> String
+    fun toRow(val: T) -> Map<String, SqlValue>
+}
+
+// Helper to query all rows and map them
+fun findAll(db, table, mapper) {
+    q = "SELECT * FROM " ++ table
+    match sqlQuery(db, q, []) {
+        Ok(rows) -> Ok(map(mapper, rows))
+        Fail(e) -> Fail(e)
+    }
+}
+
+fun findById(db, table, key, mapper) {
+    q = "SELECT * FROM " ++ table ++ " WHERE id = $1"
+    match sqlQueryRow(db, q, [key]) {
+        Ok(Some(row)) -> Ok(Some(mapper(row)))
+        Ok(Zero) -> Ok(Zero)
+        Fail(e) -> Fail(e)
+    }
+}
+
+fun insert<T: Model>(db, model: T) {
+    table = tableName(model)
+    row = toRow(model)
+
+    // Generate INSERT query
+    // This requires dynamic query building which is complex without further map helpers
+    // Placeholder implementation
+    Ok(0)
+}

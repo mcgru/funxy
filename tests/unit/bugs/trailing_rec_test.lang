@@ -1,0 +1,11 @@
+import "lib/test" (testRun, assertEquals)
+
+fun response(status, body) {
+    { status: status, headers: [], body: body }
+}
+
+testRun("Trailing Record", fun() {
+    assertEquals(response(200, "").status, 200, "Response status should be 200")
+    assertEquals(response(0, "").headers, [], "Response headers should be empty")
+    assertEquals(response(0, "body").body, "body", "Response body should be 'body'")
+})

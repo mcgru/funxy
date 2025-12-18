@@ -1,0 +1,27 @@
+import "./source" (*)
+import "lib/test" (assert, assertEquals, testRun)
+
+testWildcard = fun() {
+    // Check constructors
+    d1 = Con1(10)
+
+    // Check types
+    c: Config = { id: 1, enabled: true }
+
+    // Check aliases
+    myId: ID = 123
+
+    // Check functions
+    res = identity(10)
+
+    // Check pattern matching
+    val = match d1 {
+        Con1(x) -> x,
+        _ -> 0
+    }
+
+    assertEquals(val, 10, "Wildcard pattern match")
+}
+
+testRun("imports wildcard", testWildcard)
+

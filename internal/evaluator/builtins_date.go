@@ -55,6 +55,30 @@ func DateBuiltins() map[string]*Builtin {
 	}
 }
 
+// RegisterDateBuiltins registers Date types and functions into an environment
+func RegisterDateBuiltins(env *Environment) {
+	// Date = { year: Int, month: Int, day: Int, hour: Int, minute: Int, second: Int, offset: Int }
+	dateType := typesystem.TRecord{
+		Fields: map[string]typesystem.Type{
+			"year":   typesystem.Int,
+			"month":  typesystem.Int,
+			"day":    typesystem.Int,
+			"hour":   typesystem.Int,
+			"minute": typesystem.Int,
+			"second": typesystem.Int,
+			"offset": typesystem.Int,
+		},
+	}
+	env.Set("Date", &TypeObject{TypeVal: dateType})
+
+	// Functions
+	builtins := DateBuiltins()
+	SetDateBuiltinTypes(builtins)
+	for name, fn := range builtins {
+		env.Set(name, fn)
+	}
+}
+
 // Date record type: { year, month, day, hour, minute, second, offset }
 // offset is in minutes from UTC (e.g., 180 = UTC+3, -300 = UTC-5)
 func makeDateWithOffset(t time.Time, offsetMinutes int64) *RecordInstance {

@@ -1,0 +1,20 @@
+package test_shapes_wildcard
+
+import "./shapes" (*)
+import "lib/test" (assert, assertEquals, testRun)
+
+testWildcard = fun() {
+    c = makeCircle(10)
+    assertEquals(c, Circle(10), "makeCircle")
+
+    // Check aliases
+    r: Radius = 10
+    assertEquals(r, 10, "Radius alias")
+
+    // Check types
+    p: Shape = Point
+    assert(p == Point, "Shape type check")
+}
+
+testRun("wildcard import", testWildcard)
+
